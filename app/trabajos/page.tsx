@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BriefcaseBusiness, MapPin, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Protected } from "@/components/Protected";
+import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 
@@ -40,6 +41,7 @@ export default function JobsPage() {
 
   return (
     <Protected>
+      <RoleGuard allowedRoles={["professional", "admin"]}>
       <main className="dashboardPage">
         <section className="dashboardHero">
           <div><p className="kicker light">PANEL PROFESIONAL</p><h1>Trabajos disponibles</h1><p>Acepta solicitudes publicadas y administra las asignadas.</p></div>
@@ -69,6 +71,7 @@ export default function JobsPage() {
           )}
         </section>
       </main>
+      </RoleGuard>
     </Protected>
   );
 }

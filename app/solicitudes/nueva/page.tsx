@@ -1,6 +1,7 @@
 "use client";
 
 import { Protected } from "@/components/Protected";
+import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle, ArrowRight, Sparkles } from "lucide-react";
@@ -50,6 +51,7 @@ export default function NewRequestPage() {
 
   return (
     <Protected>
+      <RoleGuard allowedRoles={["client", "admin"]}>
       <main className="simplePage">
         <section className="formPageCard">
           <div className="eyebrow"><Sparkles size={16} /> Solicitud real</div>
@@ -69,6 +71,7 @@ export default function NewRequestPage() {
           </form>
         </section>
       </main>
+      </RoleGuard>
     </Protected>
   );
 }
