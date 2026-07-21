@@ -2,31 +2,37 @@
 
 import { useAuth } from "@/components/AuthProvider";
 import { roleErrorMessage } from "@/lib/auth/roles";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export function Protected({ children }: { children: React.ReactNode }) {
-  const { user, profile, profileError, loading } = useAuth();
+  const { user, profile, profileError, loading, signOut } = useAuth();
   const router = useRouter();
+  const signingOut = useRef(false);
+  const profilePending = !!user && !profile?.role && profileError !== "perfil-incompleto";
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || profilePending) return;
 
     if (!user) {
       router.replace("/login");
       return;
     }
 
-    if (profileError === "perfil-incompleto" || (user && !profile?.role)) {
+    if (profileError === "perfil-incompleto" || !profile?.role) {
+      if (signingOut.current) return;
+      signingOut.current = true;
       void (async () => {
-        await supabase.auth.signOut();
+        await signOut();
         router.replace("/login?error=perfil-incompleto");
       })();
     }
-  }, [loading, profile, profileError, router, user]);
+  }, [loading, profile, profileError, profilePending, router, signOut, user]);
 
-  if (loading) return <div className="centerState">Cargando ZOVIT…</div>;
+  if (loading || profilePending) {
+    return <div className="centerState">Cargando ZOVIT…</div>;
+  }
+
   if (!user) return null;
 
   if (profileError === "perfil-incompleto" || !profile?.role) {

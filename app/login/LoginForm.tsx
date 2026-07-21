@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { AlertCircle, ArrowRight, LockKeyhole, Mail } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
-import { roleErrorMessage } from "@/lib/auth/roles";
+import { useAuth } from "@/components/AuthProvider";
+import { canAccessRoute, isUserRole, roleErrorMessage } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, profile, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -21,6 +23,14 @@ function LoginForm() {
       setMessage(roleErrorMessage(errorCode));
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (loading || !user || !profile?.role) return;
+
+    const nextPath = searchParams.get("next") || "/panel";
+    const destination = canAccessRoute(nextPath, profile.role) ? nextPath : "/panel";
+    router.replace(destination);
+  }, [loading, profile, router, searchParams, user]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -37,8 +47,32 @@ function LoginForm() {
       return;
     }
 
+    const {
+      data: { user: signedInUser },
+    } = await supabase.auth.getUser();
+
+    if (!signedInUser) {
+      setMessage("No fue posible validar la sesión. Intenta nuevamente.");
+      setBusy(false);
+      return;
+    }
+
+    const { data: signedInProfile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", signedInUser.id)
+      .maybeSingle();
+
+    if (profileError || !isUserRole(signedInProfile?.role)) {
+      await supabase.auth.signOut();
+      setMessage(roleErrorMessage("perfil-incompleto"));
+      setBusy(false);
+      return;
+    }
+
     const nextPath = searchParams.get("next") || "/panel";
-    router.push(nextPath);
+    const destination = canAccessRoute(nextPath, signedInProfile.role) ? nextPath : "/panel";
+    router.push(destination);
     router.refresh();
   }
 
@@ -52,6 +86,14 @@ function LoginForm() {
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
     setMessage(error ? error.message : "Te enviamos un correo para recuperar tu contraseña.");
+  }
+
+  if (loading) {
+    return <div className="centerState">Cargando ZOVIT…</div>;
+  }
+
+  if (user && profile?.role) {
+    return <div className="centerState">Redirigiendo…</div>;
   }
 
   return (

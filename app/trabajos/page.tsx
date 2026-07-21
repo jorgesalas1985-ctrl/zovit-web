@@ -11,13 +11,15 @@ import { supabase } from "@/lib/supabase";
 type Job = { id:string; category:string; description:string; address:string; status:string; created_at:string; professional_id:string|null };
 
 export default function JobsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
+  const canViewJobs = profile?.role === "professional" || profile?.role === "admin";
+
   const loadJobs = useCallback(async () => {
-    if (!user) return;
+    if (!user || !canViewJobs) return;
     setLoading(true);
     const { data, error } = await supabase
       .from("solicitudes_de_servicio")
@@ -27,9 +29,15 @@ export default function JobsPage() {
     setJobs((data ?? []) as Job[]);
     setMessage(error ? "No fue posible cargar los trabajos. Ejecuta primero el SQL de Fase 1 en Supabase." : "");
     setLoading(false);
-  }, [user]);
+  }, [canViewJobs, user]);
 
-  useEffect(() => { void loadJobs(); }, [loadJobs]);
+  useEffect(() => {
+    if (!canViewJobs) {
+      setLoading(false);
+      return;
+    }
+    void loadJobs();
+  }, [canViewJobs, loadJobs]);
 
   async function accept(jobId: string) {
     if (!user) return;

@@ -5,6 +5,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle, ArrowLeft, Camera, CheckCircle2, MapPin, MessageCircle, Send, Upload } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
@@ -23,8 +24,8 @@ const nextStatus: Record<string,string> = { aceptada:"en_camino", en_camino:"en_
 
 export default function RequestDetailPage() {
   const { id } = useParams<{id:string}>();
-  const { user } = useAuth();
-  const [profileRole, setProfileRole] = useState("client");
+  const { user, profile } = useAuth();
+  const profileRole = profile?.role ?? "client";
   const [request, setRequest] = useState<RequestRow|null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -37,13 +38,11 @@ export default function RequestDetailPage() {
   const load = useCallback(async () => {
     if (!user || !id) return;
     setLoading(true); setError("");
-    const [profileResult, requestResult, messageResult, photoResult] = await Promise.all([
-      supabase.from("profiles").select("role").eq("id", user.id).single(),
+    const [requestResult, messageResult, photoResult] = await Promise.all([
       supabase.from("solicitudes_de_servicio").select("*").eq("id", id).single(),
       supabase.from("request_messages").select("id,sender_id,body,created_at").eq("request_id", id).order("created_at"),
       supabase.from("request_photos").select("id,uploaded_by,photo_type,storage_path,created_at").eq("request_id", id).order("created_at")
     ]);
-    setProfileRole(profileResult.data?.role ?? "client");
     if (requestResult.error || !requestResult.data) setError("No existe la solicitud o no tienes permiso para verla.");
     else setRequest(requestResult.data as RequestRow);
     setMessages((messageResult.data ?? []) as Message[]);
@@ -144,7 +143,7 @@ export default function RequestDetailPage() {
                             {canInteract && <label className="uploadButton"><Upload size={16}/> Subir foto<input type="file" accept="image/*" disabled={busy} onChange={(e) => { const f=e.target.files?.[0]; if(f) void uploadPhoto(f,type); e.currentTarget.value=""; }}/></label>}
                           </div>
                           <div className="photoGrid">
-                            {photos.filter((p) => p.photo_type === type).length === 0 ? <div className="photoPlaceholder">Sin fotografías</div> : photos.filter((p) => p.photo_type === type).map((photo) => photo.url ? <img src={photo.url} alt={type === "before" ? "Antes del trabajo" : "Después del trabajo"} key={photo.id}/> : null)}
+                            {photos.filter((p) => p.photo_type === type).length === 0 ? <div className="photoPlaceholder">Sin fotografías</div> : photos.filter((p) => p.photo_type === type).map((photo) => photo.url ? <Image src={photo.url} alt={type === "before" ? "Antes del trabajo" : "Después del trabajo"} width={320} height={240} unoptimized key={photo.id}/> : null)}
                           </div>
                         </div>
                       ))}

@@ -177,3 +177,8 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   alter publication supabase_realtime add table public.solicitudes_de_servicio;
 exception when duplicate_object then null; end $$;
+
+grant select, insert on public.request_messages to authenticated;
+grant select, insert on public.request_photos to authenticated;
+grant select on public.request_status_history to authenticated;
+grant select, update on public.notifications to authenticated;

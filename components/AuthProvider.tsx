@@ -70,16 +70,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function initAuth() {
       setLoading(true);
       const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
 
       if (!active) return;
 
-      setSession(currentSession);
-
-      if (currentSession?.user) {
-        await loadProfile(currentSession.user.id);
+      if (currentUser) {
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
+        setSession(currentSession);
+        await loadProfile(currentUser.id);
       } else {
+        setSession(null);
         setProfile(null);
         setProfileError(null);
       }
@@ -90,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void initAuth();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      setLoading(true);
       setSession(nextSession);
 
       if (nextSession?.user) {

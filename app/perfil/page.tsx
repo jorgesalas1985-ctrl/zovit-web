@@ -7,7 +7,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Save } from "lucide-react";
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [form, setForm] = useState({
     first_name: "", last_name: "", rut: "", phone: "", address: "", commune: ""
   });
@@ -32,7 +32,12 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!user) return;
     const { error } = await supabase.from("profiles").update({ ...form, updated_at: new Date().toISOString() }).eq("id", user.id);
-    setMessage(error ? error.message : "Perfil actualizado correctamente.");
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    await refreshProfile();
+    setMessage("Perfil actualizado correctamente.");
   }
 
   return (

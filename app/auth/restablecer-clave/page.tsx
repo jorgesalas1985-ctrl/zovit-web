@@ -16,8 +16,8 @@ export default function ResetPasswordPage() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) {
         router.replace("/login?error=auth-callback");
         return;
       }

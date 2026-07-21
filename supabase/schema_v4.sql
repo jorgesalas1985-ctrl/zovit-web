@@ -121,3 +121,9 @@ drop policy if exists "solicitudes_delete_owner" on public.solicitudes_de_servic
 create policy "solicitudes_delete_owner"
 on public.solicitudes_de_servicio for delete to authenticated
 using ((select auth.uid()) = client_id);
+
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on public.profiles to authenticated;
+grant select, insert, update on public.solicitudes_de_servicio to authenticated;
+grant select on public.profiles to anon;
+grant select on public.solicitudes_de_servicio to anon;
