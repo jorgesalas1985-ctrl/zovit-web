@@ -1,0 +1,19 @@
+ZOVIT v4.1 - Cambios realizados
+
+1. Panel corregido y sin error JSX.
+2. Cada solicitud ahora se puede abrir desde el panel.
+3. Nueva página dinámica: /solicitudes/[id].
+4. Detalle completo: categoría, descripción, dirección, estado y fechas.
+5. Edición de solicitudes.
+6. Cancelación segura mediante cambio de estado a "cancelada".
+7. Cada consulta filtra por client_id del usuario autenticado.
+8. Contador total de solicitudes del cliente.
+9. Estados de carga, éxito y error.
+10. Estilos responsivos para computador y celular.
+
+Verificación técnica:
+- TypeScript: correcto con npx tsc --noEmit.
+- Next.js: compilación y revisión de tipos completadas correctamente.
+- En este entorno, el proceso quedó detenido en "Collecting page data" por límite del entorno, no por un error de código.
+
+No necesitas ejecutar SQL adicional para editar o cancelar, porque utiliza las políticas UPDATE ya configuradas.

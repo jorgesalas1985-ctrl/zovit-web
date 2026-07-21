@@ -1,0 +1,10 @@
+ZOVIT v4.0 - SIGUIENTE PASO
+
+NO BORRES EL CÓDIGO NI LAS TABLAS DE SUPABASE.
+
+1. Abre Supabase > Editor SQL.
+2. Pulsa + para crear una consulta nueva.
+3. Abre la carpeta del proyecto y entra a supabase/schema_v4.sql.
+4. Copia todo el archivo, pégalo en Supabase y pulsa Correr.
+5. Cuando aparezca “Éxito”, la base quedará compatible con ZOVIT v4.0.
+6. Después subiremos esta carpeta a GitHub/Vercel.

@@ -1,0 +1,34 @@
+ZOVIT v5.0 - FASE 1 COMPLETA
+
+INCLUYE
+- Asignación de profesionales.
+- Panel de trabajos disponibles para profesionales.
+- Flujo de estados: publicada, aceptada, en camino, en ejecución, finalizada y cancelada.
+- Chat en tiempo real entre cliente y profesional.
+- Fotografías de antes y después.
+- Campana de notificaciones en tiempo real.
+- Seguridad RLS para clientes, profesionales y administradores.
+
+PASO OBLIGATORIO EN SUPABASE
+1. Entra a tu proyecto de Supabase.
+2. Abre SQL Editor.
+3. Presiona New query.
+4. Abre el archivo supabase/FASE_1_COMPLETA.sql de este proyecto.
+5. Copia todo el contenido, pégalo en SQL Editor y presiona Run.
+6. Debe aparecer Success. Esto crea tablas, funciones, políticas, almacenamiento y Realtime.
+
+ABRIR EL PROYECTO
+1. Descomprime el ZIP.
+2. Abre la carpeta en Visual Studio Code.
+3. Abre Terminal > New Terminal.
+4. Ejecuta: npm install
+5. Ejecuta: npm run dev
+6. Abre http://localhost:3000
+
+PRUEBA RECOMENDADA
+- Cuenta cliente: crea una solicitud.
+- Cuenta profesional: entra a /trabajos y acepta la solicitud.
+- Abre la solicitud desde ambas cuentas para probar chat, estados y fotos.
+
+IMPORTANTE
+Para que una cuenta vea el panel profesional, su campo role en public.profiles debe ser professional.

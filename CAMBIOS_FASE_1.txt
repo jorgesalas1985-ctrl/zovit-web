@@ -1,0 +1,12 @@
+ARCHIVOS PRINCIPALES AGREGADOS O MODIFICADOS
+- app/solicitudes/[id]/page.tsx: espacio completo del servicio, estados, chat y fotos.
+- app/trabajos/page.tsx: solicitudes públicas y trabajos asignados.
+- components/NotificationBell.tsx: notificaciones en tiempo real.
+- components/Header.tsx: campana de notificaciones.
+- app/panel/page.tsx: acceso diferenciado para profesionales.
+- app/globals.css: estilos responsive de Fase 1.
+- supabase/FASE_1_COMPLETA.sql: base de datos, RLS, funciones, Storage y Realtime.
+
+VALIDACIÓN
+- TypeScript: aprobado con npx tsc --noEmit.
+- Next.js: compilación de código aprobada; el entorno de prueba se detuvo durante la recolección de páginas, no por errores de TypeScript o compilación.
