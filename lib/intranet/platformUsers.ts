@@ -53,32 +53,66 @@ export async function listPlatformUsers(): Promise<PlatformUserRecord[]> {
       const { data: authData, error: authError } = await admin.auth.admin.getUserById(profile.id);
       if (authError) throw authError;
 
-      const role = profile.role as UserRole;
-      const intranetRole = isIntranetRole(profile.intranet_role) ? profile.intranet_role : null;
-
-      return {
-        id: profile.id,
-        email: authData.user?.email ?? "",
-        firstName: profile.first_name,
-        lastName: profile.last_name,
-        rut: profile.rut,
-        phone: profile.phone,
-        address: profile.address,
-        role,
-        intranetRole,
-        identityStatus: (profile.identity_status as IdentityStatus) ?? "none",
-        identityVerified: profile.identity_verified ?? false,
-        createdAt: profile.created_at,
-      } satisfies PlatformUserRecord;
+      return mapProfileRow(profile, authData.user?.email ?? "");
     })
   );
 
   return rows;
 }
 
+function mapProfileRow(
+  profile: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    rut: string | null;
+    phone: string | null;
+    address: string | null;
+    role: string;
+    intranet_role: string | null;
+    identity_status: string | null;
+    identity_verified: boolean | null;
+    created_at: string;
+  },
+  email: string
+): PlatformUserRecord {
+  const role = profile.role as UserRole;
+  const intranetRole = isIntranetRole(profile.intranet_role) ? profile.intranet_role : null;
+
+  return {
+    id: profile.id,
+    email,
+    firstName: profile.first_name,
+    lastName: profile.last_name,
+    rut: profile.rut,
+    phone: profile.phone,
+    address: profile.address,
+    role,
+    intranetRole,
+    identityStatus: (profile.identity_status as IdentityStatus) ?? "none",
+    identityVerified: profile.identity_verified ?? false,
+    createdAt: profile.created_at,
+  };
+}
+
 export async function getPlatformUser(userId: string): Promise<PlatformUserRecord | null> {
-  const users = await listPlatformUsers();
-  return users.find((user) => user.id === userId) ?? null;
+  const admin = createAdminClient();
+
+  const { data: profile, error } = await admin
+    .from("profiles")
+    .select(
+      "id, first_name, last_name, rut, phone, address, role, intranet_role, identity_status, identity_verified, created_at"
+    )
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!profile) return null;
+
+  const { data: authData, error: authError } = await admin.auth.admin.getUserById(userId);
+  if (authError) throw authError;
+
+  return mapProfileRow(profile, authData.user?.email ?? "");
 }
 
 export async function updatePlatformUser(userId: string, input: UpdatePlatformUserInput) {
@@ -115,6 +149,36 @@ export async function updatePlatformUser(userId: string, input: UpdatePlatformUs
   }
 }
 
+export function getPlatformUserErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = String((error as { message: unknown }).message).trim();
+    if (message) return message;
+  }
+
+  return "Error inesperado.";
+}
+
+async function clearPlatformUserReferences(userId: string) {
+  const admin = createAdminClient();
+
+  const cleanups = [
+    admin.from("identity_documents").update({ reviewed_by: null }).eq("reviewed_by", userId),
+    admin.from("intranet_payrolls").update({ created_by: null }).eq("created_by", userId),
+    admin.from("solicitudes_de_servicio").update({ professional_id: null }).eq("professional_id", userId),
+    admin.from("payment_events").update({ actor_id: null }).eq("actor_id", userId),
+    admin.from("request_status_history").update({ changed_by: null }).eq("changed_by", userId),
+  ];
+
+  for (const cleanup of cleanups) {
+    const { error } = await cleanup;
+    if (error) throw error;
+  }
+}
+
 export async function deletePlatformUser(userId: string) {
   const admin = createAdminClient();
   const current = await getPlatformUser(userId);
@@ -123,6 +187,8 @@ export async function deletePlatformUser(userId: string) {
   if (!canDeletePlatformUser(current)) {
     throw new Error("El super administrador no puede eliminarse.");
   }
+
+  await clearPlatformUserReferences(userId);
 
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) throw error;

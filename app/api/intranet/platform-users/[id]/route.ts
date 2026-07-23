@@ -1,7 +1,7 @@
 import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
 import { USER_ROLES, type UserRole } from "@/lib/auth/roles";
 import { requireIntranetManager } from "@/lib/intranet/apiAuth";
-import { deletePlatformUser, getPlatformUser, updatePlatformUser } from "@/lib/intranet/platformUsers";
+import { deletePlatformUser, getPlatformUser, getPlatformUserErrorMessage, updatePlatformUser } from "@/lib/intranet/platformUsers";
 import { NextResponse } from "next/server";
 
 type UpdateBody = {
@@ -65,7 +65,7 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
+    const message = getPlatformUserErrorMessage(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -89,7 +89,7 @@ export async function DELETE(
     await deletePlatformUser(id);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
+    const message = getPlatformUserErrorMessage(error);
     const status = message.includes("super administrador") ? 403 : 500;
     return NextResponse.json({ error: message }, { status });
   }

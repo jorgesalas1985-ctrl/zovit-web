@@ -15,6 +15,27 @@ import { IDENTITY_STATUS_LABELS, type IdentityStatus } from "@/lib/verification/
 import { AlertCircle, CheckCircle2, Loader2, PencilLine, ShieldCheck, Trash2 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
+const DEFAULT_LOAD_ERROR = "No fue posible cargar los usuarios.";
+const DEFAULT_SAVE_ERROR = "No fue posible guardar los cambios.";
+const DEFAULT_DELETE_ERROR = "No fue posible eliminar el usuario.";
+const DEFAULT_VERIFY_ERROR = "No fue posible completar la verificación.";
+
+function readApiError(data: unknown, fallback: string): string {
+  if (typeof data === "object" && data !== null && "error" in data) {
+    const message = String((data as { error?: unknown }).error ?? "").trim();
+    if (message) return message;
+  }
+
+  return fallback;
+}
+
+async function readApiResponse(response: Response): Promise<{ data: unknown; parseError: string | null }> {
+  try {
+    return { data: await response.json(), parseError: null };
+  } catch {
+    return { data: null, parseError: "La respuesta del servidor no es válida." };
+  }
+}
 const ROLE_LABELS: Record<UserRole, string> = {
   client: "Cliente",
   professional: "Profesional",
@@ -69,16 +90,23 @@ export function PlatformUsersManager() {
     setError("");
 
     const response = await fetch("/api/intranet/platform-users");
-    const data = await response.json();
+    const { data, parseError } = await readApiResponse(response);
 
-    if (!response.ok) {
-      setError(data.error ?? "No fue posible cargar los usuarios.");
+    if (parseError) {
+      setError(parseError);
       setUsers([]);
       setLoading(false);
       return;
     }
 
-    setUsers(data.users ?? []);
+    if (!response.ok) {
+      setError(readApiError(data, DEFAULT_LOAD_ERROR));
+      setUsers([]);
+      setLoading(false);
+      return;
+    }
+
+    setUsers((data as { users?: PlatformUserRecord[] }).users ?? []);
     setLoading(false);
   }, []);
 
@@ -123,11 +151,16 @@ export function PlatformUsersManager() {
       }),
     });
 
-    const data = await response.json();
+    const { data, parseError } = await readApiResponse(response);
     setBusyId("");
 
+    if (parseError) {
+      setError(parseError);
+      return;
+    }
+
     if (!response.ok) {
-      setError(data.error ?? "No fue posible guardar los cambios.");
+      setError(readApiError(data, DEFAULT_SAVE_ERROR));
       return;
     }
 
@@ -145,11 +178,16 @@ export function PlatformUsersManager() {
     setError("");
 
     const response = await fetch(`/api/intranet/platform-users/${user.id}`, { method: "DELETE" });
-    const data = await response.json();
+    const { data, parseError } = await readApiResponse(response);
     setBusyId("");
 
+    if (parseError) {
+      setError(parseError);
+      return;
+    }
+
     if (!response.ok) {
-      setError(data.error ?? "No fue posible eliminar el usuario.");
+      setError(readApiError(data, DEFAULT_DELETE_ERROR));
       return;
     }
 
@@ -176,11 +214,16 @@ export function PlatformUsersManager() {
       body: JSON.stringify({ action, reason }),
     });
 
-    const data = await response.json();
+    const { data, parseError } = await readApiResponse(response);
     setBusyId("");
 
+    if (parseError) {
+      setError(parseError);
+      return;
+    }
+
     if (!response.ok) {
-      setError(data.error ?? "No fue posible completar la verificación.");
+      setError(readApiError(data, DEFAULT_VERIFY_ERROR));
       return;
     }
 
