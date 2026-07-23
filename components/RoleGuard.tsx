@@ -1,16 +1,18 @@
 "use client";
 
+import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { useAuth } from "@/components/AuthProvider";
-import { roleErrorMessage, type UserRole } from "@/lib/auth/roles";
+import { resolveRoleMode, roleErrorMessage, type UserRole } from "@/lib/auth/roles";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 type RoleGuardProps = {
   allowedRoles: UserRole[];
   children: React.ReactNode;
+  showRoleBanner?: boolean;
 };
 
-export function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
+export function RoleGuard({ allowedRoles, children, showRoleBanner = true }: RoleGuardProps) {
   const { profile, loading } = useAuth();
   const router = useRouter();
 
@@ -34,5 +36,12 @@ export function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
     return <div className="centerState">{roleErrorMessage("sin-permiso")}</div>;
   }
 
-  return <>{children}</>;
+  const roleMode = showRoleBanner ? resolveRoleMode(allowedRoles, profile.role) : null;
+
+  return (
+    <>
+      {roleMode && <RoleModeBanner role={roleMode} variant="page" />}
+      {children}
+    </>
+  );
 }

@@ -5,6 +5,7 @@ import { BriefcaseBusiness, MapPin, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Protected } from "@/components/Protected";
+import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
@@ -58,8 +59,9 @@ export default function JobsPage() {
 
   return (
     <Protected>
-      <RoleGuard allowedRoles={["professional", "admin"]}>
+      <RoleGuard allowedRoles={["professional", "admin"]} showRoleBanner={false}>
       <main className="dashboardPage">
+        <RoleModeBanner role="professional" />
         <section className="dashboardHero">
           <div><p className="kicker light">PANEL PROFESIONAL</p><h1>Trabajos disponibles</h1><p>Acepta solicitudes publicadas y administra las asignadas.</p></div>
           <button className="whiteButton" onClick={() => void loadJobs()} disabled={loading}><RefreshCw size={18}/> Actualizar</button>

@@ -1,3 +1,4 @@
+import { getRedirectOrigin } from "@/lib/auth/redirects";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -12,21 +13,29 @@ function getSupabaseEnv() {
   return { url, key };
 }
 
-function resolveNextPath(next: string | null): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+function resolveNextPath(next: string | null, type: string | null): string {
+  if (next && next.startsWith("/") && !next.startsWith("//")) {
+    return next;
+  }
+
+  if (type === "recovery" || type === "invite") {
     return "/auth/restablecer-clave";
   }
 
-  return next;
+  return "/panel";
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const requestUrl = new URL(request.url);
+  const { searchParams } = requestUrl;
+  const origin = getRedirectOrigin(requestUrl.origin);
   const code = searchParams.get("code");
-  const next = resolveNextPath(searchParams.get("next"));
+  const next = resolveNextPath(searchParams.get("next"), searchParams.get("type"));
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=callback-recuperacion`);
+    const errorCode =
+      searchParams.get("type") === "recovery" ? "callback-recuperacion" : "auth-callback";
+    return NextResponse.redirect(`${origin}/login?error=${errorCode}`);
   }
 
   const { url, key } = getSupabaseEnv();
@@ -48,7 +57,8 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    return NextResponse.redirect(`${origin}/login?error=callback-recuperacion`);
+    const errorCode = searchParams.get("type") === "recovery" ? "callback-recuperacion" : "auth-callback";
+    return NextResponse.redirect(`${origin}/login?error=${errorCode}`);
   }
 
   return response;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AlertCircle, ArrowRight, BriefcaseBusiness, UserRound } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { getAuthCallbackUrl } from "@/lib/auth/redirects";
 import { supabase } from "@/lib/supabase";
 
 export default function RegisterPage() {
@@ -21,7 +22,7 @@ export default function RegisterPage() {
       email: form.email,
       password: form.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/panel`,
+        emailRedirectTo: getAuthCallbackUrl("/panel"),
         data: {
           first_name: form.firstName,
           last_name: form.lastName,

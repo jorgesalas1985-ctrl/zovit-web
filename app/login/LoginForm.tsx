@@ -5,6 +5,7 @@ import { AlertCircle, ArrowRight, LockKeyhole, Mail } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { resolvePostLoginPath, roleErrorMessage } from "@/lib/auth/roles";
+import { getAuthCallbackUrl } from "@/lib/auth/redirects";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -62,7 +63,7 @@ function LoginForm() {
       return;
     }
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=/auth/restablecer-clave`;
+    const redirectTo = getAuthCallbackUrl("/auth/restablecer-clave");
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
     setMessage(error ? error.message : "Te enviamos un correo para recuperar tu contraseña.");

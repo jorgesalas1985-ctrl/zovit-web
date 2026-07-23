@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Share2 } from "lucide-react";
 import { Protected } from "@/components/Protected";
+import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { RoleGuard } from "@/components/RoleGuard";
 import { ExperienceBadge, ExperienceTimeline, ProfessionalStatsGrid, RatingsList } from "@/components/experience/ExperienceSection";
 import { useAuth } from "@/components/AuthProvider";
@@ -62,8 +63,9 @@ export default function ExperiencePage() {
 
   return (
     <Protected>
-      <RoleGuard allowedRoles={["professional", "admin"]}>
+      <RoleGuard allowedRoles={["professional", "admin"]} showRoleBanner={false}>
         <main className="dashboardPage">
+          <RoleModeBanner role="professional" />
           <section className="dashboardHero">
             <div>
               <p className="kicker light">CARRERA ZOVIT</p>

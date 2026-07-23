@@ -1,13 +1,14 @@
 "use client";
 
 import { Protected } from "@/components/Protected";
+import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { FormEvent, useEffect, useState } from "react";
 import { Save } from "lucide-react";
 
 export default function ProfilePage() {
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [form, setForm] = useState({
     first_name: "", last_name: "", rut: "", phone: "", address: "", commune: ""
   });
@@ -40,8 +41,14 @@ export default function ProfilePage() {
     setMessage("Perfil actualizado correctamente.");
   }
 
+  const roleMode =
+    profile?.role === "professional" ? "professional" : profile?.role === "client" || profile?.role === "admin"
+      ? "client"
+      : null;
+
   return (
     <Protected>
+      {roleMode && <RoleModeBanner role={roleMode} variant="page" />}
       <main className="simplePage">
         <section className="formPageCard">
           <p className="kicker">MI CUENTA</p>

@@ -145,6 +145,10 @@ https://*.vercel.app/**
 
 Guarda. Sin esto, el login en zovit.cl fallará aunque la web cargue.
 
+### Correos con marca ZOVIT (no "Supabase")
+
+En **Authentication → Email Templates**, personaliza asunto y cuerpo con "ZOVIT". Copia las plantillas listas en [`supabase/AUTH_EMAIL_TEMPLATES.md`](../supabase/AUTH_EMAIL_TEMPLATES.md).
+
 ---
 
 ## Paso 6 — Mercado Pago (cuando actives pagos reales)

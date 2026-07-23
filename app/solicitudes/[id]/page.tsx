@@ -1,6 +1,7 @@
 "use client";
 
 import { Protected } from "@/components/Protected";
+import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { ProposalSection } from "@/components/payments/ProposalSection";
 import { ServiceRatingForm } from "@/components/ServiceRatingForm";
 import { useAuth } from "@/components/AuthProvider";
@@ -132,8 +133,14 @@ export default function RequestDetailPage() {
     setBusy(false);
   }
 
+  const roleMode =
+    profileRole === "professional" ? "professional" : profileRole === "client" || profileRole === "admin"
+      ? "client"
+      : null;
+
   return (
     <Protected>
+      {roleMode && <RoleModeBanner role={roleMode} variant="page" />}
       <main className="simplePage requestDetailPage">
         <section className="requestWorkspace">
           <div className="detailTopbar">

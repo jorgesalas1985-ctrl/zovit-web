@@ -13,6 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { Protected } from "@/components/Protected";
+import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { ExperienceBadge, ProfessionalStatsGrid } from "@/components/experience/ExperienceSection";
 import { useAuth } from "@/components/AuthProvider";
 import type { ProfessionalStats } from "@/lib/experience/types";
@@ -130,9 +131,11 @@ function PanelContent() {
     <main className="dashboardPage">
       {accessMessage && <div className="notice">{accessMessage}</div>}
 
+      <RoleModeBanner role={isProfessionalView ? "professional" : "client"} />
+
       <section className="dashboardHero">
         <div>
-          <p className="kicker light">PANEL PERSONAL</p>
+          <p className="kicker light">{isProfessionalView ? "PANEL PROFESIONAL" : "PANEL CLIENTE"}</p>
           <h1>
             Hola, {profile?.first_name || user?.email?.split("@")[0] || "usuario"}.
           </h1>

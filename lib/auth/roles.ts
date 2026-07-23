@@ -1,5 +1,25 @@
 export type UserRole = "client" | "professional" | "admin";
 
+export type RoleMode = "client" | "professional";
+
+export function resolveRoleMode(
+  allowedRoles: UserRole[],
+  profileRole: UserRole
+): RoleMode | null {
+  const hasClient = allowedRoles.includes("client");
+  const hasProfessional = allowedRoles.includes("professional");
+
+  if (hasClient && !hasProfessional) return "client";
+  if (hasProfessional && !hasClient) return "professional";
+
+  if (hasClient && hasProfessional) {
+    if (profileRole === "professional") return "professional";
+    if (profileRole === "client" || profileRole === "admin") return "client";
+  }
+
+  return null;
+}
+
 export const USER_ROLES: UserRole[] = ["client", "professional", "admin"];
 
 export function isUserRole(value: string | null | undefined): value is UserRole {
