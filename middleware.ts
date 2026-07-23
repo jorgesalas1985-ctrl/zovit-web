@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { canAccessRoute, isPublicIntranetRoute, isProtectedRoute, isUserRole } from "@/lib/auth/roles";
+import { needsBiometricOnboarding } from "@/lib/verification/types";
 import { mergeCookies, updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
@@ -27,7 +28,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, identity_status")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -46,6 +47,16 @@ export async function middleware(request: NextRequest) {
     return mergeCookies(supabaseResponse, NextResponse.redirect(panelUrl));
   }
 
+  if (
+    pathname.startsWith("/panel") &&
+    needsBiometricOnboarding(profile.identity_status as "none" | "pending" | "approved" | "rejected" | null)
+  ) {
+    const biometricUrl = request.nextUrl.clone();
+    biometricUrl.pathname = "/registro/biometria";
+    biometricUrl.search = "";
+    return mergeCookies(supabaseResponse, NextResponse.redirect(biometricUrl));
+  }
+
   return supabaseResponse;
 }
 
@@ -53,6 +64,8 @@ export const config = {
   matcher: [
     "/panel/:path*",
     "/perfil/:path*",
+    "/verificacion/:path*",
+    "/registro/biometria",
     "/experiencia/:path*",
     "/solicitudes/:path*",
     "/trabajos/:path*",

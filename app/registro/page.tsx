@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { AlertCircle, ArrowRight, BriefcaseBusiness, UserRound } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getAuthCallbackUrl } from "@/lib/auth/redirects";
 import { supabase } from "@/lib/supabase";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [role, setRole] = useState<"client" | "professional">("client");
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", email: "", password: "" });
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
+  const [needsEmailConfirm, setNeedsEmailConfirm] = useState(true);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent) {
@@ -18,18 +21,18 @@ export default function RegisterPage() {
     setBusy(true);
     setMessage("");
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
-        emailRedirectTo: getAuthCallbackUrl("/panel"),
+        emailRedirectTo: getAuthCallbackUrl("/registro/biometria"),
         data: {
           first_name: form.firstName,
           last_name: form.lastName,
           phone: form.phone,
-          role
-        }
-      }
+          role,
+        },
+      },
     });
 
     if (error) {
@@ -38,6 +41,12 @@ export default function RegisterPage() {
       return;
     }
 
+    if (data.session) {
+      router.replace("/registro/biometria");
+      return;
+    }
+
+    setNeedsEmailConfirm(true);
     setSuccess(true);
     setBusy(false);
   }
@@ -48,8 +57,14 @@ export default function RegisterPage() {
         <section className="authCard successCard">
           <div className="successIcon">✓</div>
           <h1>Cuenta creada</h1>
-          <p>Revisa tu correo y confirma tu cuenta para ingresar a ZOVIT.</p>
-          <Link className="primaryButton wide" href="/login">Ir a ingresar <ArrowRight size={18} /></Link>
+          <p>
+            {needsEmailConfirm
+              ? "Revisa tu correo, confirma tu cuenta y completa la verificación biométrica para ingresar a ZOVIT."
+              : "Continúa con la verificación biométrica para activar tu cuenta."}
+          </p>
+          <Link className="primaryButton wide" href="/login">
+            Ir a ingresar <ArrowRight size={18} />
+          </Link>
         </section>
       </main>
     );
@@ -60,7 +75,9 @@ export default function RegisterPage() {
       <section className="authCard large">
         <p className="kicker">REGISTRO REAL</p>
         <h1>Crea tu cuenta ZOVIT</h1>
-        <p className="muted">Selecciona cómo utilizarás la plataforma.</p>
+        <p className="muted">
+          Selecciona cómo utilizarás la plataforma. Después crearás tu cuenta completarás la verificación biométrica.
+        </p>
 
         <div className="roleSelector">
           <button className={role === "client" ? "roleCard active" : "roleCard"} onClick={() => setRole("client")}>

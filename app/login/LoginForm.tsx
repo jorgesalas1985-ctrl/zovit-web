@@ -36,7 +36,11 @@ function LoginForm() {
     if (!user || !profile?.role) return;
 
     setMessage("");
-    const destination = resolvePostLoginPath(searchParams.get("next"), profile.role);
+    const destination = resolvePostLoginPath(
+      searchParams.get("next"),
+      profile.role,
+      profile.identity_status
+    );
     router.replace(destination);
   }, [busy, loading, profile, profileError, profileLoading, router, searchParams, user]);
 

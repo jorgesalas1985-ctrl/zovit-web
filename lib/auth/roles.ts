@@ -1,5 +1,8 @@
 export type UserRole = "client" | "professional" | "admin";
 
+import type { IdentityStatus } from "@/lib/verification/types";
+import { needsBiometricOnboarding } from "@/lib/verification/types";
+
 export type RoleMode = "client" | "professional";
 
 export function resolveRoleMode(
@@ -37,6 +40,7 @@ export function isProtectedRoute(pathname: string): boolean {
     pathname.startsWith("/panel") ||
     pathname.startsWith("/perfil") ||
     pathname.startsWith("/verificacion") ||
+    pathname.startsWith("/registro/biometria") ||
     pathname.startsWith("/experiencia") ||
     pathname.startsWith("/solicitudes") ||
     pathname.startsWith("/trabajos") ||
@@ -50,6 +54,10 @@ export function isProtectedRoute(pathname: string): boolean {
 export function canAccessRoute(pathname: string, role: UserRole): boolean {
   if (pathname.startsWith("/admin")) {
     return role === "admin";
+  }
+
+  if (pathname.startsWith("/verificacion")) {
+    return role === "professional" || role === "admin";
   }
 
   if (pathname.startsWith("/pagos/profesional")) {
@@ -71,7 +79,18 @@ export function canAccessRoute(pathname: string, role: UserRole): boolean {
   return true;
 }
 
-export function resolvePostLoginPath(nextPath: string | null, role: UserRole): string {
+export function resolvePostLoginPath(
+  nextPath: string | null,
+  role: UserRole,
+  identityStatus?: IdentityStatus | null
+): string {
+  if (needsBiometricOnboarding(identityStatus)) {
+    if (nextPath === "/registro/biometria") {
+      return nextPath;
+    }
+    return "/registro/biometria";
+  }
+
   const path = nextPath && nextPath.startsWith("/") ? nextPath : "/panel";
   return canAccessRoute(path, role) ? path : "/panel";
 }

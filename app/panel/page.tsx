@@ -186,20 +186,31 @@ function PanelContent() {
           <ArrowRight />
         </Link>
 
-        <Link href="/verificacion" className="dashboardCard">
+        <Link href="/registro/biometria" className="dashboardCard">
           <div className="dashboardIcon"><ShieldCheck /></div>
           <div>
-            <h3>Verificación gratuita</h3>
+            <h3>Verificación biométrica</h3>
             <p>
               {profile?.identity_verified
                 ? "Identidad y biometría verificadas en ZOVIT."
                 : profile?.identity_status === "pending"
-                  ? "Tu verificación está en revisión."
-                  : "Carnet, selfie y prueba de vida."}
+                  ? "Tu verificación biométrica está en revisión."
+                  : "Completa carnet, selfie y prueba de vida."}
             </p>
           </div>
           <ArrowRight />
         </Link>
+
+        {(isProfessionalView || isAdmin) && (
+          <Link href="/verificacion" className="dashboardCard">
+            <div className="dashboardIcon"><ShieldCheck /></div>
+            <div>
+              <h3>Verificación gratuita</h3>
+              <p>Sube tus certificados de estudios como profesional.</p>
+            </div>
+            <ArrowRight />
+          </Link>
+        )}
 
         {isClientView && (
           <Link href="/pagos" className="dashboardCard">

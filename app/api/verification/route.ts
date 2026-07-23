@@ -26,6 +26,10 @@ export async function GET() {
       identity_verified_at: profile.identity_verified_at ?? null,
       identity_submitted_at: profile.identity_submitted_at ?? null,
       identity_rejection_reason: profile.identity_rejection_reason ?? null,
+      study_verification_status: profile.study_verification_status ?? "none",
+      study_verified: profile.study_verified ?? false,
+      study_submitted_at: profile.study_submitted_at ?? null,
+      study_rejection_reason: profile.study_rejection_reason ?? null,
       documents: documents ?? [],
     };
 

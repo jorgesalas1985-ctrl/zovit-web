@@ -6,6 +6,7 @@ export type IdentityDocumentType =
   | "cedula_front"
   | "cedula_back"
   | "certificado_antecedentes"
+  | "certificado_estudios"
   | "selfie"
   | "liveness_proof";
 
@@ -28,6 +29,10 @@ export type IdentityVerificationState = {
   identity_verified_at: string | null;
   identity_submitted_at: string | null;
   identity_rejection_reason: string | null;
+  study_verification_status: IdentityStatus;
+  study_verified: boolean;
+  study_submitted_at: string | null;
+  study_rejection_reason: string | null;
   documents: IdentityDocument[];
 };
 
@@ -45,6 +50,7 @@ export const IDENTITY_DOCUMENT_LABELS: Record<IdentityDocumentType, string> = {
   cedula_front: "Carnet / cédula (frontal)",
   cedula_back: "Carnet / cédula (reverso)",
   certificado_antecedentes: "Certificado de antecedentes",
+  certificado_estudios: "Certificado de estudios",
   selfie: "Selfie biométrica",
   liveness_proof: "Prueba de vida",
 };
@@ -56,18 +62,26 @@ export const IDENTITY_STATUS_LABELS: Record<IdentityStatus, string> = {
   rejected: "Rechazado",
 };
 
-const BASE_REQUIRED: IdentityDocumentType[] = [
+const BIOMETRIC_REQUIRED: IdentityDocumentType[] = [
   "cedula_front",
   "cedula_back",
   "selfie",
   "liveness_proof",
 ];
 
-export function getRequiredDocuments(role: UserRole): IdentityDocumentType[] {
-  if (role === "professional" || role === "admin") {
-    return [...BASE_REQUIRED, "certificado_antecedentes"];
-  }
-  return BASE_REQUIRED;
+const STUDY_CERTIFICATE_TYPES: IdentityDocumentType[] = ["certificado_estudios"];
+
+export function getBiometricRequiredDocuments(): IdentityDocumentType[] {
+  return BIOMETRIC_REQUIRED;
+}
+
+export function getStudyCertificateDocuments(): IdentityDocumentType[] {
+  return STUDY_CERTIFICATE_TYPES;
+}
+
+/** @deprecated Use getBiometricRequiredDocuments for identity flow. */
+export function getRequiredDocuments(_role: UserRole): IdentityDocumentType[] {
+  return getBiometricRequiredDocuments();
 }
 
 export function getCarnetDocuments(): IdentityDocumentType[] {
@@ -78,17 +92,37 @@ export function getBiometricDocuments(): IdentityDocumentType[] {
   return ["selfie", "liveness_proof"];
 }
 
-export function hasAllRequiredDocuments(
-  role: UserRole,
+export function hasAllBiometricDocuments(
   documents: Pick<IdentityDocument, "document_type">[]
 ): boolean {
-  const required = getRequiredDocuments(role);
   const uploaded = new Set(documents.map((doc) => doc.document_type));
-  return required.every((type) => uploaded.has(type));
+  return BIOMETRIC_REQUIRED.every((type) => uploaded.has(type));
+}
+
+/** @deprecated Use hasAllBiometricDocuments. */
+export function hasAllRequiredDocuments(
+  _role: UserRole,
+  documents: Pick<IdentityDocument, "document_type">[]
+): boolean {
+  return hasAllBiometricDocuments(documents);
 }
 
 export function hasBiometricDocuments(documents: Pick<IdentityDocument, "document_type">[]): boolean {
   return getBiometricDocuments().every((type) =>
     documents.some((doc) => doc.document_type === type)
   );
+}
+
+export function hasStudyCertificateDocument(
+  documents: Pick<IdentityDocument, "document_type">[]
+): boolean {
+  return documents.some((doc) => doc.document_type === "certificado_estudios");
+}
+
+export function needsBiometricOnboarding(identityStatus: IdentityStatus | null | undefined): boolean {
+  return identityStatus === "none" || identityStatus === "rejected";
+}
+
+export function canAccessStudyCertificates(role: UserRole): boolean {
+  return role === "professional" || role === "admin";
 }

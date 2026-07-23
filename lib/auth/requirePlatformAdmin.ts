@@ -32,7 +32,7 @@ export async function requireAuthenticatedUser() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, identity_status, identity_verified, biometric_verified, identity_verified_at, identity_submitted_at, identity_rejection_reason, rut")
+    .select("role, identity_status, identity_verified, biometric_verified, identity_verified_at, identity_submitted_at, identity_rejection_reason, study_verification_status, study_verified, study_submitted_at, study_rejection_reason, rut")
     .eq("id", authData.user.id)
     .maybeSingle();
 
