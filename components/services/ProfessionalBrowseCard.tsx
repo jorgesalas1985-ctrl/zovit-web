@@ -1,6 +1,7 @@
 "use client";
 
 import type { RecommendedProfessional } from "@/lib/ai/types";
+import { ProfessionalTrustBadges } from "@/components/verification/ProfessionalTrustBadges";
 import { ArrowRight, Clock3, MapPin, Star, UserRound } from "lucide-react";
 import Link from "next/link";
 
@@ -40,6 +41,10 @@ export function ProfessionalBrowseCard({ professional, referencePrice, onRequest
               "Comuna no informada"
             )}
           </p>
+          <ProfessionalTrustBadges
+            identityVerified={professional.identityVerified}
+            biometricVerified={professional.biometricVerified}
+          />
         </div>
         <span className={`experienceBadge experienceBadge-${professional.experienceLevel}`}>
           {badgeLabels[professional.experienceLevel]}

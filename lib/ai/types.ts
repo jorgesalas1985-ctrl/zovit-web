@@ -20,6 +20,8 @@ export type RecommendedProfessional = {
   averageRating: number;
   ratingCount: number;
   matchScore: number;
+  identityVerified: boolean;
+  biometricVerified: boolean;
 };
 
 export type AiRecommendResponse = {

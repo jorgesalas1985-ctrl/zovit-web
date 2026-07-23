@@ -13,6 +13,8 @@ type SearchRow = {
   average_rating: number | null;
   rating_count: number | null;
   match_score: number | null;
+  identity_verified: boolean | null;
+  biometric_verified: boolean | null;
 };
 
 type SearchParams = {
@@ -56,6 +58,8 @@ export async function searchServiceProfessionals({
       averageRating: Number(row.average_rating ?? 0),
       ratingCount: Number(row.rating_count ?? 0),
       matchScore: Math.min(100, Math.round((Number(row.match_score ?? 0) / 120) * 100)),
+      identityVerified: row.identity_verified ?? false,
+      biometricVerified: row.biometric_verified ?? false,
     }))
     .filter((professional) => professional.averageRating >= minRating);
 }

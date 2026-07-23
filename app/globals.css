@@ -480,6 +480,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue-bright); bo
 .browseProfessionalTop { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; }
 .browseProfessionalAvatar { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: var(--surface-soft); color: var(--blue-bright); }
 .browseProfessionalMeta { display: inline-flex; align-items: center; gap: 4px; margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.browseProfessionalBadges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.identityBadge--biometric { margin-top: 0; border-color: rgba(34, 211, 238, 0.35); color: #0891b2; background: rgba(34, 211, 238, 0.1); }
+.browseProfessionalBadges .identityBadge { margin-top: 0; font-size: 11px; padding: 6px 10px; }
 .browseProfessionalStats { display: flex; flex-wrap: wrap; gap: 10px; color: var(--muted); font-size: 12px; font-weight: 700; }
 .browseProfessionalStats span { display: inline-flex; align-items: center; gap: 4px; }
 .browseProfessionalActions { display: flex; flex-wrap: wrap; gap: 10px; }

@@ -1,6 +1,7 @@
 "use client";
 
 import type { AiRecommendResponse } from "@/lib/ai/types";
+import { ProfessionalTrustBadges } from "@/components/verification/ProfessionalTrustBadges";
 import { ArrowRight, Bot, MapPin, Star, UserRound } from "lucide-react";
 import Link from "next/link";
 
@@ -52,6 +53,10 @@ export function AiRecommendations({ result, onCreateRequest }: Props) {
                       <MapPin size={14} /> {professional.commune}
                     </p>
                   )}
+                  <ProfessionalTrustBadges
+                    identityVerified={professional.identityVerified}
+                    biometricVerified={professional.biometricVerified}
+                  />
                 </div>
                 <span className={`experienceBadge experienceBadge-${professional.experienceLevel}`}>
                   {badgeLabels[professional.experienceLevel]}
