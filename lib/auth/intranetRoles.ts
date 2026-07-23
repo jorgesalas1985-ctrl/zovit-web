@@ -97,6 +97,7 @@ export function portalMatchesRole(portal: IntranetPortal, role: IntranetRole): b
 export function requiredRolesForPath(pathname: string): IntranetRole[] | null {
   if (pathname.startsWith("/intranet/trabajador")) return ["worker"];
   if (pathname.startsWith("/intranet/supervisor")) return ["supervisor"];
+  if (pathname.startsWith("/intranet/admin/gestion-usuarios")) return ["hr_admin", "super_admin"];
   if (pathname.startsWith("/intranet/admin/usuarios")) return ["hr_admin", "super_admin"];
   if (pathname.startsWith("/intranet/admin")) return ["hr_admin", "super_admin"];
   if (pathname.startsWith("/intranet/finanzas")) return ["super_admin"];

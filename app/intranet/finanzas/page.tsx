@@ -1,7 +1,7 @@
 import { IntranetGuard } from "@/components/intranet/IntranetGuard";
 import { IntranetShell } from "@/components/intranet/IntranetShell";
 import Link from "next/link";
-import { Building2, PencilLine, UserPlus, Shield, Users, Wallet } from "lucide-react";
+import { Building2, PencilLine, UserCog, UserPlus, Shield, Users, Wallet } from "lucide-react";
 
 export default function IntranetFinancePage() {
   return (
@@ -26,6 +26,11 @@ export default function IntranetFinancePage() {
             <PencilLine size={24} />
             <h3>Liquidaciones</h3>
             <p>Ver y modificar todas las liquidaciones de la empresa.</p>
+          </Link>
+          <Link href="/intranet/admin/gestion-usuarios" className="intranetCard">
+            <UserCog size={24} />
+            <h3>Gestión de usuarios</h3>
+            <p>Listado completo con modificación, verificación y eliminación de cuentas.</p>
           </Link>
           <Link href="/intranet/admin/usuarios" className="intranetCard">
             <UserPlus size={24} />
