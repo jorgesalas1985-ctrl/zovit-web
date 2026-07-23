@@ -1,8 +1,6 @@
 "use client";
 
-import { AiRecommendations } from "@/components/AiRecommendations";
 import { ClickableServiceCard } from "@/components/services/ClickableServiceCard";
-import type { AiRecommendResponse } from "@/lib/ai/types";
 import { getFeaturedCategories } from "@/lib/services/catalog";
 import { getCategoryIcon } from "@/lib/services/icons";
 import Link from "next/link";
@@ -24,9 +22,8 @@ export default function HomePage() {
   const [need, setNeed] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<AiRecommendResponse | null>(null);
 
-  const search = async () => {
+  const search = () => {
     const q = need.trim();
     if (!q) {
       setError("Describe tu problema antes de buscar.");
@@ -39,42 +36,7 @@ export default function HomePage() {
 
     setLoading(true);
     setError("");
-    setResult(null);
-
-    try {
-      const response = await fetch("/api/ai/recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
-      });
-
-      const data = (await response.json()) as AiRecommendResponse & { error?: string };
-      if (!response.ok) {
-        throw new Error(data.error ?? "No se pudo analizar tu consulta.");
-      }
-
-      setResult(data);
-    } catch (searchError) {
-      setError(searchError instanceof Error ? searchError.message : "Error inesperado.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createRequest = () => {
-    const q = need.trim();
-    if (!q) return;
-
-    const payload = result
-      ? {
-          description: q,
-          category: result.parsed.category,
-          specialty: result.parsed.specialty,
-        }
-      : { description: q };
-
-    sessionStorage.setItem("zovit_ai_recommendation", JSON.stringify(payload));
-    router.push("/solicitudes/nueva");
+    router.push(`/ia/resultados?q=${encodeURIComponent(q)}`);
   };
 
   return (
@@ -105,7 +67,7 @@ export default function HomePage() {
               className="aiSearch aiSearchCompact"
               onSubmit={(event) => {
                 event.preventDefault();
-                void search();
+                search();
               }}
             >
               <textarea
@@ -119,7 +81,7 @@ export default function HomePage() {
                 minLength={8}
               />
               <button type="submit" className="primaryButton" disabled={loading}>
-                {loading ? "Analizando…" : <>Buscar con IA <ArrowRight size={18} /></>}
+                {loading ? "Redirigiendo…" : <>Buscar con IA <ArrowRight size={18} /></>}
               </button>
             </form>
 
@@ -151,12 +113,6 @@ export default function HomePage() {
           <span><Sparkles size={19} /> IA + navegación manual</span>
         </div>
       </section>
-
-      {result && (
-        <section className="contentSection aiResultsSection">
-          <AiRecommendations result={result} onCreateRequest={createRequest} />
-        </section>
-      )}
 
       <section className="contentSection">
         <div className="sectionHeading">

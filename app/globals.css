@@ -333,6 +333,12 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); box-shado
 @media(max-width:900px){.requestColumns{grid-template-columns:1fr}.photoGroups{grid-template-columns:1fr}.requestWorkspaceHeader{flex-direction:column}.statusTimeline{overflow:auto}.timelineStep{min-width:105px}.jobCard{flex-direction:column}.jobCardActions{min-width:0}.statsGrid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:720px){.statsGrid{grid-template-columns:1fr}}
 
+.aiResultsLoading {
+  display: grid; gap: 12px; justify-items: center; text-align: center;
+  padding: 48px 24px; border: 1px dashed var(--line); border-radius: 22px;
+  background: var(--surface); color: var(--muted); font-weight: 700;
+}
+.aiResultsLoading svg { color: var(--blue); }
 .aiError { margin-top: 16px; color: #b91c1c; font-weight: 700; }
 .aiResultsSection { padding-top: 0; }
 .aiResults {
