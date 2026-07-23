@@ -103,17 +103,17 @@ export function SiteFooter() {
                 aria-label={label}
                 className="siteFooterSocialLink"
               >
-                <Icon size={18} />
+                <Icon size={22} />
               </a>
             ))}
           </div>
 
           <div className="siteFooterMeta">
             <span className="siteFooterLocale">
-              <Globe2 size={16} /> Español (Chile)
+              <Globe2 size={18} /> Español (Chile)
             </span>
             <span className="siteFooterLocale">
-              <MapPin size={16} /> Santiago
+              <MapPin size={18} /> Santiago
             </span>
           </div>
 
