@@ -14,6 +14,7 @@ export function isProtectedRoute(pathname: string): boolean {
     pathname.startsWith("/solicitudes") ||
     pathname.startsWith("/trabajos") ||
     pathname.startsWith("/pagos") ||
+    pathname.startsWith("/intranet") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/auth/restablecer-clave")
   );

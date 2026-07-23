@@ -1,6 +1,7 @@
 "use client";
 
 import { ClickableServiceCard } from "@/components/services/ClickableServiceCard";
+import { IntranetFooterAccess } from "@/components/intranet/IntranetFooterAccess";
 import { getFeaturedCategories } from "@/lib/services/catalog";
 import { getCategoryIcon } from "@/lib/services/icons";
 import Link from "next/link";
@@ -154,6 +155,8 @@ export default function HomePage() {
         </div>
         <Link href="/registro" className="whiteButton">Crear mi cuenta <ArrowRight size={18} /></Link>
       </section>
+
+      <IntranetFooterAccess />
     </main>
   );
 }

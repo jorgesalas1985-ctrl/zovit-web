@@ -9,6 +9,7 @@ export type UserProfile = {
   first_name: string | null;
   last_name: string | null;
   role: UserRole;
+  intranet_role: string | null;
 };
 
 type AuthContextValue = {
@@ -32,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function loadProfile(userId: string) {
     const { data, error } = await supabase
       .from("profiles")
-      .select("first_name,last_name,role")
+      .select("first_name,last_name,role,intranet_role")
       .eq("id", userId)
       .maybeSingle();
 
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       first_name: data.first_name,
       last_name: data.last_name,
       role: data.role,
+      intranet_role: data.intranet_role ?? null,
     });
     setProfileError(null);
   }

@@ -53,6 +53,7 @@ export const config = {
     "/solicitudes/:path*",
     "/trabajos/:path*",
     "/pagos/:path*",
+    "/intranet/:path*",
     "/admin/:path*",
     "/auth/restablecer-clave",
   ],
