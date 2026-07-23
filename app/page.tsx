@@ -3,6 +3,7 @@
 import { CategoryPickerDropdown } from "@/components/categories/CategoryPickerDropdown";
 import { ClickableServiceCard } from "@/components/services/ClickableServiceCard";
 import { IntranetFooterAccess } from "@/components/intranet/IntranetFooterAccess";
+import { SiteFooter } from "@/components/SiteFooter";
 import { getCategoryLeafCount, getFeaturedCategories } from "@/lib/services/catalog";
 import { getCategoryIcon } from "@/lib/services/icons";
 import Link from "next/link";
@@ -107,7 +108,7 @@ export default function HomePage() {
           </article>
         </div>
 
-        <div className="trustRow">
+        <div id="confianza" className="trustRow">
           <span><BadgeCheck size={19} /> Profesionales verificados</span>
           <span><ShieldCheck size={19} /> Solicitudes protegidas</span>
           <span><Sparkles size={19} /> IA + navegación manual</span>
@@ -156,6 +157,8 @@ export default function HomePage() {
       </section>
 
       <IntranetFooterAccess />
+
+      <SiteFooter />
     </main>
   );
 }
