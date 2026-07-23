@@ -19,6 +19,7 @@ type AuthContextValue = {
   user: User | null;
   profile: UserProfile | null;
   profileError: string | null;
+  profileLoading: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -26,35 +27,72 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+const PROFILE_SELECT =
+  "first_name,last_name,role,intranet_role,identity_status,identity_verified" as const;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  async function loadProfile(userId: string) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("first_name,last_name,role,intranet_role,identity_status,identity_verified")
-      .eq("id", userId)
-      .maybeSingle();
+  const loadProfile = useCallback(async (userId: string) => {
+    setProfileLoading(true);
 
-    if (error || !data || !isUserRole(data.role)) {
+    let lastError: { code?: string; message?: string } | null = null;
+    let lastData: Record<string, unknown> | null = null;
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      if (attempt > 0) {
+        await sleep(250 * attempt);
+      }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(PROFILE_SELECT)
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (error) {
+        lastError = error;
+        continue;
+      }
+
+      lastData = data;
+      lastError = null;
+      break;
+    }
+
+    if (lastError) {
       setProfile(null);
       setProfileError("perfil-incompleto");
+      setProfileLoading(false);
+      return;
+    }
+
+    if (!lastData || !isUserRole(lastData.role as string | null | undefined)) {
+      setProfile(null);
+      setProfileError("perfil-incompleto");
+      setProfileLoading(false);
       return;
     }
 
     setProfile({
-      first_name: data.first_name,
-      last_name: data.last_name,
-      role: data.role,
-      intranet_role: data.intranet_role ?? null,
-      identity_status: data.identity_status ?? "none",
-      identity_verified: data.identity_verified ?? false,
+      first_name: (lastData.first_name as string | null) ?? null,
+      last_name: (lastData.last_name as string | null) ?? null,
+      role: lastData.role as UserRole,
+      intranet_role: (lastData.intranet_role as string | null) ?? null,
+      identity_status: (lastData.identity_status as UserProfile["identity_status"]) ?? "none",
+      identity_verified: (lastData.identity_verified as boolean) ?? false,
     });
     setProfileError(null);
-  }
+    setProfileLoading(false);
+  }, []);
 
   const refreshProfile = useCallback(async () => {
     const {
@@ -64,11 +102,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) {
       setProfile(null);
       setProfileError(null);
+      setProfileLoading(false);
       return;
     }
 
     await loadProfile(user.id);
-  }, []);
+  }, [loadProfile]);
 
   useEffect(() => {
     let active = true;
@@ -91,6 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(null);
         setProfile(null);
         setProfileError(null);
+        setProfileLoading(false);
       }
 
       if (active) setLoading(false);
@@ -98,17 +138,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void initAuth();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setLoading(true);
       setSession(nextSession);
 
       if (nextSession?.user) {
-        await loadProfile(nextSession.user.id);
-      } else {
-        setProfile(null);
-        setProfileError(null);
+        // Defer profile fetch so the client JWT is ready for RLS queries.
+        window.setTimeout(() => {
+          void loadProfile(nextSession.user.id).finally(() => {
+            setLoading(false);
+          });
+        }, 0);
+        return;
       }
 
+      setProfile(null);
+      setProfileError(null);
+      setProfileLoading(false);
       setLoading(false);
     });
 
@@ -116,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       active = false;
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [loadProfile]);
 
   const value = useMemo(
     () => ({
@@ -124,15 +170,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: session?.user ?? null,
       profile,
       profileError,
+      profileLoading,
       loading,
       signOut: async () => {
         await supabase.auth.signOut();
         setProfile(null);
         setProfileError(null);
+        setProfileLoading(false);
       },
       refreshProfile,
     }),
-    [session, profile, profileError, loading, refreshProfile]
+    [session, profile, profileError, profileLoading, loading, refreshProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

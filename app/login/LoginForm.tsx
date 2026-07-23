@@ -12,7 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, profile, profileError, loading } = useAuth();
+  const { user, profile, profileError, profileLoading, loading, refreshProfile } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -20,13 +20,13 @@ function LoginForm() {
 
   useEffect(() => {
     const errorCode = searchParams.get("error");
-    if (errorCode) {
+    if (errorCode && !user) {
       setMessage(roleErrorMessage(errorCode));
     }
-  }, [searchParams]);
+  }, [searchParams, user]);
 
   useEffect(() => {
-    if (loading || busy) return;
+    if (loading || profileLoading || busy) return;
 
     if (profileError === "perfil-incompleto") {
       setMessage(roleErrorMessage("perfil-incompleto"));
@@ -35,9 +35,10 @@ function LoginForm() {
 
     if (!user || !profile?.role) return;
 
+    setMessage("");
     const destination = resolvePostLoginPath(searchParams.get("next"), profile.role);
     router.replace(destination);
-  }, [busy, loading, profile, profileError, router, searchParams, user]);
+  }, [busy, loading, profile, profileError, profileLoading, router, searchParams, user]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -54,6 +55,7 @@ function LoginForm() {
       return;
     }
 
+    await refreshProfile();
     setBusy(false);
   }
 
@@ -69,7 +71,7 @@ function LoginForm() {
     setMessage(error ? error.message : "Te enviamos un correo para recuperar tu contraseña.");
   }
 
-  if (loading || (user && profile?.role)) {
+  if (loading || profileLoading || (user && profile?.role)) {
     return <div className="centerState">Redirigiendo…</div>;
   }
 
