@@ -3,12 +3,23 @@
 import { Protected } from "@/components/Protected";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/components/AuthProvider";
+import { SERVICE_CATEGORIES } from "@/lib/categories";
+import {
+  clearManualSelection,
+  loadManualSelection,
+  type ManualServiceSelection,
+} from "@/lib/services/manualSelection";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle, ArrowRight, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const categories = ["Hogar", "Automotriz", "Construcción", "Tecnología", "Jardinería", "Limpieza", "Transporte de carga", "Salud", "Educación", "Profesionales"];
+type AiRecommendationPayload = {
+  description?: string;
+  category?: string;
+  specialty?: string;
+};
 
 export default function NewRequestPage() {
   const { user } = useAuth();
@@ -16,32 +27,78 @@ export default function NewRequestPage() {
   const [form, setForm] = useState({ category: "Hogar", description: "", address: "" });
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [aiSpecialty, setAiSpecialty] = useState("");
+  const [manualSelection, setManualSelection] = useState<ManualServiceSelection | null>(null);
 
   useEffect(() => {
-    const pending = sessionStorage.getItem("zovit_pending_request");
-    if (pending) {
-      setForm(prev => ({ ...prev, description: pending }));
-      sessionStorage.removeItem("zovit_pending_request");
+    const manual = loadManualSelection();
+    if (manual) {
+      setManualSelection(manual);
+      setForm((prev) => ({
+        ...prev,
+        category:
+          manual.category &&
+          SERVICE_CATEGORIES.includes(manual.category as typeof SERVICE_CATEGORIES[number])
+            ? manual.category
+            : prev.category,
+        description: manual.description,
+        address: manual.commune ?? prev.address,
+      }));
+      clearManualSelection();
+      return;
+    }
+
+    const raw = sessionStorage.getItem("zovit_ai_recommendation");
+    if (!raw) return;
+
+    try {
+      const payload = JSON.parse(raw) as AiRecommendationPayload;
+      setForm((prev) => ({
+        ...prev,
+        description: payload.description ?? prev.description,
+        category:
+          payload.category &&
+          SERVICE_CATEGORIES.includes(payload.category as typeof SERVICE_CATEGORIES[number])
+            ? payload.category
+            : prev.category,
+      }));
+      setAiSpecialty(payload.specialty ?? "");
+    } catch {
+      // Ignorar payload inválido.
+    } finally {
+      sessionStorage.removeItem("zovit_ai_recommendation");
     }
   }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      setMessage("Debes iniciar sesión para publicar la solicitud.");
+      return;
+    }
     setBusy(true);
     setMessage("");
 
-    const { error } = await supabase.from("solicitudes_de_servicio").insert({
-      client_id: user.id,
-      category: form.category,
-      description: form.description,
-      address: form.address,
-      status: "publicada"
-    });
+    const { data, error } = await supabase
+      .from("solicitudes_de_servicio")
+      .insert({
+        client_id: user.id,
+        category: form.category,
+        description: form.description,
+        address: form.address,
+        status: "publicada",
+      })
+      .select("id")
+      .single();
 
     if (error) {
       setMessage(error.message);
       setBusy(false);
+      return;
+    }
+
+    if (data?.id) {
+      router.push(`/solicitudes/${data.id}`);
       return;
     }
 
@@ -51,26 +108,79 @@ export default function NewRequestPage() {
 
   return (
     <Protected>
-      <RoleGuard allowedRoles={["client", "admin"]}>
-      <main className="simplePage">
-        <section className="formPageCard">
-          <div className="eyebrow"><Sparkles size={16} /> Solicitud real</div>
-          <h1>¿Qué necesitas resolver?</h1>
-          <p className="muted">La solicitud quedará vinculada a tu cuenta y almacenada en Supabase.</p>
+      <RoleGuard allowedRoles={["client", "professional", "admin"]}>
+        <main className="simplePage">
+          <section className="formPageCard">
+            <div className="eyebrow"><Sparkles size={16} /> Solicitud real</div>
+            <h1>¿Qué necesitas resolver?</h1>
+            <p className="muted">La solicitud quedará vinculada a tu cuenta y almacenada en Supabase.</p>
 
-          <form onSubmit={submit} className="formStack">
-            <label>Categoría<select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
-            <label>Describe el problema<textarea required minLength={10} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Describe el problema con el mayor detalle posible…" /></label>
-            <label>Dirección o comuna<input required value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Ejemplo: San Bernardo" /></label>
+            {manualSelection && (
+              <div className="manualPrefillNote">
+                <p>
+                  Selección manual: <strong>{manualSelection.subcategory}</strong> en{" "}
+                  <strong>{manualSelection.category}</strong>
+                </p>
+                {manualSelection.referencePrice && <p>{manualSelection.referencePrice}</p>}
+                <Link
+                  href={`/servicios/${manualSelection.categorySlug}/${manualSelection.subcategorySlug}`}
+                  className="textLink"
+                >
+                  Volver a la subcategoría
+                </Link>
+              </div>
+            )}
 
-            {message && <div className="formMessage"><AlertCircle size={17} /> {message}</div>}
+            {aiSpecialty && (
+              <p className="aiPrefillNote">
+                Especialidad sugerida por IA: <strong>{aiSpecialty}</strong>
+              </p>
+            )}
 
-            <button className="primaryButton wide" disabled={busy}>
-              {busy ? "Publicando…" : <>Publicar solicitud <ArrowRight size={18} /></>}
-            </button>
-          </form>
-        </section>
-      </main>
+            <form onSubmit={submit} className="formStack">
+              <label>
+                Categoría
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                >
+                  {SERVICE_CATEGORIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Describe el servicio
+                <textarea
+                  required
+                  minLength={10}
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Detalle opcional adicional sobre lo que necesitas…"
+                />
+              </label>
+              <label>
+                Dirección o comuna
+                <input
+                  required
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  placeholder="Ejemplo: San Bernardo"
+                />
+              </label>
+
+              {message && (
+                <div className="formMessage">
+                  <AlertCircle size={17} /> {message}
+                </div>
+              )}
+
+              <button className="primaryButton wide" disabled={busy}>
+                {busy ? "Publicando…" : <>Publicar solicitud <ArrowRight size={18} /></>}
+              </button>
+            </form>
+          </section>
+        </main>
       </RoleGuard>
     </Protected>
   );

@@ -55,6 +55,12 @@ npm run dev
 
 Abre `http://localhost:3000`.
 
+## Publicar en zovit.cl (producción)
+
+Guía completa: [`docs/DEPLOY.md`](docs/DEPLOY.md)
+
+Resumen: GitHub → Vercel → DNS del dominio → Supabase Auth URLs.
+
 ## Scripts disponibles
 
 | Comando | Descripción |

@@ -2,6 +2,7 @@
 
 import { Bell, CheckCheck } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 
@@ -9,12 +10,14 @@ type Notification = {
   id: string;
   title: string;
   body: string;
+  request_id: string | null;
   read_at: string | null;
   created_at: string;
 };
 
 export function NotificationBell() {
   const { user } = useAuth();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
 
@@ -25,7 +28,7 @@ export function NotificationBell() {
     const load = async () => {
       const { data } = await supabase
         .from("notifications")
-        .select("id,title,body,read_at,created_at")
+        .select("id,title,body,request_id,read_at,created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(15);
@@ -56,6 +59,18 @@ export function NotificationBell() {
     setItems((current) => current.map((item) => ({ ...item, read_at: item.read_at ?? now })));
   };
 
+  const openNotification = async (item: Notification) => {
+    if (!item.read_at) {
+      const now = new Date().toISOString();
+      await supabase.from("notifications").update({ read_at: now }).eq("id", item.id);
+      setItems((current) => current.map((row) => row.id === item.id ? { ...row, read_at: now } : row));
+    }
+    setOpen(false);
+    if (item.request_id) {
+      router.push(`/solicitudes/${item.request_id}`);
+    }
+  };
+
   return (
     <div className="notificationWrap">
       <button className="iconButton notificationButton" onClick={() => setOpen(!open)} aria-label="Notificaciones">
@@ -73,11 +88,16 @@ export function NotificationBell() {
             {items.length === 0 ? (
               <p className="notificationEmpty">No tienes notificaciones.</p>
             ) : items.map((item) => (
-              <article key={item.id} className={!item.read_at ? "notificationItem unread" : "notificationItem"}>
+              <button
+                type="button"
+                key={item.id}
+                className={!item.read_at ? "notificationItem unread notificationItemButton" : "notificationItem notificationItemButton"}
+                onClick={() => void openNotification(item)}
+              >
                 <strong>{item.title}</strong>
                 <p>{item.body}</p>
                 <time>{new Date(item.created_at).toLocaleString("es-CL")}</time>
-              </article>
+              </button>
             ))}
           </div>
         </div>

@@ -1,74 +1,192 @@
 "use client";
 
+import { AiRecommendations } from "@/components/AiRecommendations";
+import { ClickableServiceCard } from "@/components/services/ClickableServiceCard";
+import type { AiRecommendResponse } from "@/lib/ai/types";
+import { getFeaturedCategories } from "@/lib/services/catalog";
+import { getCategoryIcon } from "@/lib/services/icons";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Bot, Car, Hammer, Home, Laptop, ShieldCheck, Sparkles, Wrench } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Bot,
+  LayoutGrid,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-const categories = [
-  { title: "Hogar", icon: Home, text: "Electricidad, gasfitería y reparaciones." },
-  { title: "Automotriz", icon: Car, text: "Diagnóstico, mecánica y electricidad." },
-  { title: "Construcción", icon: Hammer, text: "Obras, terminaciones y mantención." },
-  { title: "Tecnología", icon: Laptop, text: "Soporte, redes y soluciones digitales." },
-  { title: "Servicios técnicos", icon: Wrench, text: "Especialistas verificados cerca de ti." }
-];
+const featuredCategories = getFeaturedCategories(5);
 
 export default function HomePage() {
   const router = useRouter();
   const [need, setNeed] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<AiRecommendResponse | null>(null);
 
-  const search = () => {
+  const search = async () => {
+    const q = need.trim();
+    if (!q) {
+      setError("Describe tu problema antes de buscar.");
+      return;
+    }
+    if (q.length < 8) {
+      setError("Escribe al menos 8 caracteres para que la IA pueda analizar tu consulta.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setResult(null);
+
+    try {
+      const response = await fetch("/api/ai/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q }),
+      });
+
+      const data = (await response.json()) as AiRecommendResponse & { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error ?? "No se pudo analizar tu consulta.");
+      }
+
+      setResult(data);
+    } catch (searchError) {
+      setError(searchError instanceof Error ? searchError.message : "Error inesperado.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createRequest = () => {
     const q = need.trim();
     if (!q) return;
-    sessionStorage.setItem("zovit_pending_request", q);
+
+    const payload = result
+      ? {
+          description: q,
+          category: result.parsed.category,
+          specialty: result.parsed.specialty,
+        }
+      : { description: q };
+
+    sessionStorage.setItem("zovit_ai_recommendation", JSON.stringify(payload));
     router.push("/solicitudes/nueva");
   };
 
   return (
     <main>
       <section className="hero">
-        <div className="eyebrow"><Sparkles size={16} /> Inteligencia artificial ZOVIT</div>
+        <div className="eyebrow"><Sparkles size={16} /> Encuentra profesionales en ZOVIT</div>
         <h1>Encuentra ayuda confiable, <span>sin perder tiempo.</span></h1>
         <p className="heroText">
-          Describe lo que necesitas. ZOVIT identifica la especialidad correcta y te permite enviar una solicitud real desde tu cuenta.
+          Elige cómo quieres buscar: describe tu problema con IA o navega manualmente por categorías y subcategorías.
         </p>
 
-        <div className="aiSearch">
-          <div className="aiBadge"><Bot size={25} /></div>
-          <textarea
-            value={need}
-            onChange={(e) => setNeed(e.target.value)}
-            placeholder="Ejemplo: mi calefont no enciende y necesito revisión hoy…"
-          />
-          <button className="primaryButton" onClick={search}>
-            Buscar con IA <ArrowRight size={18} />
-          </button>
+        <div className="searchMethodsGrid">
+          <article className="searchMethodCard">
+            <div className="searchMethodHead">
+              <div className="searchMethodIcon ai">
+                <Bot size={22} />
+              </div>
+              <div>
+                <p className="kicker">OPCIÓN 1</p>
+                <h2>Encontrar profesional con IA</h2>
+              </div>
+            </div>
+            <p className="muted">
+              Describe lo que necesitas. ZOVIT interpreta el problema, sugiere categoría, subcategoría y profesionales conectados.
+            </p>
+
+            <form
+              className="aiSearch aiSearchCompact"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void search();
+              }}
+            >
+              <textarea
+                value={need}
+                onChange={(e) => {
+                  setNeed(e.target.value);
+                  if (error) setError("");
+                }}
+                placeholder="Ejemplo: mi auto no enciende, se apagaron las luces de repente…"
+                aria-label="Describe tu problema para buscar con IA"
+                minLength={8}
+              />
+              <button type="submit" className="primaryButton" disabled={loading}>
+                {loading ? "Analizando…" : <>Buscar con IA <ArrowRight size={18} /></>}
+              </button>
+            </form>
+
+            {error && <p className="aiError">{error}</p>}
+          </article>
+
+          <article className="searchMethodCard">
+            <div className="searchMethodHead">
+              <div className="searchMethodIcon manual">
+                <LayoutGrid size={22} />
+              </div>
+              <div>
+                <p className="kicker">OPCIÓN 2</p>
+                <h2>Elegir categoría manualmente</h2>
+              </div>
+            </div>
+            <p className="muted">
+              Explora categorías, subcategorías, filtros y profesionales disponibles sin escribir una descripción.
+            </p>
+            <Link href="/servicios" className="primaryButton wide browsePrimaryLink">
+              Explorar categorías <ArrowRight size={18} />
+            </Link>
+          </article>
         </div>
 
         <div className="trustRow">
           <span><BadgeCheck size={19} /> Profesionales verificados</span>
           <span><ShieldCheck size={19} /> Solicitudes protegidas</span>
-          <span><Sparkles size={19} /> Experiencia personalizada</span>
+          <span><Sparkles size={19} /> IA + navegación manual</span>
         </div>
       </section>
+
+      {result && (
+        <section className="contentSection aiResultsSection">
+          <AiRecommendations result={result} onCreateRequest={createRequest} />
+        </section>
+      )}
 
       <section className="contentSection">
         <div className="sectionHeading">
           <div>
-            <p className="kicker">SERVICIOS</p>
-            <h2>Todo lo que necesitas, en un solo lugar.</h2>
+            <p className="kicker">ACCESO RÁPIDO</p>
+            <h2>Categorías principales</h2>
           </div>
-          <Link href="/registro" className="textLink">Trabaja con ZOVIT <ArrowRight size={17} /></Link>
+          <Link href="/servicios" className="textLink">
+            Ver todas las categorías <ArrowRight size={17} />
+          </Link>
         </div>
 
-        <div className="categoryGrid">
-          {categories.map(({ title, icon: Icon, text }) => (
-            <article className="categoryCard" key={title}>
-              <div className="categoryIcon"><Icon /></div>
-              <h3>{title}</h3>
-              <p>{text}</p>
-            </article>
-          ))}
+        <div className="browseGrid browseGridHome">
+          {featuredCategories.map((category) => {
+            const Icon = getCategoryIcon(category.name);
+            return (
+              <ClickableServiceCard
+                key={category.slug}
+                href={`/servicios/${category.slug}`}
+                title={category.name}
+                description={category.summary}
+                icon={Icon}
+                meta={
+                  <span className="browseCardMeta">
+                    {category.subcategories.length} subcategorías
+                  </span>
+                }
+              />
+            );
+          })}
         </div>
       </section>
 

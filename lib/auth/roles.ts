@@ -10,22 +10,42 @@ export function isProtectedRoute(pathname: string): boolean {
   return (
     pathname.startsWith("/panel") ||
     pathname.startsWith("/perfil") ||
+    pathname.startsWith("/experiencia") ||
     pathname.startsWith("/solicitudes") ||
     pathname.startsWith("/trabajos") ||
+    pathname.startsWith("/pagos") ||
+    pathname.startsWith("/admin") ||
     pathname.startsWith("/auth/restablecer-clave")
   );
 }
 
 export function canAccessRoute(pathname: string, role: UserRole): boolean {
-  if (pathname.startsWith("/trabajos")) {
+  if (pathname.startsWith("/admin")) {
+    return role === "admin";
+  }
+
+  if (pathname.startsWith("/pagos/profesional")) {
+    return role === "professional" || role === "admin";
+  }
+
+  if (pathname === "/pagos" || pathname.startsWith("/pagos/")) {
+    return role === "client" || role === "admin";
+  }
+
+  if (pathname.startsWith("/trabajos") || pathname.startsWith("/experiencia")) {
     return role === "professional" || role === "admin";
   }
 
   if (pathname === "/solicitudes/nueva" || pathname.startsWith("/solicitudes/nueva/")) {
-    return role === "client" || role === "admin";
+    return role === "client" || role === "professional" || role === "admin";
   }
 
   return true;
+}
+
+export function resolvePostLoginPath(nextPath: string | null, role: UserRole): string {
+  const path = nextPath && nextPath.startsWith("/") ? nextPath : "/panel";
+  return canAccessRoute(path, role) ? path : "/panel";
 }
 
 export function roleErrorMessage(code: string): string {

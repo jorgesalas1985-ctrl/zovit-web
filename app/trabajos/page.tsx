@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { BriefcaseBusiness, MapPin, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Protected } from "@/components/Protected";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/components/AuthProvider";
@@ -11,9 +12,11 @@ import { supabase } from "@/lib/supabase";
 type Job = { id:string; category:string; description:string; address:string; status:string; created_at:string; professional_id:string|null };
 
 export default function JobsPage() {
+  const router = useRouter();
   const { user, profile } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   const canViewJobs = profile?.role === "professional" || profile?.role === "admin";
@@ -27,7 +30,7 @@ export default function JobsPage() {
       .or(`status.eq.publicada,professional_id.eq.${user.id}`)
       .order("created_at", { ascending: false });
     setJobs((data ?? []) as Job[]);
-    setMessage(error ? "No fue posible cargar los trabajos. Ejecuta primero el SQL de Fase 1 en Supabase." : "");
+    setMessage(error ? "No fue posible cargar los trabajos. Verifica que el SQL de Fase 1 esté aplicado." : "");
     setLoading(false);
   }, [canViewJobs, user]);
 
@@ -40,11 +43,17 @@ export default function JobsPage() {
   }, [canViewJobs, loadJobs]);
 
   async function accept(jobId: string) {
-    if (!user) return;
+    if (!user || acceptingId) return;
+    setAcceptingId(jobId);
     setMessage("");
     const { error } = await supabase.rpc("accept_service_request", { request_id: jobId });
-    if (error) setMessage(error.message);
-    else { setMessage("Trabajo aceptado correctamente."); await loadJobs(); }
+    if (error) {
+      setMessage(error.message);
+      setAcceptingId(null);
+      return;
+    }
+    router.push(`/solicitudes/${jobId}`);
+    router.refresh();
   }
 
   return (
@@ -53,7 +62,7 @@ export default function JobsPage() {
       <main className="dashboardPage">
         <section className="dashboardHero">
           <div><p className="kicker light">PANEL PROFESIONAL</p><h1>Trabajos disponibles</h1><p>Acepta solicitudes publicadas y administra las asignadas.</p></div>
-          <button className="whiteButton" onClick={() => void loadJobs()}><RefreshCw size={18}/> Actualizar</button>
+          <button className="whiteButton" onClick={() => void loadJobs()} disabled={loading}><RefreshCw size={18}/> Actualizar</button>
         </section>
         <section className="panelSection">
           {message && <div className="notice">{message}</div>}
@@ -70,7 +79,11 @@ export default function JobsPage() {
                     <small><MapPin size={15}/> {job.address}</small>
                   </div>
                   <div className="jobCardActions">
-                    {job.status === "publicada" && !job.professional_id ? <button className="primaryButton" onClick={() => void accept(job.id)}>Aceptar trabajo</button> : null}
+                    {job.status === "publicada" && !job.professional_id ? (
+                      <button className="primaryButton" disabled={!!acceptingId} onClick={() => void accept(job.id)}>
+                        {acceptingId === job.id ? "Aceptando…" : "Aceptar trabajo"}
+                      </button>
+                    ) : null}
                     <Link className="secondaryButton" href={`/solicitudes/${job.id}`}>Ver detalle</Link>
                   </div>
                 </article>

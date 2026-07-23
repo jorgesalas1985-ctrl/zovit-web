@@ -5,12 +5,17 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   Clock3,
+  CreditCard,
   FileText,
   Plus,
+  Share2,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 import { Protected } from "@/components/Protected";
+import { ExperienceBadge, ProfessionalStatsGrid } from "@/components/experience/ExperienceSection";
 import { useAuth } from "@/components/AuthProvider";
+import type { ProfessionalStats } from "@/lib/experience/types";
 import { roleErrorMessage } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
@@ -28,10 +33,12 @@ function PanelContent() {
   const { user, profile } = useAuth();
   const searchParams = useSearchParams();
   const [requests, setRequests] = useState<RequestItem[]>([]);
+  const [publishedRequests, setPublishedRequests] = useState<RequestItem[]>([]);
   const [requestCount, setRequestCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [accessMessage, setAccessMessage] = useState("");
+  const [professionalStats, setProfessionalStats] = useState<ProfessionalStats | null>(null);
 
   const role = profile?.role;
   const isClientView = role === "client" || role === "admin";
@@ -54,18 +61,39 @@ function PanelContent() {
       setError("");
 
       if (isProfessionalView) {
-        const { data, error: jobsError } = await supabase
-          .from("solicitudes_de_servicio")
-          .select("id,category,description,status,created_at")
-          .eq("professional_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(6);
+        const [jobsResult, publishedResult, statsResult] = await Promise.all([
+          supabase
+            .from("solicitudes_de_servicio")
+            .select("id,category,description,status,created_at")
+            .eq("professional_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(6),
+          supabase
+            .from("solicitudes_de_servicio")
+            .select("id,category,description,status,created_at")
+            .eq("client_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(6),
+          supabase.rpc("get_professional_stats", { p_professional_id: userId }),
+        ]);
 
-        if (jobsError) {
-          setError("No fue posible cargar tus trabajos. Intenta nuevamente.");
+        if (jobsResult.error || publishedResult.error) {
+          setError("No fue posible cargar tu actividad. Intenta nuevamente.");
         } else {
-          setRequests((data ?? []) as RequestItem[]);
-          setRequestCount(data?.length ?? 0);
+          setRequests((jobsResult.data ?? []) as RequestItem[]);
+          setPublishedRequests((publishedResult.data ?? []) as RequestItem[]);
+          setRequestCount((jobsResult.data?.length ?? 0) + (publishedResult.data?.length ?? 0));
+        }
+
+        const statsRow = Array.isArray(statsResult.data) ? statsResult.data[0] : statsResult.data;
+        if (statsRow) {
+          setProfessionalStats({
+            completed_jobs: Number(statsRow.completed_jobs ?? 0),
+            total_hours: Number(statsRow.total_hours ?? 0),
+            average_rating: Number(statsRow.average_rating ?? 0),
+            rating_count: Number(statsRow.rating_count ?? 0),
+            experience_level: (statsRow.experience_level ?? "junior") as ProfessionalStats["experience_level"],
+          });
         }
 
         setLoading(false);
@@ -110,7 +138,7 @@ function PanelContent() {
           </h1>
           <p>
             {isProfessionalView
-              ? "Administra tus trabajos y encuentra nuevas solicitudes."
+              ? "Administra tus trabajos y construye experiencia verificable en ZOVIT."
               : isAdmin
                 ? "Administra solicitudes, trabajos y tu cuenta desde un solo lugar."
                 : "Administra tu cuenta y tus solicitudes reales desde un solo lugar."}
@@ -118,11 +146,32 @@ function PanelContent() {
         </div>
 
         {isProfessionalView ? (
-          <Link className="whiteButton" href="/trabajos"><BriefcaseBusiness size={18} /> Ver trabajos</Link>
+          <div className="panelHeroActions">
+            <Link className="whiteButton" href="/experiencia"><Sparkles size={18} /> Mi experiencia</Link>
+            <Link className="secondaryButton" href="/solicitudes/nueva"><Plus size={18} /> Nueva solicitud</Link>
+          </div>
         ) : (
           <Link className="whiteButton" href="/solicitudes/nueva"><Plus size={18} /> Nueva solicitud</Link>
         )}
       </section>
+
+      {isProfessionalView && professionalStats && (
+        <section className="panelSection compactSection">
+          <div className="sectionHeading">
+            <div>
+              <p className="kicker">REPUTACIÓN ZOVIT</p>
+              <h2>Tu progreso verificable</h2>
+              <ExperienceBadge level={professionalStats.experience_level} />
+            </div>
+            {user && (
+              <Link className="secondaryButton" href={`/profesional/${user.id}`}>
+                <Share2 size={16} /> Perfil público
+              </Link>
+            )}
+          </div>
+          <ProfessionalStatsGrid stats={professionalStats} />
+        </section>
+      )}
 
       <section className="dashboardGrid">
         <Link href="/perfil" className="dashboardCard">
@@ -132,9 +181,49 @@ function PanelContent() {
         </Link>
 
         {isClientView && (
+          <Link href="/pagos" className="dashboardCard">
+            <div className="dashboardIcon"><CreditCard /></div>
+            <div><h3>Mis pagos</h3><p>Pendientes, historial y comprobantes.</p></div>
+            <ArrowRight />
+          </Link>
+        )}
+
+        {(isProfessionalView || isAdmin) && (
+          <Link href="/pagos/profesional" className="dashboardCard">
+            <div className="dashboardIcon"><CreditCard /></div>
+            <div><h3>Wallet profesional</h3><p>Saldo, retenciones e ingresos.</p></div>
+            <ArrowRight />
+          </Link>
+        )}
+
+        {isAdmin && (
+          <Link href="/admin/pagos" className="dashboardCard">
+            <div className="dashboardIcon"><Clock3 /></div>
+            <div><h3>Admin pagos</h3><p>Disputas, comisiones y auditoría.</p></div>
+            <ArrowRight />
+          </Link>
+        )}
+
+        {isClientView && (
           <Link href="/solicitudes/nueva" className="dashboardCard">
             <div className="dashboardIcon"><BriefcaseBusiness /></div>
             <div><h3>Solicitar servicio</h3><p>Crea una nueva solicitud.</p></div>
+            <ArrowRight />
+          </Link>
+        )}
+
+        {(isProfessionalView || isAdmin) && (
+          <Link href="/experiencia" className="dashboardCard">
+            <div className="dashboardIcon"><Sparkles /></div>
+            <div><h3>Experiencia verificada</h3><p>Historial real de trabajos en ZOVIT.</p></div>
+            <ArrowRight />
+          </Link>
+        )}
+
+        {(isProfessionalView || isAdmin) && (
+          <Link href="/solicitudes/nueva" className="dashboardCard">
+            <div className="dashboardIcon"><Plus /></div>
+            <div><h3>Publicar solicitud</h3><p>Publica un trabajo para recibir propuestas.</p></div>
             <ArrowRight />
           </Link>
         )}
@@ -151,7 +240,7 @@ function PanelContent() {
           <div className="dashboardIcon"><FileText /></div>
           <div>
             <h3>{requestCount}</h3>
-            <p>{isProfessionalView ? "Trabajos asignados" : "Solicitudes registradas"}</p>
+            <p>{isProfessionalView ? "Actividad registrada" : "Solicitudes registradas"}</p>
           </div>
         </article>
       </section>
@@ -160,7 +249,7 @@ function PanelContent() {
         <div className="sectionHeading">
           <div>
             <p className="kicker">ACTIVIDAD</p>
-            <h2>{isProfessionalView ? "Mis trabajos" : "Mis solicitudes"}</h2>
+            <h2>{isProfessionalView ? "Mi actividad" : "Mis solicitudes"}</h2>
           </div>
         </div>
 
@@ -168,23 +257,50 @@ function PanelContent() {
           <div className="emptyState">Cargando información…</div>
         ) : error ? (
           <div className="emptyState"><h3>No pudimos cargar la información</h3><p>{error}</p></div>
-        ) : requests.length === 0 ? (
+        ) : requests.length === 0 && publishedRequests.length === 0 ? (
           <div className="emptyState">
             <Clock3 size={34} />
-            <h3>{isProfessionalView ? "Todavía no tienes trabajos asignados" : "Todavía no tienes solicitudes"}</h3>
+            <h3>{isProfessionalView ? "Todavía no tienes actividad" : "Todavía no tienes solicitudes"}</h3>
             <p>
               {isProfessionalView
-                ? "Revisa trabajos disponibles y acepta uno para comenzar."
+                ? "Publica una solicitud o acepta un trabajo disponible."
                 : "Crea la primera para comenzar a utilizar ZOVIT."}
             </p>
             {isProfessionalView || isAdmin ? (
-              <Link href="/trabajos" className="primaryButton">Ver trabajos</Link>
+              <div className="panelHeroActions">
+                <Link href="/solicitudes/nueva" className="primaryButton">Publicar solicitud</Link>
+                <Link href="/trabajos" className="secondaryButton">Ver trabajos</Link>
+              </div>
             ) : (
               <Link href="/solicitudes/nueva" className="primaryButton">Crear solicitud</Link>
             )}
           </div>
         ) : (
           <div className="requestList">
+            {isProfessionalView && publishedRequests.length > 0 && (
+              <>
+                <p className="kicker">SOLICITUDES PUBLICADAS</p>
+                {publishedRequests.map((request) => (
+                  <Link
+                    href={`/solicitudes/${request.id}`}
+                    className="requestRow"
+                    key={`pub-${request.id}`}
+                  >
+                    <div>
+                      <span className={`statusPill status-${request.status}`}>
+                        {request.status.replaceAll("_", " ")}
+                      </span>
+                      <h3>{request.category}</h3>
+                      <p>{request.description}</p>
+                    </div>
+                    <time>{new Date(request.created_at).toLocaleDateString("es-CL")}</time>
+                  </Link>
+                ))}
+              </>
+            )}
+            {isProfessionalView && requests.length > 0 && (
+              <p className="kicker">TRABAJOS ASIGNADOS</p>
+            )}
             {requests.map((request) => (
               <Link
                 href={`/solicitudes/${request.id}`}

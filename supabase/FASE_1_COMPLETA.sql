@@ -104,10 +104,10 @@ create policy "notifications_own_update" on public.notifications for update to a
 
 create or replace function public.accept_service_request(request_id uuid)
 returns void language plpgsql security definer set search_path=public as $$
-declare current_role text;
+declare profile_role text;
 begin
-  select role into current_role from public.profiles where id=auth.uid();
-  if current_role not in ('professional','admin') then raise exception 'Solo un profesional puede aceptar trabajos'; end if;
+  select p.role into profile_role from public.profiles p where p.id = auth.uid();
+  if coalesce(profile_role, '') not in ('professional','admin') then raise exception 'Solo un profesional puede aceptar trabajos'; end if;
   update public.solicitudes_de_servicio
     set professional_id=auth.uid(), status='aceptada', updated_at=now()
     where id=request_id and status='publicada' and professional_id is null;
@@ -182,3 +182,7 @@ grant select, insert on public.request_messages to authenticated;
 grant select, insert on public.request_photos to authenticated;
 grant select on public.request_status_history to authenticated;
 grant select, update on public.notifications to authenticated;
+
+grant execute on function public.is_request_participant(uuid, uuid) to authenticated;
+grant execute on function public.accept_service_request(uuid) to authenticated;
+grant execute on function public.change_service_request_status(uuid, text) to authenticated;

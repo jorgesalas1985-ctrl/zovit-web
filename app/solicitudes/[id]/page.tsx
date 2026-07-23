@@ -1,6 +1,8 @@
 "use client";
 
 import { Protected } from "@/components/Protected";
+import { ProposalSection } from "@/components/payments/ProposalSection";
+import { ServiceRatingForm } from "@/components/ServiceRatingForm";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle, ArrowLeft, Camera, CheckCircle2, MapPin, MessageCircle, Send, Upload } from "lucide-react";
@@ -15,12 +17,19 @@ type RequestRow = {
 };
 type Message = { id:string; sender_id:string; body:string; created_at:string };
 type Photo = { id:string; uploaded_by:string; photo_type:"before"|"after"; storage_path:string; created_at:string; url?:string };
+type StatusHistory = { id:string; old_status:string|null; new_status:string; created_at:string };
+type ExistingRating = { id:string; rating:number; comment:string|null };
 
 const statusLabels: Record<string,string> = {
   publicada:"Publicada", aceptada:"Aceptada", en_camino:"En camino", en_ejecucion:"En ejecución",
   finalizada:"Finalizada", cancelada:"Cancelada"
 };
 const nextStatus: Record<string,string> = { aceptada:"en_camino", en_camino:"en_ejecucion", en_ejecucion:"finalizada" };
+
+function proposalsVisible(status: string) {
+  return ["aceptada", "en_camino", "en_ejecucion"].includes(status);
+}
+const activeFlow = ["publicada","aceptada","en_camino","en_ejecucion","finalizada"];
 
 export default function RequestDetailPage() {
   const { id } = useParams<{id:string}>();
@@ -29,6 +38,8 @@ export default function RequestDetailPage() {
   const [request, setRequest] = useState<RequestRow|null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [history, setHistory] = useState<StatusHistory[]>([]);
+  const [existingRating, setExistingRating] = useState<ExistingRating | null>(null);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -38,14 +49,18 @@ export default function RequestDetailPage() {
   const load = useCallback(async () => {
     if (!user || !id) return;
     setLoading(true); setError("");
-    const [requestResult, messageResult, photoResult] = await Promise.all([
+    const [requestResult, messageResult, photoResult, historyResult, ratingResult] = await Promise.all([
       supabase.from("solicitudes_de_servicio").select("*").eq("id", id).single(),
       supabase.from("request_messages").select("id,sender_id,body,created_at").eq("request_id", id).order("created_at"),
-      supabase.from("request_photos").select("id,uploaded_by,photo_type,storage_path,created_at").eq("request_id", id).order("created_at")
+      supabase.from("request_photos").select("id,uploaded_by,photo_type,storage_path,created_at").eq("request_id", id).order("created_at"),
+      supabase.from("request_status_history").select("id,old_status,new_status,created_at").eq("request_id", id).order("created_at", { ascending: false }).limit(8),
+      supabase.from("service_ratings").select("id,rating,comment").eq("request_id", id).maybeSingle(),
     ]);
     if (requestResult.error || !requestResult.data) setError("No existe la solicitud o no tienes permiso para verla.");
     else setRequest(requestResult.data as RequestRow);
     setMessages((messageResult.data ?? []) as Message[]);
+    setHistory((historyResult.data ?? []) as StatusHistory[]);
+    setExistingRating((ratingResult.data as ExistingRating | null) ?? null);
 
     const photoRows = (photoResult.data ?? []) as Photo[];
     const withUrls = await Promise.all(photoRows.map(async (photo) => {
@@ -73,11 +88,22 @@ export default function RequestDetailPage() {
 
   const isClient = !!user && request?.client_id === user.id;
   const isProfessional = !!user && request?.professional_id === user.id;
-  const canInteract = isClient || isProfessional || profileRole === "admin";
+  const isParticipant = isClient || isProfessional;
+  const isAdmin = profileRole === "admin";
+  const isCancelled = request?.status === "cancelada";
+  const isFinalized = request?.status === "finalizada";
+  const canCollaborate = !!request && !isCancelled && request.status !== "publicada" && (isParticipant || isAdmin);
+  const chatPlaceholder = request?.status === "publicada"
+    ? "El chat se habilitará cuando un profesional acepte la solicitud."
+    : isCancelled
+      ? "Esta solicitud fue cancelada."
+      : isFinalized
+        ? "Trabajo finalizado. El historial queda disponible."
+        : "Escribe un mensaje…";
 
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
-    if (!user || !text.trim() || !request) return;
+    if (!user || !text.trim() || !request || !canCollaborate) return;
     const body = text.trim(); setText("");
     const { error: sendError } = await supabase.from("request_messages").insert({ request_id:request.id, sender_id:user.id, body });
     if (sendError) { setText(body); setError(sendError.message); }
@@ -87,12 +113,13 @@ export default function RequestDetailPage() {
     if (!request) return;
     setBusy(true); setError("");
     const { error: updateError } = await supabase.rpc("change_service_request_status", { request_id:request.id, new_status:status });
-    if (updateError) setError(updateError.message); else await load();
+    if (updateError) setError(updateError.message);
+    else await load();
     setBusy(false);
   }
 
   async function uploadPhoto(file: File, type:"before"|"after") {
-    if (!user || !request) return;
+    if (!user || !request || !canCollaborate) return;
     setBusy(true); setError("");
     const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `${request.id}/${user.id}/${crypto.randomUUID()}.${extension}`;
@@ -125,22 +152,27 @@ export default function RequestDetailPage() {
 
               {error && <div className="formMessage"><AlertCircle size={17}/>{error}</div>}
 
-              <div className="statusTimeline">
-                {["publicada","aceptada","en_camino","en_ejecucion","finalizada"].map((status, index) => {
-                  const current = ["publicada","aceptada","en_camino","en_ejecucion","finalizada"].indexOf(request.status);
-                  return <div className={index <= current ? "timelineStep active" : "timelineStep"} key={status}><span>{index + 1}</span><small>{statusLabels[status]}</small></div>;
-                })}
-              </div>
+              {isCancelled ? (
+                <div className="cancelledBanner">Esta solicitud fue cancelada y ya no admite cambios.</div>
+              ) : (
+                <div className="statusTimeline">
+                  {activeFlow.map((status, index) => {
+                    const current = activeFlow.indexOf(request.status);
+                    return <div className={index <= current ? "timelineStep active" : "timelineStep"} key={status}><span>{index + 1}</span><small>{statusLabels[status]}</small></div>;
+                  })}
+                </div>
+              )}
 
               <div className="requestColumns">
                 <div className="requestMainColumn">
                   <section className="moduleCard">
                     <div className="moduleHeading"><div><p className="kicker">EVIDENCIA</p><h2>Fotos del trabajo</h2></div><Camera/></div>
+                    {!canCollaborate && <p className="muted">Las fotos estarán disponibles cuando la solicitud sea aceptada por un profesional.</p>}
                     <div className="photoGroups">
                       {(["before","after"] as const).map((type) => (
                         <div key={type} className="photoGroup">
                           <div className="photoGroupTitle"><strong>{type === "before" ? "Antes" : "Después"}</strong>
-                            {canInteract && <label className="uploadButton"><Upload size={16}/> Subir foto<input type="file" accept="image/*" disabled={busy} onChange={(e) => { const f=e.target.files?.[0]; if(f) void uploadPhoto(f,type); e.currentTarget.value=""; }}/></label>}
+                            {canCollaborate && <label className="uploadButton"><Upload size={16}/> Subir foto<input type="file" accept="image/*" disabled={busy} onChange={(e) => { const f=e.target.files?.[0]; if(f) void uploadPhoto(f,type); e.currentTarget.value=""; }}/></label>}
                           </div>
                           <div className="photoGrid">
                             {photos.filter((p) => p.photo_type === type).length === 0 ? <div className="photoPlaceholder">Sin fotografías</div> : photos.filter((p) => p.photo_type === type).map((photo) => photo.url ? <Image src={photo.url} alt={type === "before" ? "Antes del trabajo" : "Después del trabajo"} width={320} height={240} unoptimized key={photo.id}/> : null)}
@@ -153,22 +185,60 @@ export default function RequestDetailPage() {
                   <section className="moduleCard chatCard">
                     <div className="moduleHeading"><div><p className="kicker">COMUNICACIÓN</p><h2>Chat del servicio</h2></div><MessageCircle/></div>
                     <div className="chatMessages">
-                      {messages.length === 0 && <p className="chatEmpty">Aún no hay mensajes. Escribe el primero.</p>}
+                      {messages.length === 0 && <p className="chatEmpty">{chatPlaceholder}</p>}
                       {messages.map((message) => <div key={message.id} className={message.sender_id === user?.id ? "chatBubble own" : "chatBubble"}><p>{message.body}</p><time>{new Date(message.created_at).toLocaleTimeString("es-CL", {hour:"2-digit",minute:"2-digit"})}</time></div>)}
                       <div ref={chatEnd}/>
                     </div>
-                    <form className="chatForm" onSubmit={sendMessage}><input value={text} onChange={(e)=>setText(e.target.value)} placeholder={canInteract ? "Escribe un mensaje…" : "El chat estará disponible al asignarse un profesional"} disabled={!canInteract}/><button className="primaryButton" disabled={!canInteract || !text.trim()}><Send size={18}/></button></form>
+                    <form className="chatForm" onSubmit={sendMessage}><input value={text} onChange={(e)=>setText(e.target.value)} placeholder={chatPlaceholder} disabled={!canCollaborate}/><button className="primaryButton" disabled={!canCollaborate || !text.trim()}><Send size={18}/></button></form>
                   </section>
                 </div>
 
                 <aside className="requestSideColumn">
+                  {(request.status === "publicada" || proposalsVisible(request.status)) && (
+                    <ProposalSection
+                      requestId={request.id}
+                      requestStatus={request.status}
+                      isClient={isClient}
+                      isProfessional={isProfessional}
+                    />
+                  )}
                   <section className="moduleCard actionCard"><p className="kicker">GESTIÓN</p><h2>Acciones</h2>
                     {isProfessional && nextStatus[request.status] && <button className="primaryButton fullButton" disabled={busy} onClick={()=>void updateStatus(nextStatus[request.status])}>{request.status === "aceptada" ? "Marcar en camino" : request.status === "en_camino" ? "Iniciar trabajo" : "Finalizar trabajo"}</button>}
                     {isClient && ["publicada","aceptada"].includes(request.status) && <button className="dangerButton fullButton" disabled={busy} onClick={()=>void updateStatus("cancelada")}>Cancelar solicitud</button>}
                     {request.status === "finalizada" && <div className="completionBox"><CheckCircle2/><strong>Trabajo finalizado</strong><span>La solicitud quedó completada.</span></div>}
-                    {!isProfessional && !isClient && <p className="muted">Solo los participantes pueden administrar esta solicitud.</p>}
+                    {request.professional_id && (
+                      <Link className="secondaryButton fullButton" href={`/profesional/${request.professional_id}`}>Ver perfil del profesional</Link>
+                    )}
+                    {request.status === "publicada" && isClient && <p className="muted">Esperando que un profesional acepte tu solicitud.</p>}
+                    {!isParticipant && !isAdmin && <p className="muted">Solo los participantes pueden administrar esta solicitud.</p>}
                   </section>
+                  {isClient && request.status === "finalizada" && !existingRating && (
+                    <section className="moduleCard">
+                      <ServiceRatingForm requestId={request.id} onSubmitted={() => void load()} />
+                    </section>
+                  )}
+                  {existingRating && (
+                    <section className="moduleCard">
+                      <p className="kicker">TU CALIFICACIÓN</p>
+                      <h2>{existingRating.rating} estrellas</h2>
+                      {existingRating.comment && <p>{existingRating.comment}</p>}
+                    </section>
+                  )}
                   <section className="moduleCard"><p className="kicker">INFORMACIÓN</p><dl className="requestMeta"><div><dt>Publicada</dt><dd>{new Date(request.created_at).toLocaleString("es-CL")}</dd></div><div><dt>Última actualización</dt><dd>{new Date(request.updated_at).toLocaleString("es-CL")}</dd></div><div><dt>Profesional</dt><dd>{request.professional_id ? "Asignado" : "Aún no asignado"}</dd></div></dl></section>
+                  {history.length > 0 && (
+                    <section className="moduleCard">
+                      <p className="kicker">HISTORIAL</p>
+                      <h2>Actividad</h2>
+                      <div className="activityLog">
+                        {history.map((entry) => (
+                          <div className="activityLogItem" key={entry.id}>
+                            {entry.old_status ? `${statusLabels[entry.old_status] ?? entry.old_status} → ${statusLabels[entry.new_status] ?? entry.new_status}` : statusLabels[entry.new_status] ?? entry.new_status}
+                            <time>{new Date(entry.created_at).toLocaleString("es-CL")}</time>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
                 </aside>
               </div>
             </>
