@@ -15,6 +15,13 @@ export const INTRANET_PORTAL_LABELS: Record<IntranetPortal, string> = {
   super_admin: "Super administrador",
 };
 
+export const INTRANET_LOGIN_PROFILE_LABELS: Record<IntranetRole, string> = {
+  worker: "Trabajador ZOVIT",
+  supervisor: "Supervisor",
+  hr_admin: "Administrador (RR.HH.)",
+  super_admin: "Super administrador",
+};
+
 export function isIntranetRole(value: string | null | undefined): value is IntranetRole {
   return !!value && INTRANET_ROLES.includes(value as IntranetRole);
 }
@@ -44,6 +51,7 @@ const ROLE_PERMISSIONS: Record<IntranetRole, IntranetPermission[]> = {
     "view_own_payroll",
     "view_all_personal_files",
     "edit_payroll",
+    "manage_intranet_users",
   ],
   super_admin: [
     "view_own_personal_file",
@@ -89,6 +97,7 @@ export function portalMatchesRole(portal: IntranetPortal, role: IntranetRole): b
 export function requiredRolesForPath(pathname: string): IntranetRole[] | null {
   if (pathname.startsWith("/intranet/trabajador")) return ["worker"];
   if (pathname.startsWith("/intranet/supervisor")) return ["supervisor"];
+  if (pathname.startsWith("/intranet/admin/usuarios")) return ["hr_admin", "super_admin"];
   if (pathname.startsWith("/intranet/admin")) return ["hr_admin", "super_admin"];
   if (pathname.startsWith("/intranet/finanzas")) return ["super_admin"];
   if (pathname.startsWith("/intranet/equipo")) return ["supervisor", "hr_admin", "super_admin"];
@@ -104,4 +113,10 @@ export function canAccessIntranetPath(pathname: string, role: IntranetRole): boo
   if (!allowed) return false;
   if (role === "super_admin") return true;
   return allowed.includes(role);
+}
+
+export function assignableIntranetRoles(callerRole: IntranetRole): IntranetRole[] {
+  if (callerRole === "super_admin") return [...INTRANET_ROLES];
+  if (callerRole === "hr_admin") return ["worker", "supervisor"];
+  return [];
 }

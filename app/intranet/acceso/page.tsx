@@ -2,78 +2,156 @@
 
 import { useAuth } from "@/components/AuthProvider";
 import {
+  INTRANET_LOGIN_PROFILE_LABELS,
   intranetHomeForRole,
   isIntranetRole,
-  portalMatchesRole,
-  type IntranetPortal,
+  type IntranetRole,
 } from "@/lib/auth/intranetRoles";
+import { supabase } from "@/lib/supabase";
+import { AlertCircle, ArrowRight, Building2, ChevronDown, LockKeyhole, Mail } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
-
-function IntranetAccessContent() {
-  const { user, profile, loading } = useAuth();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const portal = (searchParams.get("portal") ?? "trabajadores") as IntranetPortal;
-
-  const intranetRole = isIntranetRole(profile?.intranet_role)
-    ? profile.intranet_role
-    : null;
-
-  useEffect(() => {
-    if (loading) return;
-
-    if (!user) {
-      router.replace(`/login?next=${encodeURIComponent(`/intranet/acceso?portal=${portal}`)}`);
-      return;
-    }
-
-    if (!intranetRole) {
-      return;
-    }
-
-    if (portalMatchesRole(portal, intranetRole)) {
-      router.replace(intranetHomeForRole(intranetRole));
-      return;
-    }
-
-    router.replace(intranetHomeForRole(intranetRole));
-  }, [intranetRole, loading, portal, router, user]);
-
-  if (loading) {
-    return <div className="centerState">Validando acceso interno…</div>;
-  }
-
-  if (!user) {
-    return <div className="centerState">Redirigiendo al inicio de sesión…</div>;
-  }
-
-  if (!intranetRole) {
-    return (
-      <main className="simplePage">
-        <section className="formPageCard intranetNoticeCard">
-          <p className="kicker">INTRANET ZOVIT</p>
-          <h1>Sin acceso interno activo</h1>
-          <p className="muted">
-            Tu cuenta pública existe, pero aún no tienes rol interno asignado para{" "}
-            <strong>{portal}</strong>. Recursos Humanos debe habilitarte en Supabase.
-          </p>
-          <Link href="/" className="secondaryButton wide">
-            Volver al inicio público
-          </Link>
-        </section>
-      </main>
-    );
-  }
-
-  return <div className="centerState">Redirigiendo a tu panel interno…</div>;
-}
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
 
 export default function IntranetAccessPage() {
+  const router = useRouter();
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const [selectedProfile, setSelectedProfile] = useState<IntranetRole>("worker");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const intranetRole = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
+
+  useEffect(() => {
+    if (loading || busy || !user || !intranetRole) return;
+    router.replace(intranetHomeForRole(intranetRole));
+  }, [busy, intranetRole, loading, router, user]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      setMessage(error.message === "Invalid login credentials"
+        ? "Correo o contraseña incorrectos."
+        : error.message);
+      setBusy(false);
+      return;
+    }
+
+    await refreshProfile();
+
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("intranet_role")
+      .eq("id", (await supabase.auth.getUser()).data.user?.id ?? "")
+      .maybeSingle();
+
+    const role = isIntranetRole(profileRow?.intranet_role) ? profileRow.intranet_role : null;
+
+    if (!role) {
+      setMessage("Tu cuenta no tiene acceso interno activo. Contacta a RR.HH. o al super administrador.");
+      await supabase.auth.signOut();
+      setBusy(false);
+      return;
+    }
+
+    if (role !== selectedProfile) {
+      setMessage("El perfil seleccionado no coincide con tu cuenta interna.");
+      await supabase.auth.signOut();
+      setBusy(false);
+      return;
+    }
+
+    router.replace(intranetHomeForRole(role));
+  }
+
+  if (loading) {
+    return <div className="centerState">Cargando intranet…</div>;
+  }
+
+  if (user && intranetRole) {
+    return <div className="centerState">Redirigiendo a tu panel interno…</div>;
+  }
+
   return (
-    <Suspense fallback={<div className="centerState">Cargando intranet…</div>}>
-      <IntranetAccessContent />
-    </Suspense>
+    <main className="authPage intranetAuthPage">
+      <section className="authCard intranetAuthCard">
+        <div className="intranetAuthBrand">
+          <div className="authLogo"><Building2 size={28} /></div>
+          <p className="kicker">ACCESO INTERNO</p>
+          <h1>Intranet ZOVIT</h1>
+          <p className="muted">
+            Ingresa con tu perfil interno y credenciales asignadas por administración o super administración.
+          </p>
+        </div>
+
+        <form onSubmit={submit} className="formStack">
+          <label>
+            Perfil interno
+            <div className="intranetSelectWrap">
+              <select
+                value={selectedProfile}
+                onChange={(event) => setSelectedProfile(event.target.value as IntranetRole)}
+              >
+                {(Object.keys(INTRANET_LOGIN_PROFILE_LABELS) as IntranetRole[]).map((role) => (
+                  <option key={role} value={role}>
+                    {INTRANET_LOGIN_PROFILE_LABELS[role]}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={18} aria-hidden="true" />
+            </div>
+          </label>
+
+          <label>
+            Correo corporativo
+            <div className="inputWithIcon">
+              <Mail size={18} />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="nombre@zovit.cl"
+              />
+            </div>
+          </label>
+
+          <label>
+            Contraseña
+            <div className="inputWithIcon">
+              <LockKeyhole size={18} />
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
+          </label>
+
+          {message && (
+            <div className="formMessage">
+              <AlertCircle size={17} /> {message}
+            </div>
+          )}
+
+          <button className="primaryButton wide" disabled={busy}>
+            {busy ? "Validando acceso…" : <>Ingresar a intranet <ArrowRight size={18} /></>}
+          </button>
+        </form>
+
+        <p className="authFooter">
+          <Link href="/">Volver al sitio público</Link>
+        </p>
+      </section>
+    </main>
   );
 }

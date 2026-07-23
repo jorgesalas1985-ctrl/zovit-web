@@ -27,15 +27,15 @@ export function IntranetGuard({ allowedRoles, permission, children }: IntranetGu
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      router.replace("/intranet/acceso");
       return;
     }
     if (!intranetRole) {
-      router.replace("/intranet/acceso?portal=trabajadores");
+      router.replace("/intranet/acceso");
       return;
     }
     if (allowedRoles && !allowedRoles.includes(intranetRole) && intranetRole !== "super_admin") {
-      router.replace("/intranet/acceso?portal=trabajadores");
+      router.replace("/intranet/acceso");
     }
   }, [allowedRoles, intranetRole, loading, pathname, router, user]);
 
@@ -49,7 +49,7 @@ export function IntranetGuard({ allowedRoles, permission, children }: IntranetGu
         <section className="formPageCard intranetNoticeCard">
           <h1>Sin permiso</h1>
           <p className="muted">Tu rol interno no puede acceder a esta sección.</p>
-          <Link href="/intranet/acceso?portal=trabajadores" className="secondaryButton wide">
+          <Link href="/intranet/acceso" className="secondaryButton wide">
             Volver
           </Link>
         </section>

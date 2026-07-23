@@ -1,7 +1,7 @@
 import { IntranetGuard } from "@/components/intranet/IntranetGuard";
 import { IntranetShell } from "@/components/intranet/IntranetShell";
 import Link from "next/link";
-import { FileText, PencilLine, Users, Wallet } from "lucide-react";
+import { FileText, PencilLine, UserPlus, Users, Wallet } from "lucide-react";
 
 export default function IntranetAdminPage() {
   return (
@@ -21,6 +21,11 @@ export default function IntranetAdminPage() {
             <PencilLine size={24} />
             <h3>Gestionar liquidaciones</h3>
             <p>Revisar, cargar y modificar liquidaciones de sueldo.</p>
+          </Link>
+          <Link href="/intranet/admin/usuarios" className="intranetCard">
+            <UserPlus size={24} />
+            <h3>Credenciales intranet</h3>
+            <p>Crear accesos internos y asignar perfil a trabajadores.</p>
           </Link>
           <article className="intranetCard intranetCardStatic">
             <FileText size={24} />

@@ -1,0 +1,70 @@
+import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
+import { canManageTargetRole, requireIntranetManager } from "@/lib/intranet/apiAuth";
+import { createIntranetUser, listIntranetUsers } from "@/lib/intranet/manageUsers";
+import { NextResponse } from "next/server";
+
+type CreateUserBody = {
+  email?: string;
+  password?: string;
+  intranetRole?: string;
+  firstName?: string;
+  lastName?: string;
+};
+
+export async function GET() {
+  try {
+    const auth = await requireIntranetManager();
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const users = await listIntranetUsers();
+    return NextResponse.json({ users });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error inesperado.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const auth = await requireIntranetManager();
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const body = (await request.json()) as CreateUserBody;
+    const email = body.email?.trim() ?? "";
+    const password = body.password ?? "";
+    const intranetRole = body.intranetRole;
+
+    if (!email || !password || !intranetRole) {
+      return NextResponse.json({ error: "Completa correo, contraseña y perfil interno." }, { status: 400 });
+    }
+
+    if (password.length < 8) {
+      return NextResponse.json({ error: "La contraseña debe tener al menos 8 caracteres." }, { status: 400 });
+    }
+
+    if (!isIntranetRole(intranetRole)) {
+      return NextResponse.json({ error: "Perfil interno inválido." }, { status: 400 });
+    }
+
+    if (!canManageTargetRole(auth.manager.intranetRole, intranetRole)) {
+      return NextResponse.json({ error: "No puedes asignar ese perfil interno." }, { status: 403 });
+    }
+
+    const user = await createIntranetUser({
+      email,
+      password,
+      intranetRole: intranetRole as IntranetRole,
+      firstName: body.firstName,
+      lastName: body.lastName,
+    });
+
+    return NextResponse.json({ user }, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error inesperado.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

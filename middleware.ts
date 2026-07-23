@@ -1,10 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { canAccessRoute, isProtectedRoute, isUserRole } from "@/lib/auth/roles";
+import { canAccessRoute, isPublicIntranetRoute, isProtectedRoute, isUserRole } from "@/lib/auth/roles";
 import { mergeCookies, updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
   const { supabase, user, supabaseResponse } = await updateSession(request);
   const { pathname } = request.nextUrl;
+
+  if (isPublicIntranetRoute(pathname)) {
+    return supabaseResponse;
+  }
 
   if (!isProtectedRoute(pathname)) {
     return supabaseResponse;

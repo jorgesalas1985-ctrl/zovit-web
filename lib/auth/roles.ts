@@ -6,7 +6,13 @@ export function isUserRole(value: string | null | undefined): value is UserRole 
   return !!value && USER_ROLES.includes(value as UserRole);
 }
 
+export function isPublicIntranetRoute(pathname: string): boolean {
+  return pathname === "/intranet" || pathname === "/intranet/acceso";
+}
+
 export function isProtectedRoute(pathname: string): boolean {
+  if (isPublicIntranetRoute(pathname)) return false;
+
   return (
     pathname.startsWith("/panel") ||
     pathname.startsWith("/perfil") ||
