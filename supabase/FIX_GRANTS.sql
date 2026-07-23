@@ -6,6 +6,10 @@ grant usage on schema public to anon, authenticated;
 
 grant select, insert, update on public.profiles to authenticated, service_role;
 grant select, insert, update on public.solicitudes_de_servicio to authenticated, service_role;
+grant select, insert, update, delete on public.identity_documents to authenticated, service_role;
+grant select, insert, update, delete on public.intranet_payrolls to service_role;
+grant select, insert, update, delete on public.payment_events to service_role;
+grant select, insert, update, delete on public.request_status_history to service_role;
 grant select, insert on public.request_messages to authenticated;
 grant select, insert on public.request_photos to authenticated;
 grant select on public.request_status_history to authenticated;

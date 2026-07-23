@@ -150,14 +150,22 @@ export async function updatePlatformUser(userId: string, input: UpdatePlatformUs
 }
 
 export function getPlatformUserErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message.trim();
+  const raw =
+    error instanceof Error
+      ? error.message.trim()
+      : typeof error === "object" && error !== null && "message" in error
+        ? String((error as { message: unknown }).message).trim()
+        : "";
+
+  if (/permission denied for table identity_documents/i.test(raw)) {
+    return "Falta configurar permisos en Supabase. Ejecuta supabase/FIX_PLATFORM_USER_DELETE.sql en el SQL Editor y vuelve a intentar.";
   }
 
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const message = String((error as { message: unknown }).message).trim();
-    if (message) return message;
+  if (/Could not find the function public\.clear_platform_user_references/i.test(raw)) {
+    return "Falta la función de limpieza en Supabase. Ejecuta supabase/FIX_PLATFORM_USER_DELETE.sql en el SQL Editor y vuelve a intentar.";
   }
+
+  if (raw) return raw;
 
   return "Error inesperado.";
 }
@@ -165,6 +173,13 @@ export function getPlatformUserErrorMessage(error: unknown): string {
 async function clearPlatformUserReferences(userId: string) {
   const admin = createAdminClient();
 
+  const { error: rpcError } = await admin.rpc("clear_platform_user_references", {
+    p_user_id: userId,
+  });
+
+  if (!rpcError) return;
+
+  // Fallback si la RPC aún no está desplegada en Supabase.
   const cleanups = [
     admin.from("identity_documents").update({ reviewed_by: null }).eq("reviewed_by", userId),
     admin.from("intranet_payrolls").update({ created_by: null }).eq("created_by", userId),
