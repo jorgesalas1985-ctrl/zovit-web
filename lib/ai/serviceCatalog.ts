@@ -40,11 +40,28 @@ export const SERVICE_CATALOG: CategoryDefinition[] = [
         ],
       },
       {
-        id: "diagnostico-computacional",
-        label: "Diagnóstico computacional",
+        id: "scanner-motocicletas",
+        label: "Motocicletas",
         keywords: [
-          "scanner", "check engine", "luz motor", "falla electronica", "falla electrónica",
+          "scanner", "moto", "motocicleta", "motos", "check engine", "luz motor",
+          "falla electronica", "falla electrónica", "codigo error", "código error", "obd",
+        ],
+      },
+      {
+        id: "scanner-automotriz",
+        label: "Automotriz",
+        keywords: [
+          "scanner", "auto", "automotriz", "automovil", "automóvil", "vehiculo", "vehículo",
+          "check engine", "luz motor", "falla electronica", "falla electrónica",
           "codigo error", "código error", "obd", "inyeccion", "inyección",
+        ],
+      },
+      {
+        id: "scanner-maquinaria-pesada",
+        label: "Maquinaria pesada",
+        keywords: [
+          "scanner", "maquinaria pesada", "camion", "camión", "bus", "excavadora",
+          "grua", "grúa", "check engine", "falla electronica", "falla electrónica", "obd",
         ],
       },
       {

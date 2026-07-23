@@ -145,7 +145,7 @@ export const CATEGORY_TREE: CategoryNode[] = [
   legacyRootFromCatalog(
     "Automotriz",
     "automotriz",
-    "Mecánica, electricidad automotriz y diagnóstico.",
+    "Mecánica, electricidad automotriz y scanner.",
     "Especialistas conectados para resolver fallas y mantención de vehículos.",
     "car",
     true,
@@ -161,9 +161,13 @@ export const CATEGORY_TREE: CategoryNode[] = [
         specialties: [{ id: "mecanica-general", label: "Mecánica general" }],
       },
       {
-        id: "diagnostico",
-        name: "Diagnóstico computacional",
-        specialties: [{ id: "diagnostico-computacional", label: "Diagnóstico computacional" }],
+        id: "scanner",
+        name: "Scanner",
+        specialties: [
+          { id: "scanner-motocicletas", label: "Motocicletas" },
+          { id: "scanner-automotriz", label: "Automotriz" },
+          { id: "scanner-maquinaria-pesada", label: "Maquinaria pesada" },
+        ],
       },
       {
         id: "climatizacion-auto",

@@ -1,16 +1,33 @@
 # Plantillas de correo ZOVIT (Supabase Auth)
 
-Los correos de confirmación y recuperación los envía **Supabase Auth**. El texto "Supabase" aparece porque las plantillas vienen por defecto del proveedor. Debes personalizarlas en el panel de Supabase (no se puede cambiar solo desde el código de Next.js).
+Los correos de confirmación los envía **Supabase Auth**. En el plan gratuito con el proveedor de correo por defecto, el remitente puede seguir diciendo "Supabase" hasta que configures SMTP propio.
 
-## Dónde configurarlo
+## Configuración ya aplicada en el proyecto
 
-1. Abre [Supabase Dashboard](https://supabase.com/dashboard) → tu proyecto.
-2. Ve a **Authentication → Email Templates**.
-3. En **Authentication → URL Configuration**, confirma:
-   - **Site URL:** `https://www.zovit.cl` (o `https://zovit.cl`, según tu dominio principal)
-   - **Redirect URLs:** incluye `https://www.zovit.cl/**`, `https://zovit.cl/**` y `http://localhost:3000/**`
+Estos valores ya están configurados en Supabase (proyecto `rtsfgzyqzcibmtifdfbp`):
 
-4. Opcional: **Authentication → SMTP Settings** para enviar desde `noreply@zovit.cl` con tu proveedor (Resend, SendGrid, etc.).
+| Campo | Valor |
+|-------|--------|
+| **Site URL** | `https://www.zovit.cl` |
+| **Redirect URLs** | `https://www.zovit.cl/**`, `https://zovit.cl/**`, localhost y Vercel |
+
+Con esto, al confirmar el correo el usuario vuelve a **zovit.cl** y entra al panel.
+
+Para volver a aplicar las URLs:
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN="tu_token"
+node scripts/configure-supabase-auth.mjs
+```
+
+Token en: [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens)
+
+## Personalizar texto del correo (requiere SMTP)
+
+En plan Free con correo por defecto, Supabase **no permite** editar plantillas por API. Para que diga ZOVIT en lugar de Supabase:
+
+1. Configura **Authentication → SMTP Settings** (Resend, SendGrid, etc.) con `noreply@zovit.cl`
+2. Luego en **Authentication → Email Templates** pega las plantillas de abajo
 
 ## Plantilla — Confirm signup (Confirmar registro)
 
