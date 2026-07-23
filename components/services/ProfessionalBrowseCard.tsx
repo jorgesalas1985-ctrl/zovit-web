@@ -8,6 +8,7 @@ type Props = {
   professional: RecommendedProfessional;
   referencePrice?: string;
   onRequest: (professionalId: string) => void;
+  contactLabel?: string;
 };
 
 const badgeLabels = {
@@ -16,7 +17,7 @@ const badgeLabels = {
   expert: "Experto",
 } as const;
 
-export function ProfessionalBrowseCard({ professional, referencePrice, onRequest }: Props) {
+export function ProfessionalBrowseCard({ professional, referencePrice, onRequest, contactLabel = "Solicitar servicio" }: Props) {
   const availability =
     professional.matchScore >= 50 ? "Disponible para solicitudes" : "Consultar disponibilidad";
 
@@ -49,6 +50,7 @@ export function ProfessionalBrowseCard({ professional, referencePrice, onRequest
         <span>
           <Star size={15} /> {professional.averageRating.toFixed(1)} ({professional.ratingCount})
         </span>
+        <span>Score ZOVIT {Math.round(professional.matchScore)}</span>
         <span>{professional.completedJobs} trabajos verificados</span>
         <span>
           <Clock3 size={14} /> {availability}
@@ -72,7 +74,7 @@ export function ProfessionalBrowseCard({ professional, referencePrice, onRequest
           Ver perfil
         </Link>
         <button className="primaryButton" onClick={() => onRequest(professional.id)}>
-          Solicitar servicio <ArrowRight size={16} />
+          {contactLabel} <ArrowRight size={16} />
         </button>
       </div>
     </article>

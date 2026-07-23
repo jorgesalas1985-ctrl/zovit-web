@@ -9,6 +9,8 @@ export const SERVICE_CATEGORIES = [
   "Salud",
   "Educación",
   "Profesionales",
+  "Auxiliar de Aseo",
+  "Fuerzas Armadas, de Orden y Seguridad",
 ] as const;
 
 export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];

@@ -1,8 +1,9 @@
 "use client";
 
+import { CategoryPickerDropdown } from "@/components/categories/CategoryPickerDropdown";
 import { ClickableServiceCard } from "@/components/services/ClickableServiceCard";
 import { IntranetFooterAccess } from "@/components/intranet/IntranetFooterAccess";
-import { getFeaturedCategories } from "@/lib/services/catalog";
+import { getCategoryLeafCount, getFeaturedCategories } from "@/lib/services/catalog";
 import { getCategoryIcon } from "@/lib/services/icons";
 import Link from "next/link";
 import {
@@ -102,9 +103,7 @@ export default function HomePage() {
             <p className="muted">
               Explora categorías, subcategorías, filtros y profesionales disponibles sin escribir una descripción.
             </p>
-            <Link href="/servicios" className="primaryButton wide browsePrimaryLink">
-              Explorar categorías <ArrowRight size={18} />
-            </Link>
+            <CategoryPickerDropdown />
           </article>
         </div>
 
@@ -121,7 +120,7 @@ export default function HomePage() {
             <p className="kicker">ACCESO RÁPIDO</p>
             <h2>Categorías principales</h2>
           </div>
-          <Link href="/servicios" className="textLink">
+          <Link href="/categorias" className="textLink">
             Ver todas las categorías <ArrowRight size={17} />
           </Link>
         </div>
@@ -132,13 +131,13 @@ export default function HomePage() {
             return (
               <ClickableServiceCard
                 key={category.slug}
-                href={`/servicios/${category.slug}`}
+                href={`/categorias/${category.slug}`}
                 title={category.name}
                 description={category.summary}
                 icon={Icon}
                 meta={
                   <span className="browseCardMeta">
-                    {category.subcategories.length} subcategorías
+                    {getCategoryLeafCount(category.slug)} especialidades
                   </span>
                 }
               />

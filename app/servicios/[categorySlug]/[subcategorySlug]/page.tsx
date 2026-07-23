@@ -1,16 +1,13 @@
-import { SubcategoryBrowsePage } from "@/components/services/SubcategoryBrowsePage";
-import { getSubcategoryBySlug } from "@/lib/services/catalog";
-import { notFound } from "next/navigation";
+import { resolveLegacyServiciosPath } from "@/lib/services/catalog";
+import { notFound, redirect } from "next/navigation";
 
 type Props = {
   params: Promise<{ categorySlug: string; subcategorySlug: string }>;
 };
 
-export default async function SubcategoryPage({ params }: Props) {
+export default async function LegacySubcategoryRedirectPage({ params }: Props) {
   const { categorySlug, subcategorySlug } = await params;
-  const match = getSubcategoryBySlug(categorySlug, subcategorySlug);
-
-  if (!match) notFound();
-
-  return <SubcategoryBrowsePage category={match.category} subcategory={match.subcategory} />;
+  const target = resolveLegacyServiciosPath(categorySlug, subcategorySlug);
+  if (!target) notFound();
+  redirect(target);
 }

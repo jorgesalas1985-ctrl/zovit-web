@@ -8,6 +8,7 @@ type Props = {
   backHref?: string;
   backLabel?: string;
   kicker?: string;
+  breadcrumbs?: ReactNode;
   children: ReactNode;
 };
 
@@ -17,6 +18,7 @@ export function ServiceBrowseShell({
   backHref,
   backLabel = "Volver",
   kicker = "BUSCAR MANUALMENTE",
+  breadcrumbs,
   children,
 }: Props) {
   return (
@@ -27,6 +29,8 @@ export function ServiceBrowseShell({
             <ArrowLeft size={18} /> {backLabel}
           </Link>
         )}
+
+        {breadcrumbs}
 
         <div className="browseHeader">
           <p className="kicker">{kicker}</p>
