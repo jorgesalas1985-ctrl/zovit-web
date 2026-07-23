@@ -204,6 +204,13 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue-bright); bo
 .linkButton { border: 0; background: transparent; color: var(--blue-bright); font-weight: 850; cursor: pointer; }
 .authFooter { text-align: center; color: var(--muted); margin-top: 23px; }
 .authFooter a { color: var(--blue-bright); font-weight: 850; }
+.registerStepBadge {
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 8px 12px;
+  border-radius: 999px; border: 1px solid var(--line-blue); background: rgba(124, 58, 237, 0.08);
+  color: var(--blue-bright); font-size: 0.82rem; font-weight: 800;
+}
+.verificationActionsRow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.verificationActionsRow .primaryButton.wide { flex: 1; min-width: 220px; }
 .roleSelector { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 24px; }
 .roleCard { display: flex; align-items: center; gap: 13px; text-align: left; padding: 16px; color: var(--ink); border: 1px solid var(--line-blue); border-radius: 16px; background: var(--surface); cursor: pointer; }
 .roleCard.active { border-color: var(--purple); background: rgba(124, 58, 237, 0.1); box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12); }

@@ -9,6 +9,8 @@ import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { BiometricOnboardingForm } from "@/components/verification/BiometricOnboardingForm";
 import { useAuth } from "@/components/AuthProvider";
 import { useIdentityVerification } from "@/hooks/useIdentityVerification";
+import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
+import { flushPendingRegistration } from "@/lib/registration/pendingRegistration";
 import { needsBiometricOnboarding } from "@/lib/verification/types";
 import { supabase } from "@/lib/supabase";
 
@@ -20,6 +22,20 @@ export default function RegisterBiometricPage() {
 
   const role = profile?.role ?? "client";
   const isProfessional = role === "professional" || role === "admin";
+
+  useEffect(() => {
+    if (!user?.email) return;
+
+    void flushPendingRegistration(user.email, user.id, completeRegistrationVerification)
+      .then((flushed) => {
+        if (flushed) {
+          void Promise.all([loadState(), refreshProfile()]);
+        }
+      })
+      .catch(() => {
+        // Si falla, el usuario puede completar manualmente el formulario.
+      });
+  }, [loadState, refreshProfile, user]);
 
   useEffect(() => {
     if (!user) return;

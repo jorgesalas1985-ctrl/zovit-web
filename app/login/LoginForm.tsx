@@ -6,6 +6,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { resolvePostLoginPath, roleErrorMessage } from "@/lib/auth/roles";
 import { getAuthCallbackUrl } from "@/lib/auth/redirects";
+import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
+import { flushPendingRegistration } from "@/lib/registration/pendingRegistration";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -49,7 +51,7 @@ function LoginForm() {
     setBusy(true);
     setMessage("");
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setMessage(error.message === "Invalid login credentials"
@@ -57,6 +59,20 @@ function LoginForm() {
         : error.message);
       setBusy(false);
       return;
+    }
+
+    if (data.user) {
+      try {
+        await flushPendingRegistration(email, data.user.id, completeRegistrationVerification);
+      } catch (pendingError) {
+        setMessage(
+          pendingError instanceof Error
+            ? pendingError.message
+            : "No se pudo completar tu verificación biométrica pendiente."
+        );
+        setBusy(false);
+        return;
+      }
     }
 
     await refreshProfile();
