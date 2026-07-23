@@ -7,15 +7,20 @@ import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { NotificationBell } from "@/components/NotificationBell";
 
+function getInitialTheme() {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem("zovit-theme") !== "light";
+}
+
 export function Header() {
   const { user, signOut } = useAuth();
   const router = useRouter();
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(getInitialTheme);
 
   useEffect(() => {
-    const saved = localStorage.getItem("zovit-theme") === "dark";
-    setDark(saved);
-    document.documentElement.dataset.theme = saved ? "dark" : "light";
+    const isDark = localStorage.getItem("zovit-theme") !== "light";
+    setDark(isDark);
+    document.documentElement.dataset.theme = isDark ? "dark" : "light";
   }, []);
 
   const toggleTheme = () => {
@@ -34,7 +39,11 @@ export function Header() {
       </Link>
 
       <nav className="headerActions">
-        <button className="iconButton" onClick={toggleTheme} aria-label="Cambiar tema">
+        <button
+          className="iconButton themeToggle"
+          onClick={toggleTheme}
+          aria-label={dark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+        >
           {dark ? <Sun size={19} /> : <Moon size={19} />}
         </button>
 
