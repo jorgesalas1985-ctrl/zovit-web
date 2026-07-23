@@ -90,7 +90,7 @@ export default function RegisterPage() {
         return;
       }
 
-      router.replace("/panel");
+      window.location.assign("/panel");
       return;
     }
 

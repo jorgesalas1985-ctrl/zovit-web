@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { canAccessRoute, isPublicIntranetRoute, isProtectedRoute, isUserRole } from "@/lib/auth/roles";
-import { needsBiometricOnboarding } from "@/lib/verification/types";
+import { needsBiometricOnboarding, canAccessPanel } from "@/lib/verification/types";
 import { mergeCookies, updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
@@ -47,10 +47,16 @@ export async function middleware(request: NextRequest) {
     return mergeCookies(supabaseResponse, NextResponse.redirect(panelUrl));
   }
 
-  if (
-    pathname.startsWith("/panel") &&
-    needsBiometricOnboarding(profile.identity_status as "none" | "pending" | "approved" | "rejected" | null)
-  ) {
+  const identityStatus = profile.identity_status as "none" | "pending" | "approved" | "rejected" | null;
+
+  if (pathname.startsWith("/registro/biometria") && canAccessPanel(identityStatus)) {
+    const panelUrl = request.nextUrl.clone();
+    panelUrl.pathname = "/panel";
+    panelUrl.search = "";
+    return mergeCookies(supabaseResponse, NextResponse.redirect(panelUrl));
+  }
+
+  if (pathname.startsWith("/panel") && needsBiometricOnboarding(identityStatus)) {
     const biometricUrl = request.nextUrl.clone();
     biometricUrl.pathname = "/registro/biometria";
     biometricUrl.search = "";
@@ -62,6 +68,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/panel",
     "/panel/:path*",
     "/perfil/:path*",
     "/verificacion/:path*",

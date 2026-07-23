@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowRight, ScanFace } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Protected } from "@/components/Protected";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
@@ -11,7 +10,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useIdentityVerification } from "@/hooks/useIdentityVerification";
 import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
 import { flushPendingRegistration } from "@/lib/registration/pendingRegistration";
-import { needsBiometricOnboarding } from "@/lib/verification/types";
+import { canAccessPanel } from "@/lib/verification/types";
 import { supabase } from "@/lib/supabase";
 
 export default function RegisterBiometricPage() {
@@ -19,9 +18,11 @@ export default function RegisterBiometricPage() {
   const { user, profile, refreshProfile } = useAuth();
   const { state, message, busyType, uploadDocument, submitBiometric, loadState } = useIdentityVerification();
   const [rut, setRut] = useState("");
+  const [navigating, setNavigating] = useState(false);
 
   const role = profile?.role ?? "client";
   const isProfessional = role === "professional" || role === "admin";
+  const identityStatus = profile?.identity_status ?? state?.identity_status;
 
   useEffect(() => {
     if (!user?.email) return;
@@ -49,12 +50,16 @@ export default function RegisterBiometricPage() {
       });
   }, [user]);
 
+  const goToPanel = useCallback(async () => {
+    setNavigating(true);
+    await refreshProfile();
+    window.location.assign("/panel");
+  }, [refreshProfile]);
+
   useEffect(() => {
-    if (!profile?.identity_status) return;
-    if (profile.identity_status === "approved") {
-      router.replace("/panel");
-    }
-  }, [profile?.identity_status, router]);
+    if (!canAccessPanel(identityStatus)) return;
+    void goToPanel();
+  }, [goToPanel, identityStatus]);
 
   async function handleUpload(
     type: Parameters<typeof uploadDocument>[1],
@@ -77,8 +82,16 @@ export default function RegisterBiometricPage() {
     const ok = await submitBiometric();
     if (ok) {
       await Promise.all([loadState(), refreshProfile()]);
-      router.replace("/panel");
+      await goToPanel();
     }
+  }
+
+  if (navigating || canAccessPanel(identityStatus)) {
+    return (
+      <Protected>
+        <div className="centerState">Ingresando al panel…</div>
+      </Protected>
+    );
   }
 
   return (
@@ -110,16 +123,10 @@ export default function RegisterBiometricPage() {
             />
           )}
 
-          {profile?.identity_status === "pending" && (
-            <Link className="secondaryButton" href="/panel">
+          {canAccessPanel(identityStatus) && (
+            <button type="button" className="secondaryButton" disabled={navigating} onClick={() => void goToPanel()}>
               Ir al panel <ArrowRight size={16} />
-            </Link>
-          )}
-
-          {needsBiometricOnboarding(profile?.identity_status) && state?.identity_status === "approved" && (
-            <Link className="secondaryButton" href="/panel">
-              Continuar al panel <ArrowRight size={16} />
-            </Link>
+            </button>
           )}
         </section>
       </main>

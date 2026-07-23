@@ -123,6 +123,10 @@ export function needsBiometricOnboarding(identityStatus: IdentityStatus | null |
   return identityStatus === "none" || identityStatus === "rejected";
 }
 
+export function canAccessPanel(identityStatus: IdentityStatus | null | undefined): boolean {
+  return identityStatus === "pending" || identityStatus === "approved";
+}
+
 export function canAccessStudyCertificates(role: UserRole): boolean {
   return role === "professional" || role === "admin";
 }
