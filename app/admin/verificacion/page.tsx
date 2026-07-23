@@ -108,9 +108,20 @@ export default function AdminVerificationPage() {
                         {item.documents.map((doc) => {
                           const key = `${item.id}:${doc.document_type}`;
                           const url = previewUrls[key];
+                          const meta = doc.metadata as Record<string, unknown> | null;
                           return (
                             <div className="verificationAdminDoc" key={doc.id}>
-                              <span>{IDENTITY_DOCUMENT_LABELS[doc.document_type]}</span>
+                              <div>
+                                <span>{IDENTITY_DOCUMENT_LABELS[doc.document_type]}</span>
+                                {meta?.challengeCode && (
+                                  <small className="verificationMeta">
+                                    Código prueba de vida: {String(meta.challengeCode)}
+                                  </small>
+                                )}
+                                {meta?.challengeInstruction && (
+                                  <small className="verificationMeta">{String(meta.challengeInstruction)}</small>
+                                )}
+                              </div>
                               {url ? (
                                 <a href={url} target="_blank" rel="noreferrer" className="textLink">
                                   Ver documento

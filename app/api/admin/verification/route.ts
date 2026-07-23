@@ -26,7 +26,7 @@ export async function GET() {
 
     const { data: documents, error: docsError } = await admin
       .from("identity_documents")
-      .select("id,profile_id,document_type,storage_path,status,admin_notes,created_at,updated_at")
+      .select("id,profile_id,document_type,storage_path,status,admin_notes,metadata,created_at,updated_at")
       .in("profile_id", profileIds);
 
     if (docsError) {

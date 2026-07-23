@@ -83,6 +83,7 @@ SPRINT_5_PAGOS.sql
 SPRINT_6_INTRANET.sql
 SPRINT_6B_INTRANET_USERS.sql
 SPRINT_7_VERIFICACION_IDENTIDAD.sql
+SPRINT_8_BIOMETRICO.sql
 ```
 
-`SPRINT_7_VERIFICACION_IDENTIDAD.sql` agrega verificación gratuita de identidad, tabla `identity_documents`, bucket `identity-documents` y RPC `submit_identity_verification`.
+`SPRINT_8_BIOMETRICO.sql` agrega selfie, prueba de vida, metadata biométrica y flag `biometric_verified`.

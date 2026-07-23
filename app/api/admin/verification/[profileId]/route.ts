@@ -26,60 +26,28 @@ export async function POST(
       return NextResponse.json({ error: "Indica el motivo del rechazo." }, { status: 400 });
     }
 
-    const admin = createAdminClient();
-    const now = new Date().toISOString();
-
     if (body.action === "approve") {
-      const { error: profileError } = await admin
-        .from("profiles")
-        .update({
-          identity_status: "approved",
-          identity_verified: true,
-          identity_verified_at: now,
-          identity_rejection_reason: null,
-          updated_at: now,
-        })
-        .eq("id", profileId)
-        .eq("identity_status", "pending");
+      const { error: profileError } = await auth.supabase.rpc("review_identity_verification", {
+        target_profile_id: profileId,
+        review_action: "approve",
+      });
 
       if (profileError) {
         return NextResponse.json({ error: profileError.message }, { status: 500 });
       }
 
-      await admin
-        .from("identity_documents")
-        .update({ status: "approved", reviewed_by: auth.user.id, reviewed_at: now, updated_at: now })
-        .eq("profile_id", profileId);
-
       return NextResponse.json({ ok: true, status: "approved" });
     }
 
-    const { error: profileError } = await admin
-      .from("profiles")
-      .update({
-        identity_status: "rejected",
-        identity_verified: false,
-        identity_verified_at: null,
-        identity_rejection_reason: body.reason?.trim() ?? "Documentos no válidos.",
-        updated_at: now,
-      })
-      .eq("id", profileId)
-      .eq("identity_status", "pending");
+    const { error: profileError } = await auth.supabase.rpc("review_identity_verification", {
+      target_profile_id: profileId,
+      review_action: "reject",
+      rejection_reason: body.reason?.trim() ?? "Documentos no válidos.",
+    });
 
     if (profileError) {
       return NextResponse.json({ error: profileError.message }, { status: 500 });
     }
-
-    await admin
-      .from("identity_documents")
-      .update({
-        status: "rejected",
-        admin_notes: body.reason?.trim() ?? null,
-        reviewed_by: auth.user.id,
-        reviewed_at: now,
-        updated_at: now,
-      })
-      .eq("profile_id", profileId);
 
     return NextResponse.json({ ok: true, status: "rejected" });
   } catch (error) {
@@ -101,7 +69,7 @@ export async function GET(
 
     const { data: documents, error } = await admin
       .from("identity_documents")
-      .select("id,document_type,storage_path,status,created_at")
+      .select("id,document_type,storage_path,status,metadata,created_at")
       .eq("profile_id", profileId);
 
     if (error) {

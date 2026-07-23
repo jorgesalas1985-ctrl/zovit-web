@@ -192,10 +192,10 @@ function PanelContent() {
             <h3>Verificación gratuita</h3>
             <p>
               {profile?.identity_verified
-                ? "Tu identidad ya está verificada en ZOVIT."
+                ? "Identidad y biometría verificadas en ZOVIT."
                 : profile?.identity_status === "pending"
                   ? "Tu verificación está en revisión."
-                  : "Valida tu identidad para generar confianza."}
+                  : "Carnet, selfie y prueba de vida."}
             </p>
           </div>
           <ArrowRight />

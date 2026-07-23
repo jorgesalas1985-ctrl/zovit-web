@@ -11,7 +11,7 @@ export async function GET() {
 
     const { data: documents, error } = await supabase
       .from("identity_documents")
-      .select("id,profile_id,document_type,storage_path,status,admin_notes,created_at,updated_at")
+      .select("id,profile_id,document_type,storage_path,status,admin_notes,metadata,created_at,updated_at")
       .eq("profile_id", user.id)
       .order("created_at", { ascending: true });
 
@@ -22,6 +22,7 @@ export async function GET() {
     const payload: IdentityVerificationState = {
       identity_status: profile.identity_status ?? "none",
       identity_verified: profile.identity_verified ?? false,
+      biometric_verified: profile.biometric_verified ?? false,
       identity_verified_at: profile.identity_verified_at ?? null,
       identity_submitted_at: profile.identity_submitted_at ?? null,
       identity_rejection_reason: profile.identity_rejection_reason ?? null,
