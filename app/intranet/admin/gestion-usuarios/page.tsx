@@ -9,6 +9,7 @@ export default function PlatformUsersAdminPage() {
   return (
     <IntranetGuard allowedRoles={["hr_admin", "super_admin"]} permission="manage_intranet_users">
       <IntranetShell
+        wide
         title="Gestión de usuarios ZOVIT"
         description="Administra clientes, profesionales e intranet. Modifica datos, verifica biometría y elimina cuentas. El super administrador no puede eliminarse."
         kicker="USUARIOS PLATAFORMA"

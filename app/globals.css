@@ -565,6 +565,14 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue-bright); bo
 .intranetSelectWrap svg { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
 .intranetFooterNote { margin: 0; color: var(--muted); font-size: 13px; }
 .intranetPage .browseShell { max-width: 980px; }
+.intranetPageWide .browseShell { max-width: min(1480px, calc(100vw - 40px)); }
+.intranetPageWide .intranetTableWrap { overflow-x: visible; }
+.intranetPageWide .intranetTableWide { min-width: 100%; width: 100%; }
+.intranetPageWide .intranetTable td,
+.intranetPageWide .intranetTable th { padding: 12px 14px; }
+.intranetPageWide .intranetTable td:nth-child(5) { max-width: 220px; word-break: break-word; }
+.intranetPageWide .intranetActionButton { padding: 8px 10px; font-size: 12px; }
+.intranetPageWide .intranetDeleteButton { padding: 8px 12px; font-size: 12px; }
 .intranetNoticeCard { text-align: center; display: grid; gap: 12px; justify-items: center; }
 .intranetGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 .intranetCard {
@@ -582,6 +590,11 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue-bright); bo
 .intranetTable th, .intranetTable td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--line); }
 .intranetTable th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .intranetTableWide { min-width: 980px; }
+@media (max-width: 1200px) {
+  .intranetPageWide .browseShell { max-width: calc(100vw - 32px); }
+  .intranetPageWide .intranetTableWrap { overflow-x: auto; }
+  .intranetPageWide .intranetTableWide { min-width: 1100px; }
+}
 .intranetActionGroup { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .intranetActionButton { padding: 10px 12px; font-size: 13px; }
 .intranetDeleteButton {
