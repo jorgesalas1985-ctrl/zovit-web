@@ -9,11 +9,13 @@ import {
   FileText,
   Plus,
   Share2,
+  ShieldCheck,
   Sparkles,
   UserRound,
 } from "lucide-react";
 import { Protected } from "@/components/Protected";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
+import { IdentityBadge } from "@/components/verification/IdentityBadge";
 import { ExperienceBadge, ProfessionalStatsGrid } from "@/components/experience/ExperienceSection";
 import { useAuth } from "@/components/AuthProvider";
 import type { ProfessionalStats } from "@/lib/experience/types";
@@ -146,6 +148,7 @@ function PanelContent() {
                 ? "Administra solicitudes, trabajos y tu cuenta desde un solo lugar."
                 : "Administra tu cuenta y tus solicitudes reales desde un solo lugar."}
           </p>
+          <IdentityBadge verified={profile?.identity_verified ?? false} role={isProfessionalView ? "professional" : "client"} />
         </div>
 
         {isProfessionalView ? (
@@ -183,6 +186,21 @@ function PanelContent() {
           <ArrowRight />
         </Link>
 
+        <Link href="/verificacion" className="dashboardCard">
+          <div className="dashboardIcon"><ShieldCheck /></div>
+          <div>
+            <h3>Verificación gratuita</h3>
+            <p>
+              {profile?.identity_verified
+                ? "Tu identidad ya está verificada en ZOVIT."
+                : profile?.identity_status === "pending"
+                  ? "Tu verificación está en revisión."
+                  : "Valida tu identidad para generar confianza."}
+            </p>
+          </div>
+          <ArrowRight />
+        </Link>
+
         {isClientView && (
           <Link href="/pagos" className="dashboardCard">
             <div className="dashboardIcon"><CreditCard /></div>
@@ -195,6 +213,14 @@ function PanelContent() {
           <Link href="/pagos/profesional" className="dashboardCard">
             <div className="dashboardIcon"><CreditCard /></div>
             <div><h3>Wallet profesional</h3><p>Saldo, retenciones e ingresos.</p></div>
+            <ArrowRight />
+          </Link>
+        )}
+
+        {isAdmin && (
+          <Link href="/admin/verificacion" className="dashboardCard">
+            <div className="dashboardIcon"><ShieldCheck /></div>
+            <div><h3>Admin verificación</h3><p>Revisa identidades y antecedentes.</p></div>
             <ArrowRight />
           </Link>
         )}

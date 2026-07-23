@@ -25,7 +25,7 @@ export default function PublicProfessionalPage() {
       const [profileResult, statsResult, experienceResult, ratingsResult] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id,first_name,last_name,commune,experience_level,public_profile,role")
+          .select("id,first_name,last_name,commune,experience_level,public_profile,role,identity_verified")
           .eq("id", id)
           .maybeSingle(),
         supabase.rpc("get_professional_stats", { p_professional_id: id }),
@@ -57,6 +57,7 @@ export default function PublicProfessionalPage() {
         commune: profileData.commune,
         experience_level: profileData.experience_level ?? "junior",
         public_profile: profileData.public_profile ?? true,
+        identity_verified: profileData.identity_verified ?? false,
       });
 
       const statsRow = Array.isArray(statsResult.data) ? statsResult.data[0] : statsResult.data;

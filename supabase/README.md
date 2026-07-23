@@ -71,3 +71,18 @@ Copias originales antes de modificaciones de Fase 0: [`backups/`](backups/).
 |---------|-------------|
 | `accept_service_request(request_id)` | Profesional acepta un trabajo publicado |
 | `change_service_request_status(request_id, new_status)` | Cambio de estado del flujo de servicio |
+
+## Sprints adicionales
+
+Después de la base, aplicar en orden:
+
+```
+SPRINT_3_EXPERIENCIA.sql
+SPRINT_4_IA.sql
+SPRINT_5_PAGOS.sql
+SPRINT_6_INTRANET.sql
+SPRINT_6B_INTRANET_USERS.sql
+SPRINT_7_VERIFICACION_IDENTIDAD.sql
+```
+
+`SPRINT_7_VERIFICACION_IDENTIDAD.sql` agrega verificación gratuita de identidad, tabla `identity_documents`, bucket `identity-documents` y RPC `submit_identity_verification`.

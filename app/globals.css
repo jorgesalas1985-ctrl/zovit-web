@@ -677,4 +677,44 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue-bright); bo
   background: var(--surface-soft); display: grid; gap: 12px; text-align: center;
 }
 @media(max-width:900px){.institutionGrid{grid-template-columns:1fr 1fr}.browseFilters{grid-template-columns:1fr 1fr}}
+
+.identityBadge {
+  display: inline-flex; align-items: center; gap: 7px; margin-top: 12px; padding: 8px 12px;
+  border-radius: 999px; font-size: 12px; font-weight: 800; color: #047857;
+  background: rgba(4, 120, 87, 0.12); border: 1px solid rgba(4, 120, 87, 0.25);
+}
+.professionalHeroBadges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; align-items: center; }
+.identityStatusPill {
+  display: inline-flex; padding: 7px 12px; border-radius: 999px; font-size: 12px; font-weight: 800;
+}
+.identityStatusPill--none { color: var(--muted); background: rgba(148, 163, 184, 0.12); }
+.identityStatusPill--pending { color: #92400e; background: rgba(245, 158, 11, 0.14); }
+.identityStatusPill--approved { color: #047857; background: rgba(4, 120, 87, 0.12); }
+.identityStatusPill--rejected { color: var(--danger); background: rgba(220, 53, 69, 0.12); }
+.verificationStatusRow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 16px 0; }
+.verificationInfoBox {
+  margin: 18px 0; padding: 18px; border-radius: 18px; border: 1px solid var(--line-blue);
+  background: var(--surface-soft); display: grid; gap: 10px;
+}
+.verificationInfoBox ul { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.6; }
+.verificationUploadGrid { display: grid; gap: 14px; margin-top: 18px; }
+.verificationUploadCard {
+  padding: 18px; border: 1px solid var(--line-blue); border-radius: 18px; background: var(--surface);
+  display: grid; gap: 14px;
+}
+.verificationUploadHead { display: flex; gap: 12px; align-items: flex-start; }
+.verificationUploadHead h3 { margin: 0 0 6px; }
+.verificationUploadHead p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.verificationUploadActions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.verificationUploadedTag {
+  font-size: 12px; font-weight: 800; color: #047857; padding: 6px 10px; border-radius: 999px;
+  background: rgba(4, 120, 87, 0.12);
+}
+.verificationAdminList { display: grid; gap: 16px; margin-top: 18px; }
+.verificationAdminCard {
+  padding: 18px; border: 1px solid var(--line-blue); border-radius: 18px; background: var(--surface);
+  display: grid; gap: 14px;
+}
+.verificationAdminDocs { display: grid; gap: 8px; }
+.verificationAdminDoc { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 @media(max-width:720px){.institutionGrid,.browseFilters{grid-template-columns:1fr}}

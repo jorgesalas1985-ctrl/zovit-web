@@ -36,6 +36,7 @@ export function isProtectedRoute(pathname: string): boolean {
   return (
     pathname.startsWith("/panel") ||
     pathname.startsWith("/perfil") ||
+    pathname.startsWith("/verificacion") ||
     pathname.startsWith("/experiencia") ||
     pathname.startsWith("/solicitudes") ||
     pathname.startsWith("/trabajos") ||

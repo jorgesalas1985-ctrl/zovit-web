@@ -10,6 +10,8 @@ export type UserProfile = {
   last_name: string | null;
   role: UserRole;
   intranet_role: string | null;
+  identity_status: "none" | "pending" | "approved" | "rejected";
+  identity_verified: boolean;
 };
 
 type AuthContextValue = {
@@ -33,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function loadProfile(userId: string) {
     const { data, error } = await supabase
       .from("profiles")
-      .select("first_name,last_name,role,intranet_role")
+      .select("first_name,last_name,role,intranet_role,identity_status,identity_verified")
       .eq("id", userId)
       .maybeSingle();
 
@@ -48,6 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       last_name: data.last_name,
       role: data.role,
       intranet_role: data.intranet_role ?? null,
+      identity_status: data.identity_status ?? "none",
+      identity_verified: data.identity_verified ?? false,
     });
     setProfileError(null);
   }

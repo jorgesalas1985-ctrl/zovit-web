@@ -1,4 +1,5 @@
 import { EXPERIENCE_BADGES, experienceBadgeClass, formatHours, type ExperienceLevel, type ProfessionalExperience, type ProfessionalStats, type PublicProfessionalProfile, type ServiceRating } from "@/lib/experience/types";
+import { IdentityBadge } from "@/components/verification/IdentityBadge";
 import { Star } from "lucide-react";
 
 export function ExperienceBadge({ level }: { level: ExperienceLevel }) {
@@ -98,7 +99,10 @@ export function ProfessionalHeader({ profile, stats }: { profile: PublicProfessi
         <p className="kicker light">PERFIL PROFESIONAL</p>
         <h1>{fullName}</h1>
         {profile.commune && <p className="muted">{profile.commune}</p>}
-        <ExperienceBadge level={stats.experience_level} />
+        <div className="professionalHeroBadges">
+          <ExperienceBadge level={stats.experience_level} />
+          <IdentityBadge verified={profile.identity_verified} role="professional" />
+        </div>
         <p className="heroDescription">{EXPERIENCE_BADGES[stats.experience_level].description}</p>
       </div>
     </header>

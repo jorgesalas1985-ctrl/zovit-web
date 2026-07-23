@@ -36,6 +36,7 @@ export type PublicProfessionalProfile = {
   commune: string | null;
   experience_level: ExperienceLevel;
   public_profile: boolean;
+  identity_verified: boolean;
 };
 
 export const EXPERIENCE_BADGES: Record<ExperienceLevel, { label: string; description: string }> = {
