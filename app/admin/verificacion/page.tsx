@@ -113,13 +113,13 @@ export default function AdminVerificationPage() {
                             <div className="verificationAdminDoc" key={doc.id}>
                               <div>
                                 <span>{IDENTITY_DOCUMENT_LABELS[doc.document_type]}</span>
-                                {meta?.challengeCode && (
+                                {typeof meta?.challengeCode === "string" && meta.challengeCode && (
                                   <small className="verificationMeta">
-                                    Código prueba de vida: {String(meta.challengeCode)}
+                                    Código prueba de vida: {meta.challengeCode}
                                   </small>
                                 )}
-                                {meta?.challengeInstruction && (
-                                  <small className="verificationMeta">{String(meta.challengeInstruction)}</small>
+                                {typeof meta?.challengeInstruction === "string" && meta.challengeInstruction && (
+                                  <small className="verificationMeta">{meta.challengeInstruction}</small>
                                 )}
                               </div>
                               {url ? (
