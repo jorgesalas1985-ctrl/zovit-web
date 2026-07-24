@@ -23,7 +23,7 @@ export function IdentityBadge({ verified, role = "client", compact = false }: Id
 
   return (
     <span className="identityBadge" title={label}>
-      <ShieldCheck size={14} />
+      <ShieldCheck size={compact ? 14 : 16} />
       {label}
     </span>
   );
