@@ -18,6 +18,27 @@ export function buildCorporateEmailLocalPart(firstName: string, lastName: string
   return first || last;
 }
 
+export function composeCorporateEmail(
+  localPart: string,
+  domain = CORPORATE_EMAIL_DOMAIN
+): string {
+  const local = slugifyCorporateLocalPart(localPart.split("@")[0] ?? localPart);
+  if (!local) return "";
+  return `${local}@${domain}`;
+}
+
+export function parseCorporateEmailLocalPart(
+  email: string,
+  domain = CORPORATE_EMAIL_DOMAIN
+): string {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return "";
+  if (normalized.endsWith(`@${domain}`)) {
+    return normalized.slice(0, -(domain.length + 1));
+  }
+  return slugifyCorporateLocalPart(normalized.split("@")[0] ?? normalized);
+}
+
 export function buildCorporateEmail(
   firstName: string,
   lastName: string,

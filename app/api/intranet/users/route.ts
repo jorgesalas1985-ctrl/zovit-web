@@ -24,7 +24,9 @@ export async function GET() {
     const visibleUsers = users.filter((user) =>
       canViewerSeeIntranetAccount(auth.manager.intranetRole, user.intranetRole)
     );
-    return NextResponse.json({ users: visibleUsers });
+    return NextResponse.json({ users: visibleUsers }, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";
     return NextResponse.json({ error: message }, { status: 500 });

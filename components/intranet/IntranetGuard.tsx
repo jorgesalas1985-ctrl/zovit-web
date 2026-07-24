@@ -1,5 +1,6 @@
 "use client";
 
+import { IntranetRoleBanner } from "@/components/intranet/IntranetRoleBanner";
 import { useAuth } from "@/components/AuthProvider";
 import {
   canAccessIntranetPath,
@@ -45,39 +46,53 @@ export function IntranetGuard({ allowedRoles, permission, children }: IntranetGu
 
   if (allowedRoles && !allowedRoles.includes(intranetRole) && intranetRole !== "super_admin") {
     return (
-      <main className="simplePage">
-        <section className="formPageCard intranetNoticeCard">
-          <h1>Sin permiso</h1>
-          <p className="muted">Tu rol interno no puede acceder a esta sección.</p>
-          <Link href="/intranet/acceso" className="secondaryButton wide">
-            Volver
-          </Link>
-        </section>
-      </main>
+      <>
+        <IntranetRoleBanner role={intranetRole} />
+        <main className="simplePage">
+          <section className="formPageCard intranetNoticeCard">
+            <h1>Sin permiso</h1>
+            <p className="muted">Tu rol interno no puede acceder a esta sección.</p>
+            <Link href="/intranet/acceso" className="secondaryButton wide">
+              Volver
+            </Link>
+          </section>
+        </main>
+      </>
     );
   }
 
   if (permission && !hasIntranetPermission(intranetRole, permission)) {
     return (
-      <main className="simplePage">
-        <section className="formPageCard intranetNoticeCard">
-          <h1>Acción no permitida</h1>
-          <p className="muted">No tienes permisos para esta operación.</p>
-        </section>
-      </main>
+      <>
+        <IntranetRoleBanner role={intranetRole} />
+        <main className="simplePage">
+          <section className="formPageCard intranetNoticeCard">
+            <h1>Acción no permitida</h1>
+            <p className="muted">No tienes permisos para esta operación.</p>
+          </section>
+        </main>
+      </>
     );
   }
 
   if (!canAccessIntranetPath(pathname, intranetRole)) {
     return (
-      <main className="simplePage">
-        <section className="formPageCard intranetNoticeCard">
-          <h1>Ruta restringida</h1>
-          <p className="muted">Esta área está reservada para otro perfil interno.</p>
-        </section>
-      </main>
+      <>
+        <IntranetRoleBanner role={intranetRole} />
+        <main className="simplePage">
+          <section className="formPageCard intranetNoticeCard">
+            <h1>Ruta restringida</h1>
+            <p className="muted">Esta área está reservada para otro perfil interno.</p>
+          </section>
+        </main>
+      </>
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <IntranetRoleBanner role={intranetRole} />
+      {children}
+    </>
+  );
 }

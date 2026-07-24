@@ -1,11 +1,14 @@
 "use client";
 
+import { useAuth } from "@/components/AuthProvider";
 import {
   INTRANET_LOGIN_PROFILE_LABELS,
   INTRANET_ROLES,
+  isIntranetRole,
   type IntranetRole,
 } from "@/lib/auth/intranetRoles";
 import { USER_ROLES, type UserRole } from "@/lib/auth/roles";
+import { canViewerSeePlatformAccount } from "@/lib/intranet/accessVisibility";
 import {
   canDeletePlatformUser,
   canVerifyPlatformUser,
@@ -72,6 +75,8 @@ function userTypeLabel(user: PlatformUserRecord) {
 }
 
 export function PlatformUsersManager() {
+  const { profile } = useAuth();
+  const callerRole = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
   const [users, setUsers] = useState<PlatformUserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
@@ -89,7 +94,7 @@ export function PlatformUsersManager() {
     setLoading(true);
     setError("");
 
-    const response = await fetch("/api/intranet/platform-users");
+    const response = await fetch("/api/intranet/platform-users", { cache: "no-store" });
     const { data, parseError } = await readApiResponse(response);
 
     if (parseError) {
@@ -106,9 +111,13 @@ export function PlatformUsersManager() {
       return;
     }
 
-    setUsers((data as { users?: PlatformUserRecord[] }).users ?? []);
+    const visibleUsers = ((data as { users?: PlatformUserRecord[] }).users ?? []).filter((user) =>
+      callerRole ? canViewerSeePlatformAccount(callerRole, user) : false
+    );
+
+    setUsers(visibleUsers);
     setLoading(false);
-  }, []);
+  }, [callerRole]);
 
   useEffect(() => {
     void loadUsers();
@@ -363,7 +372,7 @@ export function PlatformUsersManager() {
             <tbody>
               {users.map((user) => {
                 const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Sin nombre";
-                const deletable = canDeletePlatformUser(user);
+                const deletable = callerRole ? canDeletePlatformUser(user, callerRole) : false;
                 const verifiable = canVerifyPlatformUser(user) && user.identityStatus === "pending";
 
                 return (

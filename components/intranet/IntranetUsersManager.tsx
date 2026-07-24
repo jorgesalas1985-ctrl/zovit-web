@@ -13,7 +13,12 @@ import {
   PASSWORD_MIN_LENGTH,
 } from "@/lib/auth/passwordPolicy";
 import {
+  canViewerSeeIntranetAccount,
+} from "@/lib/intranet/accessVisibility";
+import {
+  composeCorporateEmail,
   CORPORATE_EMAIL_DOMAIN,
+  parseCorporateEmailLocalPart,
   suggestAvailableCorporateEmail,
   validateCorporateEmail,
 } from "@/lib/intranet/corporateEmail";
@@ -45,7 +50,7 @@ export function IntranetUsersManager() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
+  const [emailLocalPart, setEmailLocalPart] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
   const [password, setPassword] = useState("");
   const [intranetRole, setIntranetRole] = useState<IntranetRole>("worker");
@@ -54,7 +59,7 @@ export function IntranetUsersManager() {
     setLoading(true);
     setError("");
 
-    const response = await fetch("/api/intranet/users");
+    const response = await fetch("/api/intranet/users", { cache: "no-store" });
     const data = await response.json();
 
     if (!response.ok) {
@@ -64,9 +69,13 @@ export function IntranetUsersManager() {
       return;
     }
 
-    setUsers(data.users ?? []);
+    const visibleUsers = ((data.users ?? []) as IntranetUserRecord[]).filter((user) =>
+      callerRole ? canViewerSeeIntranetAccount(callerRole, user.intranetRole) : false
+    );
+
+    setUsers(visibleUsers);
     setLoading(false);
-  }, []);
+  }, [callerRole]);
 
   useEffect(() => {
     void loadUsers();
@@ -79,7 +88,7 @@ export function IntranetUsersManager() {
       lastName,
       users.map((user) => user.email)
     );
-    setEmail(suggested);
+    setEmailLocalPart(parseCorporateEmailLocalPart(suggested));
   }, [emailTouched, firstName, lastName, users]);
 
   function generateCorporateEmail() {
@@ -88,9 +97,11 @@ export function IntranetUsersManager() {
       lastName,
       users.map((user) => user.email)
     );
-    setEmail(suggested);
+    setEmailLocalPart(parseCorporateEmailLocalPart(suggested));
     setEmailTouched(false);
   }
+
+  const corporateEmail = composeCorporateEmail(emailLocalPart);
 
   async function createUser(event: FormEvent) {
     event.preventDefault();
@@ -98,7 +109,7 @@ export function IntranetUsersManager() {
     setMessage("");
     setError("");
 
-    const corporateEmailError = validateCorporateEmail(email);
+    const corporateEmailError = validateCorporateEmail(corporateEmail);
     if (corporateEmailError) {
       setError(corporateEmailError);
       setBusy(false);
@@ -111,7 +122,7 @@ export function IntranetUsersManager() {
       body: JSON.stringify({
         firstName,
         lastName,
-        email,
+        email: corporateEmail,
         password,
         intranetRole,
       }),
@@ -128,7 +139,7 @@ export function IntranetUsersManager() {
     setMessage(`Acceso creado para ${data.user.email}.`);
     setFirstName("");
     setLastName("");
-    setEmail("");
+    setEmailLocalPart("");
     setEmailTouched(false);
     setPassword("");
     setIntranetRole("worker");
@@ -211,16 +222,23 @@ export function IntranetUsersManager() {
           <label>
             Correo corporativo
             <div className="corporateEmailRow">
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(event) => {
-                  setEmailTouched(true);
-                  setEmail(event.target.value);
-                }}
-                placeholder={`nombre.apellido@${CORPORATE_EMAIL_DOMAIN}`}
-              />
+              <div className="corporateEmailField">
+                <input
+                  type="text"
+                  required
+                  value={emailLocalPart}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  name="zovit-corporate-local"
+                  onChange={(event) => {
+                    setEmailTouched(true);
+                    setEmailLocalPart(parseCorporateEmailLocalPart(event.target.value));
+                  }}
+                  placeholder="nombre.apellido"
+                />
+                <span className="corporateEmailDomain">@{CORPORATE_EMAIL_DOMAIN}</span>
+              </div>
               <button
                 type="button"
                 className="secondaryButton"
@@ -231,7 +249,7 @@ export function IntranetUsersManager() {
               </button>
             </div>
             <small className="fieldHint">
-              Se propone automáticamente desde nombre y apellido. Ejemplo: maria.gonzalez@{CORPORATE_EMAIL_DOMAIN}
+              Siempre termina en @{CORPORATE_EMAIL_DOMAIN}. Ejemplo: maria.gonzalez@{CORPORATE_EMAIL_DOMAIN}
             </small>
           </label>
 
