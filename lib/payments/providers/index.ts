@@ -15,7 +15,7 @@ function notImplemented(name: string): PaymentProviderAdapter {
     async refund() {
       throw new Error(`${name} aún no está integrado.`);
     },
-    async parseWebhook() {
+    async parseWebhook(_payload: unknown, _headers: Headers) {
       throw new Error(`${name} webhook aún no está integrado.`);
     },
   };
@@ -30,10 +30,14 @@ const providers: Record<PaymentProviderName, PaymentProviderAdapter> = {
 };
 
 export function getPaymentProvider(name: PaymentProviderName): PaymentProviderAdapter {
+  if (name === "mock" && process.env.NODE_ENV === "production") {
+    throw new Error("El proveedor mock no está disponible en producción.");
+  }
   return providers[name] ?? providers.mock;
 }
 
 export function getDefaultPaymentProvider(): PaymentProviderAdapter {
   const configured = process.env.ZOVIT_PAYMENT_PROVIDER as PaymentProviderName | undefined;
-  return getPaymentProvider(configured ?? "mock");
+  const fallback = process.env.NODE_ENV === "production" ? "mercadopago" : "mock";
+  return getPaymentProvider(configured ?? fallback);
 }

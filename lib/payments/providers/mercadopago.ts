@@ -1,8 +1,10 @@
+import { createHmac, timingSafeEqual } from "crypto";
 import {
   getAppBaseUrl,
   getMercadoPagoBackUrls,
   getMercadoPagoWebhookUrl,
 } from "@/lib/payments/appUrl";
+import type { MercadoPagoPaymentDetails } from "@/lib/payments/confirmPayment";
 import type {
   CreatePaymentSessionInput,
   PaymentProviderAdapter,
@@ -22,7 +24,16 @@ type MercadoPagoPaymentResponse = {
   status: string;
   external_reference?: string;
   payment_method_id?: string;
+  transaction_amount?: number;
+  currency_id?: string;
 };
+
+export class MercadoPagoWebhookSignatureError extends Error {
+  constructor(message = "Firma de webhook Mercado Pago inválida.") {
+    super(message);
+    this.name = "MercadoPagoWebhookSignatureError";
+  }
+}
 
 export class MercadoPagoProvider implements PaymentProviderAdapter {
   readonly name = "mercadopago" as const;
@@ -111,7 +122,9 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
     };
   }
 
-  async parseWebhook(payload: unknown): Promise<WebhookResult> {
+  async parseWebhook(payload: unknown, headers: Headers, url?: URL): Promise<WebhookResult> {
+    validateMercadoPagoWebhookSignature(headers, url);
+
     const body = payload as {
       type?: string;
       action?: string;
@@ -132,6 +145,7 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
         externalReference: payment.external_reference,
         status: "paid",
         paymentMethod: payment.payment_method_id ?? "mercadopago",
+        mercadoPagoPayment: toMercadoPagoPaymentDetails(payment),
       };
     }
 
@@ -140,6 +154,7 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
         reference: externalReference,
         externalReference: payment.external_reference,
         status: "failed",
+        mercadoPagoPayment: toMercadoPagoPaymentDetails(payment),
       };
     }
 
@@ -148,10 +163,11 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
       externalReference: payment.external_reference,
       status: "pending",
       paymentMethod: "mercadopago",
+      mercadoPagoPayment: toMercadoPagoPaymentDetails(payment),
     };
   }
 
-  private async fetchPayment(paymentId: string): Promise<MercadoPagoPaymentResponse> {
+  async fetchPayment(paymentId: string): Promise<MercadoPagoPaymentResponse> {
     const token = this.getAccessToken();
     const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -165,29 +181,86 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
   }
 }
 
+function toMercadoPagoPaymentDetails(payment: MercadoPagoPaymentResponse): MercadoPagoPaymentDetails {
+  return {
+    status: payment.status,
+    external_reference: payment.external_reference,
+    transaction_amount: payment.transaction_amount,
+    currency_id: payment.currency_id,
+  };
+}
+
+export function validateMercadoPagoWebhookSignature(headers: Headers, url?: URL): void {
+  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new MercadoPagoWebhookSignatureError("Falta MERCADOPAGO_WEBHOOK_SECRET.");
+    }
+    return;
+  }
+
+  const xSignature = headers.get("x-signature");
+  if (!xSignature) {
+    throw new MercadoPagoWebhookSignatureError();
+  }
+
+  let ts = "";
+  let v1 = "";
+  for (const part of xSignature.split(",")) {
+    const [key, value] = part.split("=");
+    if (key?.trim() === "ts") ts = value?.trim() ?? "";
+    if (key?.trim() === "v1") v1 = value?.trim() ?? "";
+  }
+
+  if (!ts || !v1) {
+    throw new MercadoPagoWebhookSignatureError();
+  }
+
+  const dataId = url?.searchParams.get("data.id") ?? url?.searchParams.get("data_id") ?? "";
+  const xRequestId = headers.get("x-request-id") ?? "";
+
+  let manifest = "";
+  if (dataId) manifest += `id:${dataId.toLowerCase()};`;
+  if (xRequestId) manifest += `request-id:${xRequestId};`;
+  manifest += `ts:${ts};`;
+
+  const expected = createHmac("sha256", secret).update(manifest).digest("hex");
+  const received = Buffer.from(v1);
+  const computed = Buffer.from(expected);
+
+  if (received.length !== computed.length || !timingSafeEqual(received, computed)) {
+    throw new MercadoPagoWebhookSignatureError();
+  }
+}
+
 export async function syncMercadoPagoReturn(params: {
   externalReference: string;
   mercadoPagoPaymentId?: string;
   collectionStatus?: string;
-}): Promise<{ shouldRegister: boolean; reference: string; paymentMethod: string }> {
+}): Promise<{
+  shouldRegister: boolean;
+  reference: string;
+  paymentMethod: string;
+  mercadoPagoPayment?: MercadoPagoPaymentDetails;
+}> {
   const provider = new MercadoPagoProvider();
-  const approved =
-    params.collectionStatus === "approved" ||
-    params.collectionStatus === "authorized";
 
-  if (params.mercadoPagoPaymentId) {
-    const result = await provider.capture(params.mercadoPagoPaymentId);
+  if (!params.mercadoPagoPaymentId) {
     return {
-      shouldRegister: result.success,
-      reference: params.mercadoPagoPaymentId,
+      shouldRegister: false,
+      reference: params.externalReference,
       paymentMethod: "mercadopago",
     };
   }
 
+  const payment = await provider.fetchPayment(params.mercadoPagoPaymentId);
+  const mercadoPagoPayment = toMercadoPagoPaymentDetails(payment);
+
   return {
-    shouldRegister: approved,
-    reference: params.externalReference,
-    paymentMethod: "mercadopago",
+    shouldRegister: payment.status === "approved",
+    reference: params.mercadoPagoPaymentId,
+    paymentMethod: payment.payment_method_id ?? "mercadopago",
+    mercadoPagoPayment,
   };
 }
 

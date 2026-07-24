@@ -1,5 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { confirmPaymentReceived, PaymentConfirmationError } from "@/lib/payments/confirmPayment";
 import { syncMercadoPagoReturn } from "@/lib/payments/providers/mercadopago";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -17,9 +18,14 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) {
+      return NextResponse.json({ error: "No autenticado." }, { status: 401 });
+    }
+
     const { data: paymentRow } = await supabase
       .from("payments")
-      .select("id,status,public_id")
+      .select("id,status,public_id,amount_gross,currency,client_id")
       .eq("public_id", externalReference)
       .maybeSingle();
 
@@ -27,12 +33,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Pago ZOVIT no encontrado." }, { status: 404 });
     }
 
-    if (paymentRow.status !== "esperando_pago") {
+    if (paymentRow.client_id !== authData.user.id) {
+      return NextResponse.json({ error: "Sin permiso." }, { status: 403 });
+    }
+
+    if (paymentRow.status !== "esperando_pago" && paymentRow.status !== "pendiente") {
       return NextResponse.json({
         ok: true,
         alreadyProcessed: true,
         status: paymentRow.status,
       });
+    }
+
+    if (!body.paymentId?.trim()) {
+      return NextResponse.json({ error: "Falta paymentId de Mercado Pago." }, { status: 400 });
     }
 
     const sync = await syncMercadoPagoReturn({
@@ -41,7 +55,7 @@ export async function POST(request: Request) {
       collectionStatus: body.collectionStatus ?? body.status,
     });
 
-    if (!sync.shouldRegister) {
+    if (!sync.shouldRegister || !sync.mercadoPagoPayment) {
       return NextResponse.json({
         ok: true,
         registered: false,
@@ -49,20 +63,31 @@ export async function POST(request: Request) {
       });
     }
 
-    const { error } = await supabase.rpc("register_payment_received", {
-      p_payment_id: paymentRow.id,
-      p_provider: "mercadopago",
-      p_provider_reference: sync.reference,
-      p_provider_session_id: body.paymentId ?? null,
-      p_payment_method: sync.paymentMethod,
+    const result = await confirmPaymentReceived({
+      paymentId: paymentRow.id,
+      provider: "mercadopago",
+      providerReference: sync.reference,
+      providerSessionId: body.paymentId,
+      paymentMethod: sync.paymentMethod,
+      externalReference: paymentRow.public_id,
+      amountGross: Number(paymentRow.amount_gross),
+      currency: paymentRow.currency,
+      mercadoPagoPayment: sync.mercadoPagoPayment,
     });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    if (result.alreadyProcessed) {
+      return NextResponse.json({
+        ok: true,
+        alreadyProcessed: true,
+        status: result.status,
+      });
     }
 
     return NextResponse.json({ ok: true, registered: true, status: "pago_retenido" });
   } catch (error) {
+    if (error instanceof PaymentConfirmationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     const message = error instanceof Error ? error.message : "Error inesperado.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

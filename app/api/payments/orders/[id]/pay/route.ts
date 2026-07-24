@@ -1,8 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { confirmPaymentReceived } from "@/lib/payments/confirmPayment";
 import { getPaymentProvider } from "@/lib/payments/providers";
 import { validateMercadoPagoPublicUrl } from "@/lib/payments/providers/mercadopago";
 import { mapPaymentRow } from "@/lib/payments/mappers";
 import type { PaymentProviderName } from "@/lib/payments/types";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 type Params = { params: Promise<{ id: string }> };
@@ -12,6 +13,10 @@ export async function POST(request: Request, { params }: Params) {
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as { provider?: PaymentProviderName };
     const providerName = body.provider ?? "mock";
+
+    if (providerName === "mock" && process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: "El proveedor mock no está disponible en producción." }, { status: 400 });
+    }
 
     if (providerName === "mercadopago") {
       const publicUrlError = validateMercadoPagoPublicUrl();
@@ -62,17 +67,16 @@ export async function POST(request: Request, { params }: Params) {
       .eq("id", payment.id);
 
     if (providerName === "mock") {
-      const { error: registerError } = await supabase.rpc("register_payment_received", {
-        p_payment_id: payment.id,
-        p_provider: providerName,
-        p_provider_reference: session.reference,
-        p_provider_session_id: session.sessionId,
-        p_payment_method: providerName,
+      await confirmPaymentReceived({
+        paymentId: payment.id,
+        provider: providerName,
+        providerReference: session.reference,
+        providerSessionId: session.sessionId,
+        paymentMethod: providerName,
+        externalReference: payment.publicId,
+        amountGross: payment.amountGross,
+        currency: payment.currency,
       });
-
-      if (registerError) {
-        return NextResponse.json({ error: registerError.message }, { status: 400 });
-      }
 
       return NextResponse.json({
         session,

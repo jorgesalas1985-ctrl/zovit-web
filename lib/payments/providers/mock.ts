@@ -27,7 +27,7 @@ export class MockPaymentProvider implements PaymentProviderAdapter {
     return { success: true, reference, status: "refunded" };
   }
 
-  async parseWebhook(payload: unknown): Promise<WebhookResult> {
+  async parseWebhook(payload: unknown, _headers: Headers): Promise<WebhookResult> {
     const body = payload as { reference?: string; paymentId?: string; status?: string };
     return {
       paymentId: body.paymentId,

@@ -92,9 +92,11 @@ export default function ClientPaymentsPage() {
                         <button className="primaryButton" disabled={busyId === payment.id} onClick={() => void payOrder(payment.id, "mercadopago")}>
                           Pagar con Mercado Pago <ArrowRight size={16} />
                         </button>
-                        <button className="secondaryButton" disabled={busyId === payment.id} onClick={() => void payOrder(payment.id, "mock")}>
-                          Simular pago (dev)
-                        </button>
+                        {process.env.NODE_ENV !== "production" && (
+                          <button className="secondaryButton" disabled={busyId === payment.id} onClick={() => void payOrder(payment.id, "mock")}>
+                            Simular pago (dev)
+                          </button>
+                        )}
                       </div>
                     }
                   />

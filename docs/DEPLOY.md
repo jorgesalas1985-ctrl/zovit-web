@@ -69,8 +69,10 @@ En **Environment Variables**, agrega **Production** (y opcionalmente Preview/Dev
 | `NEXT_PUBLIC_SUPABASE_URL` | Copia de tu `.env.local` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Copia de tu `.env.local` (clave **anon**, nunca service_role) |
 | `NEXT_PUBLIC_APP_URL` | `https://zovit.cl` |
-| `ZOVIT_PAYMENT_PROVIDER` | `mock` (al inicio) o `mercadopago` cuando actives pagos |
+| `ZOVIT_PAYMENT_PROVIDER` | `mock` (local) o `mercadopago` en producción |
 | `MERCADOPAGO_ACCESS_TOKEN` | Solo si usas Mercado Pago |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Secret de firma MP (Webhooks → Configurar). **Obligatorio en producción** |
+| `SUPABASE_SERVICE_ROLE_KEY` | Solo servidor (Vercel). Confirma pagos vía webhook; **nunca** en el cliente |
 
 6. Clic **Deploy**  
 7. Espera el build. Deberías ver una URL tipo `zovit-web.vercel.app` funcionando.
@@ -153,17 +155,31 @@ En **Authentication → Email Templates**, personaliza asunto y cuerpo con "ZOVI
 
 ## Paso 6 — Mercado Pago (cuando actives pagos reales)
 
-En `.env.local` y en Vercel (producción):
+### 6.1 SQL de seguridad (obligatorio antes de cobrar)
+
+En Supabase → **SQL Editor**, ejecuta en orden:
+
+1. `supabase/SPRINT_5_PAGOS.sql` (si aún no está aplicado)
+2. `supabase/SPRINT_5_PAGOS_SECURITY.sql` — endurece confirmación de pagos (solo `service_role`)
+
+### 6.2 Variables en `.env.local` y Vercel (producción)
 
 ```env
 NEXT_PUBLIC_APP_URL=https://zovit.cl
 ZOVIT_PAYMENT_PROVIDER=mercadopago
 MERCADOPAGO_ACCESS_TOKEN=APP_USR-...
+MERCADOPAGO_WEBHOOK_SECRET=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
+
+> `SUPABASE_SERVICE_ROLE_KEY` va **solo** en Vercel (servidor). No uses `NEXT_PUBLIC_` ni la subas al repo.
+
+### 6.3 Webhooks en Mercado Pago
 
 En Mercado Pago → tu aplicación → **Webhooks / Notificaciones**:
 
 - URL: `https://zovit.cl/api/payments/webhook/mercadopago`
+- Copia el **secret de firma** → `MERCADOPAGO_WEBHOOK_SECRET` en Vercel
 
 ---
 

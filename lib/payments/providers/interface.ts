@@ -31,6 +31,12 @@ export type WebhookResult = {
   reference: string;
   status: "paid" | "failed" | "refunded" | "pending";
   paymentMethod?: string;
+  mercadoPagoPayment?: {
+    status: string;
+    external_reference?: string;
+    transaction_amount?: number;
+    currency_id?: string;
+  };
 };
 
 export interface PaymentProviderAdapter {
@@ -38,5 +44,5 @@ export interface PaymentProviderAdapter {
   createSession(input: CreatePaymentSessionInput): Promise<PaymentSession>;
   capture(reference: string): Promise<PaymentProviderResult>;
   refund(reference: string, amount?: number): Promise<PaymentProviderResult>;
-  parseWebhook(payload: unknown, headers: Headers): Promise<WebhookResult>;
+  parseWebhook(payload: unknown, headers: Headers, url?: URL): Promise<WebhookResult>;
 }

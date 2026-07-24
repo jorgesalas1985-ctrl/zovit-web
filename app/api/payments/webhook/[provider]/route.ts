@@ -1,5 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+import { confirmPaymentReceived, PaymentConfirmationError } from "@/lib/payments/confirmPayment";
+import { createAdminClient } from "@/lib/payments/server";
 import { getPaymentProvider } from "@/lib/payments/providers";
+import { MercadoPagoWebhookSignatureError } from "@/lib/payments/providers/mercadopago";
 import type { PaymentProviderName } from "@/lib/payments/types";
 import { NextResponse } from "next/server";
 
@@ -11,31 +13,42 @@ export async function POST(request: Request, { params }: Params) {
     const providerName = providerSlug as PaymentProviderName;
     const provider = getPaymentProvider(providerName);
     const payload = await request.json();
+    const url = new URL(request.url);
 
-    const result = await provider.parseWebhook(payload, request.headers);
-    const supabase = await createClient();
+    const result = await provider.parseWebhook(payload, request.headers, url);
 
     if (result.status === "paid" && result.externalReference) {
-      const { data: paymentRow } = await supabase
+      const admin = createAdminClient();
+      const { data: paymentRow } = await admin
         .from("payments")
-        .select("id,status")
+        .select("id,status,public_id,amount_gross,currency")
         .eq("public_id", result.externalReference)
         .maybeSingle();
 
-      if (paymentRow && paymentRow.status === "esperando_pago") {
-        const { error } = await supabase.rpc("register_payment_received", {
-          p_payment_id: paymentRow.id,
-          p_provider: providerName,
-          p_provider_reference: result.reference,
-          p_provider_session_id: result.reference,
-          p_payment_method: result.paymentMethod ?? providerName,
+      if (paymentRow && (paymentRow.status === "esperando_pago" || paymentRow.status === "pendiente")) {
+        await confirmPaymentReceived({
+          paymentId: paymentRow.id,
+          provider: providerName,
+          providerReference: result.reference,
+          providerSessionId: result.reference,
+          paymentMethod: result.paymentMethod ?? providerName,
+          externalReference: result.externalReference,
+          amountGross: Number(paymentRow.amount_gross),
+          currency: paymentRow.currency,
+          mercadoPagoPayment:
+            providerName === "mercadopago" ? result.mercadoPagoPayment : undefined,
         });
-        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
       }
     }
 
     return NextResponse.json({ received: true, status: result.status, reference: result.reference });
   } catch (error) {
+    if (error instanceof MercadoPagoWebhookSignatureError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof PaymentConfirmationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     const message = error instanceof Error ? error.message : "Webhook inválido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

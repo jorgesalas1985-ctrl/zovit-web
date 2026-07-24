@@ -93,8 +93,12 @@ Calificación + experiencia verificable (requiere pago_liberado)
 ```env
 NEXT_PUBLIC_APP_URL=https://tu-dominio-publico.cl
 MERCADOPAGO_ACCESS_TOKEN=TEST-xxxxxxxx
+MERCADOPAGO_WEBHOOK_SECRET=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ZOVIT_PAYMENT_PROVIDER=mercadopago
 ```
+
+Antes de producción, ejecuta `supabase/SPRINT_5_PAGOS_SECURITY.sql` en Supabase (validación de montos, firma webhook, RPC solo vía `service_role`).
 
 Mercado Pago **no acepta localhost** en `back_urls`. Usa ngrok, staging o producción.
 
