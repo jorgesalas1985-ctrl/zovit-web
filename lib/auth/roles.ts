@@ -127,18 +127,38 @@ export function canAccessRoute(pathname: string, profile: ProfileModeFields | Us
 }
 
 export function canPublishServiceRequest(profile: ProfileModeFields | UserRole | null | undefined): boolean {
-  if (!profile) return true;
+  if (!profile) return false;
   if (typeof profile === "string") {
     return profile === "client" || profile === "admin";
   }
-  if (profile.role === "admin") return true;
+  if (profile.role === "admin") return profile.active_mode === "client";
   return profile.can_act_as_client && profile.active_mode === "client";
 }
 
 export function canAccessProfessionalFeatures(profile: ProfileModeFields | null | undefined): boolean {
   if (!profile) return false;
-  if (profile.role === "admin") return true;
+  if (profile.role === "admin") return profile.active_mode === "professional";
   return profile.can_act_as_professional && profile.active_mode === "professional";
+}
+
+/** Guests may start the publish flow; logged-in users need an explicit client mode. */
+export function shouldShowPublishUI(
+  profile: ProfileModeFields | null | undefined,
+  isLoggedIn: boolean
+): boolean {
+  if (!isLoggedIn) return true;
+  if (!profile) return false;
+  return canPublishServiceRequest(profile);
+}
+
+/** Panel and navigation: never default registered professionals to client UI. */
+export function resolvePanelViewMode(profile: ProfileModeFields | null | undefined): RoleMode | null {
+  if (!profile) return null;
+  if (isProfessionalMode(profile)) return "professional";
+  if (isClientMode(profile)) return "client";
+  if (profile.role === "professional") return "professional";
+  if (profile.role === "client") return "client";
+  return profile.active_mode;
 }
 
 export function resolvePostLoginPath(

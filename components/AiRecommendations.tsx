@@ -17,7 +17,7 @@ const badgeLabels = {
   expert: "Experto",
 } as const;
 
-export function AiRecommendations({ result, onCreateRequest, canPublish = true }: Props) {
+export function AiRecommendations({ result, onCreateRequest, canPublish = false }: Props) {
   const { parsed, professionals } = result;
 
   return (
@@ -91,8 +91,9 @@ export function AiRecommendations({ result, onCreateRequest, canPublish = true }
       ) : (
         <div className="aiEmptyState">
           <p>
-            Aún no hay un profesional conectado exactamente para este caso, pero puedes publicar la
-            solicitud y el primero disponible te contactará.
+            {canPublish
+              ? "Aún no hay un profesional conectado exactamente para este caso, pero puedes publicar la solicitud y el primero disponible te contactará."
+              : "Aún no hay un profesional conectado exactamente para este caso."}
           </p>
         </div>
       )}

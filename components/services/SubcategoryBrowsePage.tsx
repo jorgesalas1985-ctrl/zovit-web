@@ -4,7 +4,7 @@ import { ProfessionalBrowseCard } from "@/components/services/ProfessionalBrowse
 import { ServiceBrowseShell } from "@/components/services/ServiceBrowseShell";
 import { ServiceFilters } from "@/components/services/ServiceFilters";
 import { useAuth } from "@/components/AuthProvider";
-import { canPublishServiceRequest } from "@/lib/auth/roles";
+import { canPublishServiceRequest, shouldShowPublishUI } from "@/lib/auth/roles";
 import type { RecommendedProfessional } from "@/lib/ai/types";
 import type { CategoryBrowseDefinition, SubcategoryDefinition } from "@/lib/services/catalog";
 import {
@@ -123,7 +123,7 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
     router.push("/solicitudes/nueva");
   };
 
-  const canPublish = !profile || canPublishServiceRequest(profile);
+  const canPublish = shouldShowPublishUI(profile, Boolean(user));
 
   return (
     <ServiceBrowseShell

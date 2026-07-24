@@ -23,8 +23,8 @@ export function ProfessionalBrowseCard({
   professional,
   referencePrice,
   onRequest,
-  showRequestButton = true,
-  contactLabel = "Solicitar servicio",
+  showRequestButton = false,
+  contactLabel = "Contactar profesional",
 }: Props) {
   const availability =
     professional.matchScore >= 50 ? "Disponible para solicitudes" : "Consultar disponibilidad";

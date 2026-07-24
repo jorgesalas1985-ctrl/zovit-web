@@ -3,7 +3,7 @@
 import { AiRecommendations } from "@/components/AiRecommendations";
 import { useAuth } from "@/components/AuthProvider";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
-import { canPublishServiceRequest, getActiveMode } from "@/lib/auth/roles";
+import { canPublishServiceRequest, getActiveMode, shouldShowPublishUI } from "@/lib/auth/roles";
 import type { AiRecommendResponse } from "@/lib/ai/types";
 import { ArrowLeft, Bot } from "lucide-react";
 import Link from "next/link";
@@ -101,7 +101,7 @@ function AiResultsContent() {
     router.push("/solicitudes/nueva");
   };
 
-  const canPublish = !profile || canPublishServiceRequest(profile);
+  const canPublish = shouldShowPublishUI(profile, Boolean(user));
   const activeMode = profile ? getActiveMode(profile) : "client";
 
   return (

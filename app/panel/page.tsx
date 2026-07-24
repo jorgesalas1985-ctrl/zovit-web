@@ -22,9 +22,8 @@ import { ExperienceBadge, ProfessionalStatsGrid } from "@/components/experience/
 import { useAuth } from "@/components/AuthProvider";
 import type { ProfessionalStats } from "@/lib/experience/types";
 import {
-  canAccessProfessionalFeatures,
-  canPublishServiceRequest,
   getActiveMode,
+  resolvePanelViewMode,
   roleErrorMessage,
 } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
@@ -51,8 +50,9 @@ function PanelContent() {
 
   const role = profile?.role;
   const activeMode = profile ? getActiveMode(profile) : "client";
-  const isClientView = profile ? canPublishServiceRequest(profile) : false;
-  const isProfessionalView = profile ? canAccessProfessionalFeatures(profile) : false;
+  const panelView = resolvePanelViewMode(profile);
+  const isProfessionalView = panelView === "professional";
+  const isClientView = panelView === "client";
   const isAdmin = role === "admin";
 
   useEffect(() => {
@@ -218,7 +218,7 @@ function PanelContent() {
           <ArrowRight />
         </Link>
 
-        {(isProfessionalView || (isAdmin && activeMode === "professional")) && (
+        {isProfessionalView && (
           <Link href="/verificacion" className="dashboardCard">
             <div className="dashboardIcon"><ShieldCheck /></div>
             <div>
@@ -237,7 +237,7 @@ function PanelContent() {
           </Link>
         )}
 
-        {(isProfessionalView || (isAdmin && activeMode === "professional")) && (
+        {isProfessionalView && (
           <Link href="/pagos/profesional" className="dashboardCard">
             <div className="dashboardIcon"><CreditCard /></div>
             <div><h3>Wallet profesional</h3><p>Saldo, retenciones e ingresos.</p></div>
@@ -269,7 +269,7 @@ function PanelContent() {
           </Link>
         )}
 
-        {(isProfessionalView || (isAdmin && activeMode === "professional")) && (
+        {isProfessionalView && (
           <Link href="/trabajos" className="dashboardCard">
             <div className="dashboardIcon"><BriefcaseBusiness /></div>
             <div><h3>Trabajos disponibles</h3><p>Revisa solicitudes de clientes y envía propuestas.</p></div>
@@ -277,7 +277,7 @@ function PanelContent() {
           </Link>
         )}
 
-        {(isProfessionalView || (isAdmin && activeMode === "professional")) && (
+        {isProfessionalView && (
           <Link href="/experiencia" className="dashboardCard">
             <div className="dashboardIcon"><Sparkles /></div>
             <div><h3>Experiencia verificada</h3><p>Historial real de trabajos en ZOVIT.</p></div>
@@ -315,7 +315,7 @@ function PanelContent() {
                 ? "Revisa trabajos disponibles y envía propuestas a clientes."
                 : "Crea la primera para comenzar a utilizar ZOVIT."}
             </p>
-            {isProfessionalView || (isAdmin && activeMode === "professional") ? (
+            {isProfessionalView ? (
               <Link href="/trabajos" className="primaryButton">Ver trabajos</Link>
             ) : isClientView ? (
               <Link href="/solicitudes/nueva" className="primaryButton">Crear solicitud</Link>

@@ -10,7 +10,7 @@ import {
   Youtube,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { canAccessProfessionalFeatures, canPublishServiceRequest } from "@/lib/auth/roles";
+import { canAccessProfessionalFeatures, shouldShowPublishUI } from "@/lib/auth/roles";
 import { useMemo } from "react";
 
 const SOCIAL_LINKS = [
@@ -21,12 +21,12 @@ const SOCIAL_LINKS = [
 ] as const;
 
 export function SiteFooter() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const year = new Date().getFullYear();
 
   const footerColumns = useMemo(() => {
     const isProfessional = profile ? canAccessProfessionalFeatures(profile) : false;
-    const showPublishLink = !profile || canPublishServiceRequest(profile);
+    const showPublishLink = shouldShowPublishUI(profile, Boolean(user));
 
     return [
       {
@@ -69,7 +69,7 @@ export function SiteFooter() {
         ],
       },
     ];
-  }, [profile]);
+  }, [profile, user]);
 
   return (
     <footer className="siteFooter">
