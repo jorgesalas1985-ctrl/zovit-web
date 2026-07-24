@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AlertCircle, ArrowRight, ChevronDown, LockKeyhole, Mail, UserRound } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { resolvePostLoginPath, roleErrorMessage } from "@/lib/auth/roles";
 import { getAuthCallbackUrl } from "@/lib/auth/redirects";
@@ -16,6 +16,8 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { user, profile, profileError, profileLoading, loading, refreshProfile } = useAuth();
   const [accountType, setAccountType] = useState<"client" | "professional">("client");
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -27,6 +29,19 @@ function LoginForm() {
       setMessage(roleErrorMessage(errorCode));
     }
   }, [searchParams, user]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    function closeMenu(event: MouseEvent) {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", closeMenu);
+    return () => document.removeEventListener("mousedown", closeMenu);
+  }, [accountMenuOpen]);
 
   useEffect(() => {
     if (loading || profileLoading || busy) return;
@@ -134,21 +149,51 @@ function LoginForm() {
         <form onSubmit={submit} className="formStack">
           <label>
             Tipo de cuenta
-            <div className="authSelectWrap">
-              <div className="inputWithIcon authSelectIcon">
+            <div className="authSelectWrap" ref={accountMenuRef}>
+              <button
+                type="button"
+                className="authSelectTrigger"
+                aria-haspopup="listbox"
+                aria-expanded={accountMenuOpen}
+                onClick={() => setAccountMenuOpen((open) => !open)}
+              >
                 <UserRound size={18} />
-                <select
-                  value={accountType}
-                  onChange={(event) =>
-                    setAccountType(event.target.value as "client" | "professional")
-                  }
-                  aria-label="Tipo de cuenta"
-                >
-                  <option value="client">Cliente</option>
-                  <option value="professional">Profesional</option>
-                </select>
-              </div>
-              <ChevronDown size={22} className="authSelectChevron" aria-hidden="true" />
+                <span>{accountType === "client" ? "Cliente" : "Profesional"}</span>
+                <ChevronDown size={22} className={accountMenuOpen ? "authSelectChevron open" : "authSelectChevron"} />
+              </button>
+
+              {accountMenuOpen && (
+                <ul className="authSelectMenu" role="listbox" aria-label="Tipo de cuenta">
+                  <li>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={accountType === "client"}
+                      className={accountType === "client" ? "active" : undefined}
+                      onClick={() => {
+                        setAccountType("client");
+                        setAccountMenuOpen(false);
+                      }}
+                    >
+                      Cliente
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={accountType === "professional"}
+                      className={accountType === "professional" ? "active" : undefined}
+                      onClick={() => {
+                        setAccountType("professional");
+                        setAccountMenuOpen(false);
+                      }}
+                    >
+                      Profesional
+                    </button>
+                  </li>
+                </ul>
+              )}
             </div>
           </label>
           <label>
