@@ -28,6 +28,18 @@ type MercadoPagoPaymentResponse = {
   currency_id?: string;
 };
 
+type MercadoPagoMerchantOrderResponse = {
+  id: number;
+  external_reference?: string;
+  payments?: Array<{
+    id: number;
+    status: string;
+    transaction_amount?: number;
+    currency_id?: string;
+    payment_method_id?: string;
+  }>;
+};
+
 export class MercadoPagoWebhookSignatureError extends Error {
   constructor(message = "Firma de webhook Mercado Pago inválida.") {
     super(message);
@@ -127,16 +139,28 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
 
     const body = payload as {
       type?: string;
+      topic?: string;
       action?: string;
       data?: { id?: string | number };
     };
 
-    const mpPaymentId = body.data?.id;
-    if (!mpPaymentId) {
+    const eventType = (body.type ?? body.topic ?? "payment").toLowerCase();
+    const resourceId = body.data?.id;
+
+    if (!resourceId) {
       return { reference: "unknown", status: "failed" };
     }
 
-    const payment = await this.fetchPayment(String(mpPaymentId));
+    if (eventType === "merchant_order") {
+      const payment = await this.resolvePaymentFromMerchantOrder(String(resourceId));
+      return this.toWebhookResult(payment);
+    }
+
+    const payment = await this.fetchPayment(String(resourceId));
+    return this.toWebhookResult(payment);
+  }
+
+  private toWebhookResult(payment: MercadoPagoPaymentResponse): WebhookResult {
     const externalReference = payment.external_reference ?? "unknown";
 
     if (payment.status === "approved") {
@@ -165,6 +189,38 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
       paymentMethod: "mercadopago",
       mercadoPagoPayment: toMercadoPagoPaymentDetails(payment),
     };
+  }
+
+  private async resolvePaymentFromMerchantOrder(orderId: string): Promise<MercadoPagoPaymentResponse> {
+    const order = await this.fetchMerchantOrder(orderId);
+    const payments = order.payments ?? [];
+
+    if (payments.length === 0) {
+      throw new Error(`La orden comercial ${orderId} no tiene pagos asociados.`);
+    }
+
+    const approved = payments.find((entry) => entry.status === "approved");
+    const candidate = approved ?? payments[payments.length - 1];
+    const payment = await this.fetchPayment(String(candidate.id));
+
+    if (!payment.external_reference && order.external_reference) {
+      payment.external_reference = order.external_reference;
+    }
+
+    return payment;
+  }
+
+  async fetchMerchantOrder(orderId: string): Promise<MercadoPagoMerchantOrderResponse> {
+    const token = this.getAccessToken();
+    const response = await fetch(`https://api.mercadopago.com/merchant_orders/${orderId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      throw new Error(`No se pudo consultar la orden comercial ${orderId} en Mercado Pago.`);
+    }
+
+    return (await response.json()) as MercadoPagoMerchantOrderResponse;
   }
 
   async fetchPayment(paymentId: string): Promise<MercadoPagoPaymentResponse> {

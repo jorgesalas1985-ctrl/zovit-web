@@ -100,6 +100,15 @@ ZOVIT_PAYMENT_PROVIDER=mercadopago
 
 Antes de producción, ejecuta `supabase/SPRINT_5_PAGOS_SECURITY.sql` en Supabase (validación de montos, firma webhook, RPC solo vía `service_role`).
 
+### Webhooks recomendados en Mercado Pago (Checkout Pro)
+
+| Evento MP | ¿Activar? | Motivo |
+|-----------|-----------|--------|
+| **Pagos (legacy)** | Sí | Confirma pagos en ZOVIT |
+| **Órdenes comerciales** | Sí | Respaldo profesional; ZOVIT resuelve el pago desde la orden |
+| **Planes y suscripciones** | Más adelante | Cuando exista suscripciones en ZOVIT |
+| Reclamos / Contracargos | Fase 2 | Cuando exista panel de disputas |
+
 Mercado Pago **no acepta localhost** en `back_urls`. Usa ngrok, staging o producción.
 
 ### URLs que ZOVIT genera automáticamente
