@@ -179,19 +179,21 @@ async function clearPlatformUserReferences(userId: string) {
 
   if (!rpcError) return;
 
-  // Fallback si la RPC aún no está desplegada en Supabase.
-  const cleanups = [
-    admin.from("identity_documents").update({ reviewed_by: null }).eq("reviewed_by", userId),
-    admin.from("intranet_payrolls").update({ created_by: null }).eq("created_by", userId),
-    admin.from("solicitudes_de_servicio").update({ professional_id: null }).eq("professional_id", userId),
-    admin.from("payment_events").update({ actor_id: null }).eq("actor_id", userId),
-    admin.from("request_status_history").update({ changed_by: null }).eq("changed_by", userId),
-  ];
+  const rpcMissing = /Could not find the function public\.clear_platform_user_references/i.test(
+    rpcError.message ?? ""
+  );
 
-  for (const cleanup of cleanups) {
-    const { error } = await cleanup;
+  if (rpcMissing) {
+    const { error } = await admin
+      .from("solicitudes_de_servicio")
+      .update({ professional_id: null })
+      .eq("professional_id", userId);
+
     if (error) throw error;
+    return;
   }
+
+  throw rpcError;
 }
 
 export async function deletePlatformUser(userId: string) {
