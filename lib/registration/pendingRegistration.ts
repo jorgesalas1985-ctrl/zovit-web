@@ -16,6 +16,7 @@ export type PendingRegistration = {
   email: string;
   rut: string;
   documents: StoredRegistrationDocument[];
+  avatar: StoredRegistrationDocument | null;
   createdAt: string;
 };
 
@@ -76,8 +77,19 @@ export async function storeRegistrationDocuments(
     document_type: IdentityDocumentType;
     file: File;
     metadata?: Record<string, unknown> | null;
-  }>
+  }>,
+  avatarFile?: File | null
 ): Promise<void> {
+  const avatar = avatarFile
+    ? {
+        document_type: "selfie" as IdentityDocumentType,
+        fileName: avatarFile.name,
+        contentType: avatarFile.type,
+        metadata: { kind: "avatar" },
+        blob: avatarFile,
+      }
+    : null;
+
   await savePendingRegistration({
     email: email.trim().toLowerCase(),
     rut,
@@ -90,6 +102,7 @@ export async function storeRegistrationDocuments(
         blob: doc.file,
       }))
     ),
+    avatar,
     createdAt: new Date().toISOString(),
   });
 }
@@ -102,19 +115,30 @@ export function pendingToRegistrationDocuments(pending: PendingRegistration) {
   }));
 }
 
+export function pendingToAvatarFile(pending: PendingRegistration): File | null {
+  if (!pending.avatar) return null;
+  return new File([pending.avatar.blob], pending.avatar.fileName, { type: pending.avatar.contentType });
+}
+
 export async function flushPendingRegistration(
   email: string,
   userId: string,
   complete: (
     userId: string,
     rut: string,
-    documents: ReturnType<typeof pendingToRegistrationDocuments>
+    documents: ReturnType<typeof pendingToRegistrationDocuments>,
+    avatarFile?: File | null
   ) => Promise<string | null>
 ): Promise<boolean> {
   const pending = await loadPendingRegistration(email);
   if (!pending) return false;
 
-  const error = await complete(userId, pending.rut, pendingToRegistrationDocuments(pending));
+  const error = await complete(
+    userId,
+    pending.rut,
+    pendingToRegistrationDocuments(pending),
+    pendingToAvatarFile(pending)
+  );
   if (error) {
     throw new Error(error);
   }

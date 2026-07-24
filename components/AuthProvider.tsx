@@ -12,6 +12,7 @@ export type UserProfile = {
   intranet_role: string | null;
   identity_status: "none" | "pending" | "approved" | "rejected";
   identity_verified: boolean;
+  avatar_url: string | null;
 };
 
 type AuthContextValue = {
@@ -28,7 +29,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const PROFILE_SELECT =
-  "first_name,last_name,role,intranet_role,identity_status,identity_verified" as const;
+  "first_name,last_name,role,intranet_role,identity_status,identity_verified,avatar_url" as const;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -89,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       intranet_role: (lastData.intranet_role as string | null) ?? null,
       identity_status: (lastData.identity_status as UserProfile["identity_status"]) ?? "none",
       identity_verified: (lastData.identity_verified as boolean) ?? false,
+      avatar_url: (lastData.avatar_url as string | null) ?? null,
     });
     setProfileError(null);
     setProfileLoading(false);

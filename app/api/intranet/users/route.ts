@@ -1,4 +1,5 @@
 import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
+import { validatePasswordForCreate } from "@/lib/auth/passwordPolicy";
 import { canManageTargetRole, requireIntranetManager } from "@/lib/intranet/apiAuth";
 import { createIntranetUser, listIntranetUsers } from "@/lib/intranet/manageUsers";
 import { NextResponse } from "next/server";
@@ -42,8 +43,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Completa correo, contraseña y perfil interno." }, { status: 400 });
     }
 
-    if (password.length < 8) {
-      return NextResponse.json({ error: "La contraseña debe tener al menos 8 caracteres." }, { status: 400 });
+    const passwordError = validatePasswordForCreate(password);
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 });
     }
 
     if (!isIntranetRole(intranetRole)) {

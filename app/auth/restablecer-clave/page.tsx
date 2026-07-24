@@ -4,6 +4,12 @@ import Link from "next/link";
 import { AlertCircle, ArrowRight, CheckCircle2, LockKeyhole } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  PASSWORD_HINT,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validatePasswordForCreate,
+} from "@/lib/auth/passwordPolicy";
 import { supabase } from "@/lib/supabase";
 
 export default function ResetPasswordPage() {
@@ -29,8 +35,9 @@ export default function ResetPasswordPage() {
     event.preventDefault();
     setMessage("");
 
-    if (password.length < 6) {
-      setMessage("La contraseña debe tener al menos 6 caracteres.");
+    const passwordError = validatePasswordForCreate(password);
+    if (passwordError) {
+      setMessage(passwordError);
       return;
     }
 
@@ -79,7 +86,7 @@ export default function ResetPasswordPage() {
         <div className="authLogo">Z</div>
         <p className="kicker">RECUPERACIÓN</p>
         <h1>Nueva contraseña</h1>
-        <p className="muted">Elige una contraseña segura para tu cuenta ZOVIT.</p>
+        <p className="muted">Elige una contraseña segura para tu cuenta ZOVIT. {PASSWORD_HINT}</p>
 
         <form onSubmit={submit} className="formStack">
           <label>
@@ -89,7 +96,8 @@ export default function ResetPasswordPage() {
               <input
                 type="password"
                 required
-                minLength={6}
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={PASSWORD_MAX_LENGTH}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
@@ -103,7 +111,8 @@ export default function ResetPasswordPage() {
               <input
                 type="password"
                 required
-                minLength={6}
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={PASSWORD_MAX_LENGTH}
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
               />

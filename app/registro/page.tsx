@@ -5,6 +5,15 @@ import { AlertCircle, ArrowRight, BriefcaseBusiness, ScanFace, UserRound } from 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PendingBiometricForm } from "@/components/verification/PendingBiometricForm";
+import { ProfilePhotoPicker } from "@/components/profile/ProfilePhotoUpload";
+import {
+  normalizeAuthEmail,
+  normalizeAuthPassword,
+  PASSWORD_HINT,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validatePasswordForCreate,
+} from "@/lib/auth/passwordPolicy";
 import { getAuthCallbackUrl } from "@/lib/auth/redirects";
 import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
 import type { RegistrationDocument } from "@/lib/registration/finishRegistration";
@@ -29,6 +38,8 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", email: "", password: "" });
   const [rut, setRut] = useState("");
   const [documents, setDocuments] = useState<RegistrationDocument[]>([]);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [needsEmailConfirm, setNeedsEmailConfirm] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -55,9 +66,16 @@ export default function RegisterPage() {
     setBusy(true);
     setMessage("");
 
+    const passwordError = validatePasswordForCreate(form.password);
+    if (passwordError) {
+      setMessage(passwordError);
+      setBusy(false);
+      return;
+    }
+
     const { data, error } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
+      email: normalizeAuthEmail(form.email),
+      password: normalizeAuthPassword(form.password),
       options: {
         emailRedirectTo: getAuthCallbackUrl("/panel"),
         data: {
@@ -83,7 +101,7 @@ export default function RegisterPage() {
     }
 
     if (data.session) {
-      const verificationError = await completeRegistrationVerification(userId, rut, documents);
+      const verificationError = await completeRegistrationVerification(userId, rut, documents, avatarFile);
       if (verificationError) {
         setMessage(verificationError);
         setBusy(false);
@@ -95,7 +113,7 @@ export default function RegisterPage() {
     }
 
     try {
-      await storeRegistrationDocuments(form.email, rut, documents);
+      await storeRegistrationDocuments(form.email, rut, documents, avatarFile);
     } catch {
       setMessage("No se pudieron guardar tus documentos. Intenta nuevamente.");
       setBusy(false);
@@ -144,12 +162,34 @@ export default function RegisterPage() {
             </button>
           </div>
 
+          <ProfilePhotoPicker
+            previewUrl={avatarPreview}
+            onFileSelected={(file) => {
+              setAvatarFile(file);
+              setAvatarPreview((current) => {
+                if (current?.startsWith("blob:")) URL.revokeObjectURL(current);
+                return file ? URL.createObjectURL(file) : null;
+              });
+            }}
+          />
+
           <form onSubmit={createAccount} className="formGrid">
             <label>Nombres<input required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} /></label>
             <label>Apellidos<input required value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} /></label>
             <label>Teléfono<input required value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
             <label>Correo electrónico<input type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></label>
-            <label className="full">Contraseña<input type="password" required minLength={6} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></label>
+            <label className="full">
+              Contraseña
+              <input
+                type="password"
+                required
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={PASSWORD_MAX_LENGTH}
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+              />
+              <small className="fieldHint">{PASSWORD_HINT}</small>
+            </label>
 
             {message && <div className="formMessage full"><AlertCircle size={17} /> {message}</div>}
 

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { uploadProfileAvatar } from "@/lib/profile/avatar";
 import type { IdentityDocumentType } from "@/lib/verification/types";
 
 export type RegistrationDocument = {
@@ -58,13 +59,22 @@ export async function submitBiometricVerification(): Promise<string | null> {
 export async function completeRegistrationVerification(
   userId: string,
   rut: string,
-  documents: RegistrationDocument[]
+  documents: RegistrationDocument[],
+  avatarFile?: File | null
 ): Promise<string | null> {
   const rutError = await saveProfileRut(userId, rut);
   if (rutError) return rutError;
 
   const uploadError = await uploadRegistrationDocuments(userId, documents);
   if (uploadError) return uploadError;
+
+  if (avatarFile) {
+    try {
+      await uploadProfileAvatar(userId, avatarFile);
+    } catch (error) {
+      return error instanceof Error ? error.message : "No se pudo guardar la foto de credencial.";
+    }
+  }
 
   return submitBiometricVerification();
 }

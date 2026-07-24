@@ -7,6 +7,11 @@ import {
   isIntranetRole,
   type IntranetRole,
 } from "@/lib/auth/intranetRoles";
+import {
+  PASSWORD_HINT,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from "@/lib/auth/passwordPolicy";
 import { AlertCircle, CheckCircle2, Loader2, Trash2, UserPlus } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -185,10 +190,11 @@ export function IntranetUsersManager() {
             <input
               type="password"
               required
-              minLength={8}
+              minLength={PASSWORD_MIN_LENGTH}
+              maxLength={PASSWORD_MAX_LENGTH}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Mínimo 8 caracteres"
+              placeholder={PASSWORD_HINT}
             />
           </label>
 

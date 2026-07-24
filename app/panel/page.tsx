@@ -7,6 +7,7 @@ import {
   Clock3,
   CreditCard,
   FileText,
+  IdCard,
   Plus,
   Share2,
   ShieldCheck,
@@ -185,6 +186,17 @@ function PanelContent() {
           <div><h3>Mi perfil</h3><p>Actualiza tus datos personales.</p></div>
           <ArrowRight />
         </Link>
+
+        {user && (
+          <Link href={`/credencial/${user.id}`} className="dashboardCard">
+            <div className="dashboardIcon"><IdCard /></div>
+            <div>
+              <h3>Mi credencial ZOVIT</h3>
+              <p>Credencial verificable con QR para imprimir, compartir o validar en línea.</p>
+            </div>
+            <ArrowRight />
+          </Link>
+        )}
 
         <Link href="/registro/biometria" className="dashboardCard">
           <div className="dashboardIcon"><ShieldCheck /></div>

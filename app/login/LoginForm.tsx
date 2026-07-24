@@ -6,6 +6,11 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { resolvePostLoginPath, roleErrorMessage } from "@/lib/auth/roles";
 import { getAuthCallbackUrl } from "@/lib/auth/redirects";
+import {
+  normalizeAuthEmail,
+  normalizeAuthPassword,
+  PASSWORD_HINT,
+} from "@/lib/auth/passwordPolicy";
 import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
 import { flushPendingRegistration } from "@/lib/registration/pendingRegistration";
 import { supabase } from "@/lib/supabase";
@@ -67,7 +72,10 @@ function LoginForm() {
     setBusy(true);
     setMessage("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizeAuthEmail(email),
+      password: normalizeAuthPassword(password),
+    });
 
     if (error) {
       setMessage(error.message === "Invalid login credentials"
@@ -202,7 +210,8 @@ function LoginForm() {
           </label>
           <label>
             Contraseña
-            <div className="inputWithIcon"><LockKeyhole size={18} /><input type="password" required minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} /></div>
+            <div className="inputWithIcon"><LockKeyhole size={18} /><input type="password" required value={password} onChange={(event) => setPassword(event.target.value)} /></div>
+            <small className="fieldHint">{PASSWORD_HINT}</small>
           </label>
 
           {message && <div className="formMessage"><AlertCircle size={17} /> {message}</div>}

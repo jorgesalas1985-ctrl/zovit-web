@@ -1,4 +1,5 @@
 import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
+import { validatePasswordForCreate } from "@/lib/auth/passwordPolicy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { User } from "@supabase/supabase-js";
 
@@ -104,9 +105,8 @@ export async function createIntranetUser(input: CreateIntranetUserInput): Promis
   const existing = await findAuthUserByEmail(email);
 
   if (existing) {
-    if (input.password.length < 8) {
-      throw new Error("La contraseña debe tener al menos 8 caracteres.");
-    }
+    const validationMessage = validatePasswordForCreate(input.password);
+    if (validationMessage) throw new Error(validationMessage);
 
     const { error: passwordError } = await admin.auth.admin.updateUserById(existing.id, {
       password: input.password,
@@ -134,6 +134,9 @@ export async function createIntranetUser(input: CreateIntranetUserInput): Promis
       createdAt: existing.created_at,
     };
   }
+
+  const validationMessage = validatePasswordForCreate(input.password);
+  if (validationMessage) throw new Error(validationMessage);
 
   const { data, error } = await admin.auth.admin.createUser({
     email,

@@ -2,6 +2,7 @@
 
 import { Protected } from "@/components/Protected";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
+import { ProfilePhotoUpload } from "@/components/profile/ProfilePhotoUpload";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { FormEvent, useEffect, useState } from "react";
@@ -12,20 +13,24 @@ export default function ProfilePage() {
   const [form, setForm] = useState({
     first_name: "", last_name: "", rut: "", phone: "", address: "", commune: ""
   });
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("first_name,last_name,rut,phone,address,commune").eq("id", user.id).single()
+    supabase.from("profiles").select("first_name,last_name,rut,phone,address,commune,avatar_url").eq("id", user.id).single()
       .then(({ data }) => {
-        if (data) setForm({
-          first_name: data.first_name ?? "",
-          last_name: data.last_name ?? "",
-          rut: data.rut ?? "",
-          phone: data.phone ?? "",
-          address: data.address ?? "",
-          commune: data.commune ?? ""
-        });
+        if (data) {
+          setForm({
+            first_name: data.first_name ?? "",
+            last_name: data.last_name ?? "",
+            rut: data.rut ?? "",
+            phone: data.phone ?? "",
+            address: data.address ?? "",
+            commune: data.commune ?? ""
+          });
+          setAvatarUrl(data.avatar_url ?? null);
+        }
       });
   }, [user]);
 
@@ -54,6 +59,17 @@ export default function ProfilePage() {
           <p className="kicker">MI CUENTA</p>
           <h1>Perfil personal</h1>
           <p className="muted">Estos datos quedan guardados en tu cuenta ZOVIT.</p>
+
+          {user && (
+            <ProfilePhotoUpload
+              userId={user.id}
+              currentUrl={avatarUrl}
+              onUploaded={(url) => {
+                setAvatarUrl(url);
+                void refreshProfile();
+              }}
+            />
+          )}
 
           <form className="formGrid" onSubmit={save}>
             <label>Nombres<input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} /></label>

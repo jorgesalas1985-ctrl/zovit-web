@@ -169,6 +169,13 @@ a { color: inherit; text-decoration: none; }
 }
 .categoryCard h3 { margin: 20px 0 7px; }
 .categoryCard p, .muted { color: var(--muted); line-height: 1.55; }
+.fieldHint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
 .ctaSection {
   margin: 20px 5vw 75px; padding: 45px; display: flex; align-items: center; justify-content: space-between; gap: 25px;
   border-radius: 28px; color: white; background: var(--gradient-alt); border: 1px solid var(--line-blue);
@@ -1038,6 +1045,305 @@ html[data-theme="light"] .siteFooterAppBadge {
 }
 .legalContent { display: grid; gap: 14px; color: var(--muted); line-height: 1.7; }
 .legalContent p { margin: 0; }
+
+.profilePhotoUpload {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 18px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line-blue);
+  border-radius: 20px;
+  background: var(--surface-soft);
+}
+.profilePhotoPreview {
+  position: relative;
+  width: 108px;
+  height: 108px;
+  flex-shrink: 0;
+}
+.profilePhotoImage,
+.profilePhotoPlaceholder {
+  width: 108px;
+  height: 108px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 2px solid var(--line-blue);
+}
+.profilePhotoPlaceholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: var(--surface);
+}
+.profilePhotoCameraButton {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--gradient-brand);
+  color: white;
+  cursor: pointer;
+  box-shadow: var(--glow-purple);
+}
+.profilePhotoCameraButton input { display: none; }
+.profilePhotoMeta { flex: 1; min-width: 0; }
+.profilePhotoTitle { margin: 0 0 4px; font-weight: 900; }
+.profilePhotoHint { margin: 0 0 12px; font-size: 13px; }
+.profilePhotoActions { display: flex; flex-wrap: wrap; gap: 10px; }
+.profilePhotoSelectButton input { display: none; }
+.spinIcon { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.credentialPublicPage { padding-top: 36px; padding-bottom: 48px; }
+.credentialPage { width: min(760px, 100%); display: grid; gap: 18px; }
+.credentialCard {
+  border: 1px solid var(--line-blue);
+  border-radius: 28px;
+  background: linear-gradient(160deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 88%, var(--purple)) 100%);
+  box-shadow: var(--glow-blue);
+  overflow: hidden;
+}
+.credentialHeader,
+.credentialBody,
+.credentialFooter {
+  padding: 22px 24px;
+}
+.credentialHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--line-blue);
+}
+.credentialBrand { display: flex; align-items: center; gap: 12px; }
+.credentialBrandMark {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-weight: 950;
+  color: white;
+  background: var(--gradient-brand);
+}
+.credentialBrandName { margin: 0; font-weight: 950; letter-spacing: -0.03em; }
+.credentialBrandTag { margin: 0; font-size: 12px; color: var(--muted); }
+.credentialRolePill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  background: rgba(124, 58, 237, 0.14);
+  border: 1px solid rgba(124, 58, 237, 0.28);
+}
+.credentialBody {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 20px;
+  align-items: center;
+}
+.credentialPhotoWrap { flex-shrink: 0; }
+.credentialPhoto {
+  width: 112px;
+  height: 112px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 3px solid rgba(14, 165, 233, 0.35);
+}
+.credentialPhoto--placeholder {
+  display: grid;
+  place-items: center;
+  font-size: 42px;
+  font-weight: 950;
+  color: white;
+  background: var(--gradient-brand);
+}
+.credentialInfo { min-width: 0; }
+.credentialName { margin: 0 0 6px; font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.04em; }
+.credentialRut { margin: 0 0 12px; color: var(--muted); font-weight: 700; }
+.credentialBadges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.credentialPendingBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.credentialVerifiedLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--green);
+  font-weight: 800;
+}
+.credentialQrBlock { text-align: center; }
+.credentialQr {
+  width: 132px;
+  height: 132px;
+  border-radius: 16px;
+  background: white;
+  padding: 8px;
+  border: 1px solid var(--line-blue);
+}
+.credentialQr--loading {
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.credentialQrHint { margin: 8px 0 0; font-size: 12px; color: var(--muted); font-weight: 800; }
+.credentialFooter {
+  border-top: 1px solid var(--line-blue);
+  background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
+}
+.credentialUrl {
+  margin: 0 0 6px;
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--cyan);
+  font-weight: 700;
+}
+.credentialFooterNote { margin: 0; font-size: 12px; color: var(--muted); }
+.credentialActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 0 24px 24px;
+}
+.credentialCardHeader,
+.credentialCardBody {
+  padding: 22px 24px;
+}
+.credentialCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--line-blue);
+}
+.credentialCardBody {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 20px;
+  align-items: center;
+}
+.credentialDetails { min-width: 0; }
+.credentialDetails h1 {
+  margin: 0 0 6px;
+  font-size: clamp(24px, 4vw, 34px);
+  letter-spacing: -0.04em;
+}
+.credentialRole {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+}
+.credentialMeta,
+.credentialHint {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.credentialStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid var(--line);
+}
+.credentialStatus.verified {
+  color: var(--green);
+  border-color: rgba(132, 204, 22, 0.45);
+  background: rgba(132, 204, 22, 0.12);
+}
+.credentialStatus.pending {
+  color: var(--muted);
+}
+.credentialPhotoPlaceholder {
+  width: 112px;
+  height: 112px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  color: var(--muted);
+  border: 2px dashed var(--line-blue);
+  background: var(--surface);
+  font-size: 11px;
+}
+.credentialQrPlaceholder {
+  width: 132px;
+  height: 132px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  color: var(--muted);
+  border: 1px solid var(--line-blue);
+  background: white;
+  font-size: 12px;
+}
+.credentialQrCaption {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 800;
+}
+.credentialVerifyLink {
+  display: block;
+  font-size: 11px;
+  word-break: break-all;
+  color: var(--cyan);
+  font-weight: 700;
+}
+.profilePhotoCopy { flex: 1; min-width: 0; }
+.profilePhotoLabel { margin: 0 0 4px; font-weight: 900; }
+.credentialNotice { text-align: center; }
+.spin { animation: spin 1s linear infinite; }
+.notice.compact { margin-top: 8px; padding: 10px 12px; font-size: 13px; }
+
+@media (max-width: 720px) {
+  .profilePhotoUpload { flex-direction: column; align-items: flex-start; }
+  .credentialBody,
+  .credentialCardBody { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .credentialBadges, .credentialVerifiedLine, .credentialDetails { text-align: center; }
+}
+
+@media print {
+  body * { visibility: hidden !important; }
+  .credentialCard,
+  .credentialCard * { visibility: visible !important; }
+  .credentialCard {
+    position: fixed;
+    inset: 24px;
+    width: auto;
+    box-shadow: none;
+    border: 2px solid #111;
+    background: white !important;
+    color: #111 !important;
+  }
+  .no-print { display: none !important; }
+  .header, .siteFooter { display: none !important; }
+}
+
 @media (max-width: 900px) {
   .siteFooterColumns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .siteFooterBottom { grid-template-columns: 1fr; }

@@ -7,6 +7,11 @@ import {
   isIntranetRole,
   type IntranetRole,
 } from "@/lib/auth/intranetRoles";
+import {
+  normalizeAuthEmail,
+  normalizeAuthPassword,
+  PASSWORD_HINT,
+} from "@/lib/auth/passwordPolicy";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle, ArrowRight, Building2, ChevronDown, LockKeyhole, Mail } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +30,12 @@ export default function IntranetAccessPage() {
   const intranetRole = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
 
   useEffect(() => {
+    if (intranetRole) {
+      setSelectedProfile(intranetRole);
+    }
+  }, [intranetRole]);
+
+  useEffect(() => {
     if (loading || busy || !user || !intranetRole) return;
     router.replace(intranetHomeForRole(intranetRole));
   }, [busy, intranetRole, loading, router, user]);
@@ -34,23 +45,52 @@ export default function IntranetAccessPage() {
     setBusy(true);
     setMessage("");
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const normalizedEmail = normalizeAuthEmail(email);
+    const normalizedPassword = normalizeAuthPassword(password);
+
+    if (!normalizedEmail || !normalizedPassword) {
+      setMessage("Completa correo y contraseña.");
+      setBusy(false);
+      return;
+    }
+
+    await supabase.auth.signOut();
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password: normalizedPassword,
+    });
 
     if (error) {
-      setMessage(error.message === "Invalid login credentials"
-        ? "Correo o contraseña incorrectos."
-        : error.message);
+      setMessage(
+        error.message === "Invalid login credentials"
+          ? "Correo o contraseña incorrectos. Si cambiaste tu clave recientemente, usa la nueva o restablécela desde el sitio público."
+          : error.message
+      );
+      setBusy(false);
+      return;
+    }
+
+    const userId = data.user?.id;
+    if (!userId) {
+      setMessage("No se pudo validar tu sesión. Intenta nuevamente.");
       setBusy(false);
       return;
     }
 
     await refreshProfile();
 
-    const { data: profileRow } = await supabase
+    const { data: profileRow, error: profileError } = await supabase
       .from("profiles")
       .select("intranet_role")
-      .eq("id", (await supabase.auth.getUser()).data.user?.id ?? "")
+      .eq("id", userId)
       .maybeSingle();
+
+    if (profileError) {
+      setMessage("No pudimos verificar tu acceso interno. Intenta nuevamente.");
+      setBusy(false);
+      return;
+    }
 
     const role = isIntranetRole(profileRow?.intranet_role) ? profileRow.intranet_role : null;
 
@@ -62,10 +102,8 @@ export default function IntranetAccessPage() {
     }
 
     if (role !== selectedProfile) {
-      setMessage("El perfil seleccionado no coincide con tu cuenta interna.");
-      await supabase.auth.signOut();
-      setBusy(false);
-      return;
+      setSelectedProfile(role);
+      setMessage(`Tu perfil interno es ${INTRANET_LOGIN_PROFILE_LABELS[role]}. Ingresando…`);
     }
 
     router.replace(intranetHomeForRole(role));
@@ -119,6 +157,7 @@ export default function IntranetAccessPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="nombre@zovit.cl"
+                autoComplete="username"
               />
             </div>
           </label>
@@ -130,11 +169,12 @@ export default function IntranetAccessPage() {
               <input
                 type="password"
                 required
-                minLength={6}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
               />
             </div>
+            <small className="fieldHint">{PASSWORD_HINT}</small>
           </label>
 
           {message && (
@@ -149,6 +189,8 @@ export default function IntranetAccessPage() {
         </form>
 
         <p className="authFooter">
+          <Link href="/login">Recuperar contraseña</Link>
+          {" · "}
           <Link href="/">Volver al sitio público</Link>
         </p>
       </section>
