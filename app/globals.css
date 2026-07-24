@@ -711,6 +711,11 @@ html[data-theme="light"] .authSelectMenu button {
 
 /* ZOVIT Brand System — overrides premium */
 .themeToggle { color: var(--cyan); }
+.homeNavButton {
+  color: var(--cyan);
+  letter-spacing: 0.04em;
+  font-size: 13px;
+}
 .secondaryButton { background: var(--surface-soft); }
 .secondaryButton:hover, .dangerButton:hover { box-shadow: var(--glow-blue); }
 .searchMethodIcon.manual { color: var(--cyan); background: rgba(6, 182, 212, 0.12); }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, Moon, Sun, UserRound } from "lucide-react";
+import { Home, LogOut, Moon, Sun, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
@@ -46,6 +46,10 @@ export function Header() {
         >
           {dark ? <Sun size={19} /> : <Moon size={19} />}
         </button>
+
+        <Link className="navButton homeNavButton" href="/">
+          <Home size={18} /> INICIO
+        </Link>
 
         {user ? (
           <>
