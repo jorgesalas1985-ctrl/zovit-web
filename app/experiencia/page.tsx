@@ -9,6 +9,7 @@ import { ExperienceBadge, ExperienceTimeline, ProfessionalStatsGrid, RatingsList
 import { useAuth } from "@/components/AuthProvider";
 import type { ProfessionalExperience, ProfessionalStats, ServiceRating } from "@/lib/experience/types";
 import { EXPERIENCE_BADGES } from "@/lib/experience/types";
+import { getActiveMode } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 
@@ -61,11 +62,13 @@ export default function ExperiencePage() {
 
   const level = stats?.experience_level ?? "junior";
 
+  const activeMode = profile ? getActiveMode(profile) : "professional";
+
   return (
     <Protected>
-      <RoleGuard allowedRoles={["professional", "admin"]} showRoleBanner={false}>
+      <RoleGuard requiredMode="professional" showRoleBanner={false}>
         <main className="dashboardPage">
-          <RoleModeBanner role="professional" />
+          <RoleModeBanner role={activeMode} />
           <section className="dashboardHero">
             <div>
               <p className="kicker light">CARRERA ZOVIT</p>

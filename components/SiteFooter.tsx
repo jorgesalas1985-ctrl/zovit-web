@@ -10,7 +10,7 @@ import {
   Youtube,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { canPublishServiceRequest } from "@/lib/auth/roles";
+import { canAccessProfessionalFeatures, canPublishServiceRequest } from "@/lib/auth/roles";
 import { useMemo } from "react";
 
 const SOCIAL_LINKS = [
@@ -25,8 +25,8 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
 
   const footerColumns = useMemo(() => {
-    const isProfessional = profile?.role === "professional";
-    const showPublishLink = !profile?.role || canPublishServiceRequest(profile.role);
+    const isProfessional = profile ? canAccessProfessionalFeatures(profile) : false;
+    const showPublishLink = !profile || canPublishServiceRequest(profile);
 
     return [
       {
@@ -46,9 +46,7 @@ export function SiteFooter() {
           { label: "Crear cuenta", href: "/registro" },
           { label: "Ingresar", href: "/login" },
           { label: "Mi panel", href: "/panel" },
-          ...(isProfessional
-            ? [{ label: "Ver trabajos", href: "/trabajos" }]
-            : []),
+          ...(isProfessional ? [{ label: "Ver trabajos", href: "/trabajos" }] : []),
           { label: "Verificación biométrica", href: "/registro/biometria" },
         ],
       },
@@ -71,7 +69,7 @@ export function SiteFooter() {
         ],
       },
     ];
-  }, [profile?.role]);
+  }, [profile]);
 
   return (
     <footer className="siteFooter">

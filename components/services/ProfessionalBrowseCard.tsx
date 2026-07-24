@@ -8,7 +8,8 @@ import Link from "next/link";
 type Props = {
   professional: RecommendedProfessional;
   referencePrice?: string;
-  onRequest: (professionalId: string) => void;
+  onRequest?: (professionalId: string) => void;
+  showRequestButton?: boolean;
   contactLabel?: string;
 };
 
@@ -18,7 +19,13 @@ const badgeLabels = {
   expert: "Experto",
 } as const;
 
-export function ProfessionalBrowseCard({ professional, referencePrice, onRequest, contactLabel = "Solicitar servicio" }: Props) {
+export function ProfessionalBrowseCard({
+  professional,
+  referencePrice,
+  onRequest,
+  showRequestButton = true,
+  contactLabel = "Solicitar servicio",
+}: Props) {
   const availability =
     professional.matchScore >= 50 ? "Disponible para solicitudes" : "Consultar disponibilidad";
 
@@ -78,9 +85,11 @@ export function ProfessionalBrowseCard({ professional, referencePrice, onRequest
         <Link href={`/profesional/${professional.id}`} className="secondaryButton">
           Ver perfil
         </Link>
-        <button className="primaryButton" onClick={() => onRequest(professional.id)}>
-          {contactLabel} <ArrowRight size={16} />
-        </button>
+        {showRequestButton && onRequest && (
+          <button className="primaryButton" onClick={() => onRequest(professional.id)}>
+            {contactLabel} <ArrowRight size={16} />
+          </button>
+        )}
       </div>
     </article>
   );

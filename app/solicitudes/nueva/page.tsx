@@ -108,7 +108,7 @@ export default function NewRequestPage() {
 
   return (
     <Protected>
-      <RoleGuard allowedRoles={["client", "admin"]}>
+      <RoleGuard requiredMode="client">
         <main className="simplePage">
           <section className="formPageCard">
             <div className="eyebrow"><Sparkles size={16} /> Solicitud real</div>

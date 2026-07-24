@@ -61,7 +61,7 @@ function LoginForm() {
     setMessage("");
     const destination = resolvePostLoginPath(
       searchParams.get("next"),
-      profile.role,
+      profile,
       profile.identity_status
     );
     router.replace(destination);

@@ -69,7 +69,7 @@ export default function ProfessionalPaymentsPage() {
 
   return (
     <Protected>
-      <RoleGuard allowedRoles={["professional", "admin"]}>
+      <RoleGuard requiredMode="professional">
         <main className="simplePage">
           <section className="formPageCard paymentsPage">
             <div className="eyebrow"><Wallet size={16} /> Wallet ZOVIT</div>

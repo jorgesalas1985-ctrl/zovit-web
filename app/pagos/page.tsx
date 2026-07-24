@@ -70,7 +70,7 @@ export default function ClientPaymentsPage() {
 
   return (
     <Protected>
-      <RoleGuard allowedRoles={["client", "admin"]}>
+      <RoleGuard requiredMode="client">
         <main className="simplePage">
           <section className="formPageCard paymentsPage">
             <div className="eyebrow"><CreditCard size={16} /> Pagos ZOVIT</div>

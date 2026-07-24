@@ -45,7 +45,7 @@ export default function VerificationPage() {
 
   return (
     <Protected>
-      <RoleGuard allowedRoles={["professional", "admin"]}>
+      <RoleGuard requiredMode="professional">
         <main className="simplePage">
           <section className="formPageCard verificationPage">
             <div className="eyebrow">

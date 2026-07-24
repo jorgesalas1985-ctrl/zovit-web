@@ -79,7 +79,7 @@ export default function MercadoPagoReturnPage() {
 
   return (
     <Protected>
-      <RoleGuard allowedRoles={["client", "admin"]}>
+      <RoleGuard requiredMode="client">
         <main className="simplePage">
           <section className={`formPageCard mpReturn mpReturn-${copy.tone}`}>
             <Icon size={42} />

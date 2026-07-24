@@ -1,9 +1,11 @@
 "use client";
 
+import { AccountModeControls } from "@/components/AccountModeControls";
 import { Protected } from "@/components/Protected";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { ProfilePhotoUpload } from "@/components/profile/ProfilePhotoUpload";
 import { useAuth } from "@/components/AuthProvider";
+import { getActiveMode } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 import { FormEvent, useEffect, useState } from "react";
 import { Save } from "lucide-react";
@@ -46,19 +48,18 @@ export default function ProfilePage() {
     setMessage("Perfil actualizado correctamente.");
   }
 
-  const roleMode =
-    profile?.role === "professional" ? "professional" : profile?.role === "client" || profile?.role === "admin"
-      ? "client"
-      : null;
+  const activeMode = profile ? getActiveMode(profile) : null;
 
   return (
     <Protected>
-      {roleMode && <RoleModeBanner role={roleMode} />}
+      {activeMode && <RoleModeBanner role={activeMode} />}
       <main className="simplePage">
         <section className="formPageCard">
           <p className="kicker">MI CUENTA</p>
           <h1>Perfil personal</h1>
           <p className="muted">Estos datos quedan guardados en tu cuenta ZOVIT.</p>
+
+          <AccountModeControls variant="profile" />
 
           {user && (
             <ProfilePhotoUpload

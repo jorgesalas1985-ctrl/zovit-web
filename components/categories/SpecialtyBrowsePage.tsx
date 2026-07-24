@@ -134,13 +134,15 @@ export function SpecialtyBrowsePage({ resolved }: Props) {
       return;
     }
 
-    if (profile?.role && !canPublishServiceRequest(profile.role)) {
+    if (profile && !canPublishServiceRequest(profile)) {
       router.push("/trabajos");
       return;
     }
 
     router.push("/solicitudes/nueva");
   };
+
+  const canPublish = !profile || canPublishServiceRequest(profile);
 
   function notifyWhenAvailable() {
     const key = `zovit-notify:${resolved.nodes.map((node) => node.slug).join("/")}`;
@@ -213,7 +215,8 @@ export function SpecialtyBrowsePage({ resolved }: Props) {
             key={professional.id}
             professional={professional}
             referencePrice={searchParams.referencePrice}
-            onRequest={startRequest}
+            onRequest={canPublish ? startRequest : undefined}
+            showRequestButton={canPublish}
             contactLabel="Contactar"
           />
         ))}

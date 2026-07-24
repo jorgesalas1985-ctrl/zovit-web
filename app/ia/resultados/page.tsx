@@ -3,7 +3,7 @@
 import { AiRecommendations } from "@/components/AiRecommendations";
 import { useAuth } from "@/components/AuthProvider";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
-import { canPublishServiceRequest } from "@/lib/auth/roles";
+import { canPublishServiceRequest, getActiveMode } from "@/lib/auth/roles";
 import type { AiRecommendResponse } from "@/lib/ai/types";
 import { ArrowLeft, Bot } from "lucide-react";
 import Link from "next/link";
@@ -85,7 +85,7 @@ function AiResultsContent() {
       return;
     }
 
-    if (profile?.role && !canPublishServiceRequest(profile.role)) {
+    if (profile && !canPublishServiceRequest(profile)) {
       router.push("/trabajos");
       return;
     }
@@ -101,12 +101,12 @@ function AiResultsContent() {
     router.push("/solicitudes/nueva");
   };
 
-  const canPublish =
-    !profile?.role || canPublishServiceRequest(profile.role);
+  const canPublish = !profile || canPublishServiceRequest(profile);
+  const activeMode = profile ? getActiveMode(profile) : "client";
 
   return (
     <>
-      <RoleModeBanner role="client" />
+      <RoleModeBanner role={activeMode} />
       <main className="simplePage browsePage">
       <section className="browseShell">
         <Link href="/" className="browseBackLink">

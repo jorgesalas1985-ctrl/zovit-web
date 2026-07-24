@@ -1,5 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { canAccessRoute, isPublicIntranetRoute, isProtectedRoute, isUserRole } from "@/lib/auth/roles";
+import {
+  canAccessRoute,
+  isPublicIntranetRoute,
+  isProtectedRoute,
+  isRoleMode,
+  isUserRole,
+  type ProfileModeFields,
+} from "@/lib/auth/roles";
 import { needsBiometricOnboarding, canAccessPanel } from "@/lib/verification/types";
 import { mergeCookies, updateSession } from "@/lib/supabase/middleware";
 
@@ -28,7 +35,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("role, identity_status")
+    .select("role, can_act_as_client, can_act_as_professional, active_mode, identity_status")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -40,7 +47,25 @@ export async function middleware(request: NextRequest) {
     return mergeCookies(supabaseResponse, NextResponse.redirect(loginUrl));
   }
 
-  if (!canAccessRoute(pathname, profile.role)) {
+  const registrationRole = profile.role;
+  const profileMode: ProfileModeFields = {
+    role: registrationRole,
+    can_act_as_client:
+      typeof profile.can_act_as_client === "boolean"
+        ? profile.can_act_as_client
+        : registrationRole === "client" || registrationRole === "admin",
+    can_act_as_professional:
+      typeof profile.can_act_as_professional === "boolean"
+        ? profile.can_act_as_professional
+        : registrationRole === "professional" || registrationRole === "admin",
+    active_mode: isRoleMode(profile.active_mode)
+      ? profile.active_mode
+      : registrationRole === "professional"
+        ? "professional"
+        : "client",
+  };
+
+  if (!canAccessRoute(pathname, profileMode)) {
     const panelUrl = request.nextUrl.clone();
     panelUrl.pathname = "/panel";
     panelUrl.searchParams.set("error", "sin-permiso");

@@ -14,13 +14,19 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
+import { AccountModeControls } from "@/components/AccountModeControls";
 import { Protected } from "@/components/Protected";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { IdentityBadge } from "@/components/verification/IdentityBadge";
 import { ExperienceBadge, ProfessionalStatsGrid } from "@/components/experience/ExperienceSection";
 import { useAuth } from "@/components/AuthProvider";
 import type { ProfessionalStats } from "@/lib/experience/types";
-import { roleErrorMessage } from "@/lib/auth/roles";
+import {
+  canAccessProfessionalFeatures,
+  canPublishServiceRequest,
+  getActiveMode,
+  roleErrorMessage,
+} from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -44,8 +50,9 @@ function PanelContent() {
   const [professionalStats, setProfessionalStats] = useState<ProfessionalStats | null>(null);
 
   const role = profile?.role;
-  const isClientView = role === "client" || role === "admin";
-  const isProfessionalView = role === "professional";
+  const activeMode = profile ? getActiveMode(profile) : "client";
+  const isClientView = profile ? canPublishServiceRequest(profile) : false;
+  const isProfessionalView = profile ? canAccessProfessionalFeatures(profile) : false;
   const isAdmin = role === "admin";
 
   useEffect(() => {
@@ -126,7 +133,13 @@ function PanelContent() {
     <main className="dashboardPage">
       {accessMessage && <div className="notice">{accessMessage}</div>}
 
-      <RoleModeBanner role={isProfessionalView ? "professional" : "client"} />
+      <RoleModeBanner role={activeMode} />
+
+      {!isAdmin && (
+        <section className="panelSection compactSection">
+          <AccountModeControls />
+        </section>
+      )}
 
       <section className="dashboardHero">
         <div>
@@ -205,7 +218,7 @@ function PanelContent() {
           <ArrowRight />
         </Link>
 
-        {(isProfessionalView || isAdmin) && (
+        {(isProfessionalView || (isAdmin && activeMode === "professional")) && (
           <Link href="/verificacion" className="dashboardCard">
             <div className="dashboardIcon"><ShieldCheck /></div>
             <div>
@@ -224,7 +237,7 @@ function PanelContent() {
           </Link>
         )}
 
-        {(isProfessionalView || isAdmin) && (
+        {(isProfessionalView || (isAdmin && activeMode === "professional")) && (
           <Link href="/pagos/profesional" className="dashboardCard">
             <div className="dashboardIcon"><CreditCard /></div>
             <div><h3>Wallet profesional</h3><p>Saldo, retenciones e ingresos.</p></div>
@@ -256,7 +269,7 @@ function PanelContent() {
           </Link>
         )}
 
-        {(isProfessionalView || isAdmin) && (
+        {(isProfessionalView || (isAdmin && activeMode === "professional")) && (
           <Link href="/trabajos" className="dashboardCard">
             <div className="dashboardIcon"><BriefcaseBusiness /></div>
             <div><h3>Trabajos disponibles</h3><p>Revisa solicitudes de clientes y envía propuestas.</p></div>
@@ -264,7 +277,7 @@ function PanelContent() {
           </Link>
         )}
 
-        {(isProfessionalView || isAdmin) && (
+        {(isProfessionalView || (isAdmin && activeMode === "professional")) && (
           <Link href="/experiencia" className="dashboardCard">
             <div className="dashboardIcon"><Sparkles /></div>
             <div><h3>Experiencia verificada</h3><p>Historial real de trabajos en ZOVIT.</p></div>
@@ -302,11 +315,11 @@ function PanelContent() {
                 ? "Revisa trabajos disponibles y envía propuestas a clientes."
                 : "Crea la primera para comenzar a utilizar ZOVIT."}
             </p>
-            {isProfessionalView || isAdmin ? (
+            {isProfessionalView || (isAdmin && activeMode === "professional") ? (
               <Link href="/trabajos" className="primaryButton">Ver trabajos</Link>
-            ) : (
+            ) : isClientView ? (
               <Link href="/solicitudes/nueva" className="primaryButton">Crear solicitud</Link>
-            )}
+            ) : null}
           </div>
         ) : (
           <div className="requestList">

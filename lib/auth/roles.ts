@@ -5,6 +5,17 @@ import { needsBiometricOnboarding } from "@/lib/verification/types";
 
 export type RoleMode = "client" | "professional";
 
+export type ProfileModeFields = {
+  role: UserRole;
+  can_act_as_client: boolean;
+  can_act_as_professional: boolean;
+  active_mode: RoleMode;
+};
+
+export function isRoleMode(value: string | null | undefined): value is RoleMode {
+  return value === "client" || value === "professional";
+}
+
 export function resolveRoleMode(
   allowedRoles: UserRole[],
   profileRole: UserRole
@@ -21,6 +32,29 @@ export function resolveRoleMode(
   }
 
   return null;
+}
+
+export function getActiveMode(profile: ProfileModeFields | null | undefined): RoleMode {
+  if (!profile) return "client";
+  if (profile.role === "admin") return profile.active_mode;
+  return profile.active_mode;
+}
+
+export function isClientMode(profile: ProfileModeFields | null | undefined): boolean {
+  if (!profile) return true;
+  if (profile.role === "admin") return profile.active_mode === "client";
+  return profile.can_act_as_client && profile.active_mode === "client";
+}
+
+export function isProfessionalMode(profile: ProfileModeFields | null | undefined): boolean {
+  if (!profile) return false;
+  if (profile.role === "admin") return profile.active_mode === "professional";
+  return profile.can_act_as_professional && profile.active_mode === "professional";
+}
+
+export function hasDualMode(profile: ProfileModeFields | null | undefined): boolean {
+  if (!profile) return false;
+  return profile.can_act_as_client && profile.can_act_as_professional;
 }
 
 export const USER_ROLES: UserRole[] = ["client", "professional", "admin"];
@@ -51,41 +85,65 @@ export function isProtectedRoute(pathname: string): boolean {
   );
 }
 
-export function canAccessRoute(pathname: string, role: UserRole): boolean {
+export function canAccessRoute(pathname: string, profile: ProfileModeFields | UserRole): boolean {
+  const ctx: ProfileModeFields =
+    typeof profile === "string"
+      ? {
+          role: profile,
+          can_act_as_client: profile === "client" || profile === "admin",
+          can_act_as_professional: profile === "professional" || profile === "admin",
+          active_mode: profile === "professional" ? "professional" : "client",
+        }
+      : profile;
+
   if (pathname.startsWith("/admin")) {
-    return role === "admin";
+    return ctx.role === "admin";
   }
 
   if (pathname.startsWith("/verificacion")) {
-    return role === "professional" || role === "admin";
+    return ctx.role === "admin" || (ctx.can_act_as_professional && ctx.active_mode === "professional");
   }
 
   if (pathname.startsWith("/pagos/profesional")) {
-    return role === "professional" || role === "admin";
+    return ctx.role === "admin" || (ctx.can_act_as_professional && ctx.active_mode === "professional");
   }
 
   if (pathname === "/pagos" || pathname.startsWith("/pagos/")) {
-    return role === "client" || role === "admin";
+    if (pathname.startsWith("/pagos/profesional")) {
+      return ctx.role === "admin" || (ctx.can_act_as_professional && ctx.active_mode === "professional");
+    }
+    return ctx.role === "admin" || (ctx.can_act_as_client && ctx.active_mode === "client");
   }
 
   if (pathname.startsWith("/trabajos") || pathname.startsWith("/experiencia")) {
-    return role === "professional" || role === "admin";
+    return ctx.role === "admin" || (ctx.can_act_as_professional && ctx.active_mode === "professional");
   }
 
   if (pathname === "/solicitudes/nueva" || pathname.startsWith("/solicitudes/nueva/")) {
-    return role === "client" || role === "admin";
+    return canPublishServiceRequest(ctx);
   }
 
   return true;
 }
 
-export function canPublishServiceRequest(role: UserRole): boolean {
-  return role === "client" || role === "admin";
+export function canPublishServiceRequest(profile: ProfileModeFields | UserRole | null | undefined): boolean {
+  if (!profile) return true;
+  if (typeof profile === "string") {
+    return profile === "client" || profile === "admin";
+  }
+  if (profile.role === "admin") return true;
+  return profile.can_act_as_client && profile.active_mode === "client";
+}
+
+export function canAccessProfessionalFeatures(profile: ProfileModeFields | null | undefined): boolean {
+  if (!profile) return false;
+  if (profile.role === "admin") return true;
+  return profile.can_act_as_professional && profile.active_mode === "professional";
 }
 
 export function resolvePostLoginPath(
   nextPath: string | null,
-  role: UserRole,
+  profile: ProfileModeFields,
   identityStatus?: IdentityStatus | null
 ): string {
   if (needsBiometricOnboarding(identityStatus)) {
@@ -96,7 +154,7 @@ export function resolvePostLoginPath(
   }
 
   const path = nextPath && nextPath.startsWith("/") ? nextPath : "/panel";
-  return canAccessRoute(path, role) ? path : "/panel";
+  return canAccessRoute(path, profile) ? path : "/panel";
 }
 
 export function roleErrorMessage(code: string): string {

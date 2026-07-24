@@ -2,13 +2,16 @@
 
 import { Session, User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { isUserRole, type UserRole } from "@/lib/auth/roles";
+import { isRoleMode, isUserRole, type RoleMode, type UserRole } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 
 export type UserProfile = {
   first_name: string | null;
   last_name: string | null;
   role: UserRole;
+  can_act_as_client: boolean;
+  can_act_as_professional: boolean;
+  active_mode: RoleMode;
   intranet_role: string | null;
   identity_status: "none" | "pending" | "approved" | "rejected";
   identity_verified: boolean;
@@ -29,7 +32,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const PROFILE_SELECT =
-  "first_name,last_name,role,intranet_role,identity_status,identity_verified,avatar_url" as const;
+  "first_name,last_name,role,can_act_as_client,can_act_as_professional,active_mode,intranet_role,identity_status,identity_verified,avatar_url" as const;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,10 +86,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const registrationRole = lastData.role as UserRole;
+    const canActAsClient =
+      typeof lastData.can_act_as_client === "boolean"
+        ? lastData.can_act_as_client
+        : registrationRole === "client" || registrationRole === "admin";
+    const canActAsProfessional =
+      typeof lastData.can_act_as_professional === "boolean"
+        ? lastData.can_act_as_professional
+        : registrationRole === "professional" || registrationRole === "admin";
+    const activeMode = isRoleMode(lastData.active_mode as string | null | undefined)
+      ? (lastData.active_mode as RoleMode)
+      : registrationRole === "professional"
+        ? "professional"
+        : "client";
+
     setProfile({
       first_name: (lastData.first_name as string | null) ?? null,
       last_name: (lastData.last_name as string | null) ?? null,
-      role: lastData.role as UserRole,
+      role: registrationRole,
+      can_act_as_client: canActAsClient,
+      can_act_as_professional: canActAsProfessional,
+      active_mode: activeMode,
       intranet_role: (lastData.intranet_role as string | null) ?? null,
       identity_status: (lastData.identity_status as UserProfile["identity_status"]) ?? "none",
       identity_verified: (lastData.identity_verified as boolean) ?? false,

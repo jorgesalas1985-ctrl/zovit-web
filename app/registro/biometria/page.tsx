@@ -10,6 +10,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useIdentityVerification } from "@/hooks/useIdentityVerification";
 import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
 import { flushPendingRegistration } from "@/lib/registration/pendingRegistration";
+import { getActiveMode } from "@/lib/auth/roles";
 import { canAccessPanel } from "@/lib/verification/types";
 import { supabase } from "@/lib/supabase";
 
@@ -20,8 +21,8 @@ export default function RegisterBiometricPage() {
   const [rut, setRut] = useState("");
   const [navigating, setNavigating] = useState(false);
 
-  const role = profile?.role ?? "client";
-  const isProfessional = role === "professional" || role === "admin";
+  const activeMode = profile ? getActiveMode(profile) : "client";
+  const isProfessional = activeMode === "professional";
   const identityStatus = profile?.identity_status ?? state?.identity_status;
 
   useEffect(() => {
@@ -96,7 +97,7 @@ export default function RegisterBiometricPage() {
 
   return (
     <Protected>
-      <RoleModeBanner role={isProfessional ? "professional" : "client"} />
+      <RoleModeBanner role={activeMode} />
       <main className="simplePage">
         <section className="formPageCard verificationPage">
           <div className="eyebrow">
@@ -112,7 +113,7 @@ export default function RegisterBiometricPage() {
           ) : (
             <BiometricOnboardingForm
               userId={user.id}
-              role={role}
+              role={activeMode}
               state={state}
               rut={rut}
               onRutChange={setRut}

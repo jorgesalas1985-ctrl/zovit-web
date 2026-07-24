@@ -115,13 +115,15 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
       return;
     }
 
-    if (profile?.role && !canPublishServiceRequest(profile.role)) {
+    if (profile && !canPublishServiceRequest(profile)) {
       router.push("/trabajos");
       return;
     }
 
     router.push("/solicitudes/nueva");
   };
+
+  const canPublish = !profile || canPublishServiceRequest(profile);
 
   return (
     <ServiceBrowseShell
@@ -171,9 +173,11 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
 
       <div className="browseSectionHeading">
         <h2>Profesionales disponibles</h2>
-        <button className="primaryButton" onClick={() => startRequest()}>
-          Solicitar sin elegir profesional <ArrowRight size={16} />
-        </button>
+        {canPublish && (
+          <button className="primaryButton" onClick={() => startRequest()}>
+            Solicitar sin elegir profesional <ArrowRight size={16} />
+          </button>
+        )}
       </div>
 
       {loading && <p className="muted">Cargando profesionales…</p>}
@@ -182,12 +186,15 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
       {!loading && sortedProfessionals.length === 0 && (
         <div className="aiEmptyState">
           <p>
-            No hay profesionales conectados exactamente para esta subcategoría ahora, pero puedes
-            publicar la solicitud manualmente y el primero disponible te contactará.
+            {canPublish
+              ? "No hay profesionales conectados exactamente para esta subcategoría ahora, pero puedes publicar la solicitud manualmente y el primero disponible te contactará."
+              : "No hay profesionales conectados exactamente para esta subcategoría ahora."}
           </p>
-          <button className="primaryButton" onClick={() => startRequest()}>
-            Publicar solicitud <ArrowRight size={16} />
-          </button>
+          {canPublish && (
+            <button className="primaryButton" onClick={() => startRequest()}>
+              Publicar solicitud <ArrowRight size={16} />
+            </button>
+          )}
         </div>
       )}
 
@@ -197,7 +204,8 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
             key={professional.id}
             professional={professional}
             referencePrice={subcategory.referencePrice}
-            onRequest={startRequest}
+            onRequest={canPublish ? startRequest : undefined}
+            showRequestButton={canPublish}
           />
         ))}
       </div>

@@ -8,6 +8,7 @@ import { Protected } from "@/components/Protected";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/components/AuthProvider";
+import { canAccessProfessionalFeatures, getActiveMode } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 
 type Job = { id:string; category:string; description:string; address:string; status:string; created_at:string; professional_id:string|null };
@@ -20,7 +21,8 @@ export default function JobsPage() {
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  const canViewJobs = profile?.role === "professional" || profile?.role === "admin";
+  const canViewJobs = profile ? canAccessProfessionalFeatures(profile) : false;
+  const activeMode = profile ? getActiveMode(profile) : "professional";
 
   const loadJobs = useCallback(async () => {
     if (!user || !canViewJobs) return;
@@ -59,9 +61,9 @@ export default function JobsPage() {
 
   return (
     <Protected>
-      <RoleGuard allowedRoles={["professional", "admin"]} showRoleBanner={false}>
+      <RoleGuard requiredMode="professional" showRoleBanner={false}>
       <main className="dashboardPage">
-        <RoleModeBanner role="professional" />
+        <RoleModeBanner role={activeMode} />
         <section className="dashboardHero">
           <div><p className="kicker light">PANEL PROFESIONAL</p><h1>Trabajos disponibles</h1><p>Acepta solicitudes publicadas y administra las asignadas.</p></div>
           <button className="whiteButton" onClick={() => void loadJobs()} disabled={loading}><RefreshCw size={18}/> Actualizar</button>
