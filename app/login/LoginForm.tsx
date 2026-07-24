@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, ArrowRight, LockKeyhole, Mail } from "lucide-react";
+import { AlertCircle, ArrowRight, ChevronDown, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { resolvePostLoginPath, roleErrorMessage } from "@/lib/auth/roles";
@@ -15,6 +15,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, profile, profileError, profileLoading, loading, refreshProfile } = useAuth();
+  const [accountType, setAccountType] = useState<"client" | "professional">("client");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -62,6 +63,33 @@ function LoginForm() {
     }
 
     if (data.user) {
+      const { data: profileRow, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      if (profileError || !profileRow?.role) {
+        setMessage(roleErrorMessage("perfil-incompleto"));
+        await supabase.auth.signOut();
+        setBusy(false);
+        return;
+      }
+
+      if (
+        profileRow.role !== "admin" &&
+        profileRow.role !== accountType
+      ) {
+        setMessage(
+          accountType === "client"
+            ? "Esta cuenta es de profesional. Cambia el tipo de cuenta arriba."
+            : "Esta cuenta es de cliente. Cambia el tipo de cuenta arriba."
+        );
+        await supabase.auth.signOut();
+        setBusy(false);
+        return;
+      }
+
       try {
         await flushPendingRegistration(email, data.user.id, completeRegistrationVerification);
       } catch (pendingError) {
@@ -104,6 +132,25 @@ function LoginForm() {
         <p className="muted">Accede a tu perfil y revisa tus solicitudes.</p>
 
         <form onSubmit={submit} className="formStack">
+          <label>
+            Tipo de cuenta
+            <div className="authSelectWrap">
+              <div className="inputWithIcon authSelectIcon">
+                <UserRound size={18} />
+                <select
+                  value={accountType}
+                  onChange={(event) =>
+                    setAccountType(event.target.value as "client" | "professional")
+                  }
+                  aria-label="Tipo de cuenta"
+                >
+                  <option value="client">Cliente</option>
+                  <option value="professional">Profesional</option>
+                </select>
+              </div>
+              <ChevronDown size={22} className="authSelectChevron" aria-hidden="true" />
+            </div>
+          </label>
           <label>
             Correo electrónico
             <div className="inputWithIcon"><Mail size={18} /><input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></div>

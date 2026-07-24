@@ -58,7 +58,7 @@ export default function HomePage() {
                 <Bot size={22} />
               </div>
               <div>
-                <p className="kicker">OPCIÓN 1</p>
+                <p className="kicker">Opción 1 cliente</p>
                 <h2>Encontrar profesional con IA</h2>
               </div>
             </div>
@@ -97,7 +97,7 @@ export default function HomePage() {
                 <LayoutGrid size={22} />
               </div>
               <div>
-                <p className="kicker">OPCIÓN 2</p>
+                <p className="kicker">Opción 2 cliente</p>
                 <h2>Elegir categoría manualmente</h2>
               </div>
             </div>
