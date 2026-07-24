@@ -1,6 +1,7 @@
 "use client";
 
 import { AiRecommendations } from "@/components/AiRecommendations";
+import { RoleModeBanner } from "@/components/RoleModeBanner";
 import type { AiRecommendResponse } from "@/lib/ai/types";
 import { ArrowLeft, Bot } from "lucide-react";
 import Link from "next/link";
@@ -80,7 +81,9 @@ function AiResultsContent() {
   };
 
   return (
-    <main className="simplePage browsePage">
+    <>
+      <RoleModeBanner role="client" />
+      <main className="simplePage browsePage">
       <section className="browseShell">
         <Link href="/" className="browseBackLink">
           <ArrowLeft size={18} /> Volver al inicio
@@ -117,6 +120,7 @@ function AiResultsContent() {
         )}
       </section>
     </main>
+    </>
   );
 }
 

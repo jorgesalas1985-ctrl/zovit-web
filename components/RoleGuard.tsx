@@ -40,7 +40,7 @@ export function RoleGuard({ allowedRoles, children, showRoleBanner = true }: Rol
 
   return (
     <>
-      {roleMode && <RoleModeBanner role={roleMode} variant="page" />}
+      {roleMode && <RoleModeBanner role={roleMode} />}
       {children}
     </>
   );

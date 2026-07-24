@@ -48,7 +48,7 @@ export default function ProfilePage() {
 
   return (
     <Protected>
-      {roleMode && <RoleModeBanner role={roleMode} variant="page" />}
+      {roleMode && <RoleModeBanner role={roleMode} />}
       <main className="simplePage">
         <section className="formPageCard">
           <p className="kicker">MI CUENTA</p>

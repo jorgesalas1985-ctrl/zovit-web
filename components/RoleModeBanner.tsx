@@ -1,8 +1,8 @@
 import type { RoleMode } from "@/lib/auth/roles";
 
 const LABELS: Record<RoleMode, string> = {
-  client: "Cliente",
-  professional: "Profesional",
+  client: "CLIENTE",
+  professional: "PROFESIONAL",
 };
 
 type RoleModeBannerProps = {

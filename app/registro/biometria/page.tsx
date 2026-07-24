@@ -96,7 +96,7 @@ export default function RegisterBiometricPage() {
 
   return (
     <Protected>
-      <RoleModeBanner role={isProfessional ? "professional" : "client"} variant="page" />
+      <RoleModeBanner role={isProfessional ? "professional" : "client"} />
       <main className="simplePage">
         <section className="formPageCard verificationPage">
           <div className="eyebrow">

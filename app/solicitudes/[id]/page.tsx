@@ -140,7 +140,7 @@ export default function RequestDetailPage() {
 
   return (
     <Protected>
-      {roleMode && <RoleModeBanner role={roleMode} variant="page" />}
+      {roleMode && <RoleModeBanner role={roleMode} />}
       <main className="simplePage requestDetailPage">
         <section className="requestWorkspace">
           <div className="detailTopbar">
