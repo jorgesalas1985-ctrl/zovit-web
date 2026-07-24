@@ -1,7 +1,7 @@
 import { IntranetGuard } from "@/components/intranet/IntranetGuard";
 import { IntranetShell } from "@/components/intranet/IntranetShell";
 import Link from "next/link";
-import { FileText, PencilLine, UserCog, UserPlus, Users, Wallet } from "lucide-react";
+import { FileText, PencilLine, ShieldCheck, UserCog, UserPlus, Users, Wallet } from "lucide-react";
 
 export default function IntranetAdminPage() {
   return (
@@ -26,6 +26,11 @@ export default function IntranetAdminPage() {
             <UserCog size={24} />
             <h3>Gestión de usuarios</h3>
             <p>Ver, modificar, verificar y eliminar cuentas de clientes, profesionales e intranet.</p>
+          </Link>
+          <Link href="/intranet/admin/verificacion" className="intranetCard">
+            <ShieldCheck size={24} />
+            <h3>Verificación de identidad</h3>
+            <p>Revisar cédula, selfie y prueba de vida de clientes y profesionales.</p>
           </Link>
           <Link href="/intranet/admin/usuarios" className="intranetCard">
             <UserPlus size={24} />
