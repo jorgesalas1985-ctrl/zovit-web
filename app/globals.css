@@ -519,6 +519,12 @@ html[data-theme="light"] .authSelectMenu button {
 .manualPrefillNote { margin-top: 10px; padding: 14px 16px; border-radius: 14px; background: rgba(16, 185, 129,.08); color: var(--green); font-size: 14px; display: grid; gap: 6px; }
 .searchMethodsGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 1120px; margin-top: 34px; }
 .searchMethodCard { padding: 22px; border: 1px solid var(--line-blue); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow-small); display: grid; gap: 16px; }
+.searchMethodCard .kicker {
+  margin: 0 0 8px;
+  font-size: clamp(15px, 1.5vw, 18px);
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
 .searchMethodHead { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
 .searchMethodIcon { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; }
 .searchMethodIcon.ai { color: var(--blue-bright); background: rgba(37, 99, 235,.1); }
