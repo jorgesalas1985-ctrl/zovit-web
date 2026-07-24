@@ -4,6 +4,7 @@ import { ProfessionalBrowseCard } from "@/components/services/ProfessionalBrowse
 import { ServiceBrowseShell } from "@/components/services/ServiceBrowseShell";
 import { ServiceFilters } from "@/components/services/ServiceFilters";
 import { useAuth } from "@/components/AuthProvider";
+import { canPublishServiceRequest } from "@/lib/auth/roles";
 import type { RecommendedProfessional } from "@/lib/ai/types";
 import type { CategoryBrowseDefinition, SubcategoryDefinition } from "@/lib/services/catalog";
 import {
@@ -24,7 +25,7 @@ type Props = {
 
 export function SubcategoryBrowsePage({ category, subcategory }: Props) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const Icon = getCategoryIcon(category.name);
 
   const [commune, setCommune] = useState("");
@@ -111,6 +112,11 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
 
     if (!user) {
       router.push(`/login?next=${encodeURIComponent("/solicitudes/nueva")}`);
+      return;
+    }
+
+    if (profile?.role && !canPublishServiceRequest(profile.role)) {
+      router.push("/trabajos");
       return;
     }
 

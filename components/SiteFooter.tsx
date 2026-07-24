@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   Facebook,
@@ -7,45 +9,9 @@ import {
   MapPin,
   Youtube,
 } from "lucide-react";
-
-const FOOTER_COLUMNS = [
-  {
-    title: "Servicios",
-    links: [
-      { label: "Buscar con IA", href: "/ia/resultados" },
-      { label: "Categorías", href: "/categorias" },
-      { label: "Publicar solicitud", href: "/solicitudes/nueva" },
-      { label: "Profesionales verificados", href: "/servicios" },
-    ],
-  },
-  {
-    title: "Cuenta",
-    links: [
-      { label: "Crear cuenta", href: "/registro" },
-      { label: "Ingresar", href: "/login" },
-      { label: "Mi panel", href: "/panel" },
-      { label: "Verificación biométrica", href: "/registro/biometria" },
-    ],
-  },
-  {
-    title: "ZOVIT",
-    links: [
-      { label: "¿Por qué ZOVIT?", href: "/#confianza" },
-      { label: "Seguridad", href: "/verificacion" },
-      { label: "Profesionales", href: "/registro" },
-      { label: "Ingreso intranet", href: "/intranet/acceso" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { label: "Términos y condiciones", href: "/legal/terminos" },
-      { label: "Política de privacidad", href: "/legal/privacidad" },
-      { label: "Política de cookies", href: "/legal/cookies" },
-      { label: "Ayuda", href: "/login" },
-    ],
-  },
-] as const;
+import { useAuth } from "@/components/AuthProvider";
+import { canPublishServiceRequest } from "@/lib/auth/roles";
+import { useMemo } from "react";
 
 const SOCIAL_LINKS = [
   { label: "Facebook", href: "https://facebook.com", icon: Facebook },
@@ -55,7 +21,57 @@ const SOCIAL_LINKS = [
 ] as const;
 
 export function SiteFooter() {
+  const { profile } = useAuth();
   const year = new Date().getFullYear();
+
+  const footerColumns = useMemo(() => {
+    const isProfessional = profile?.role === "professional";
+    const showPublishLink = !profile?.role || canPublishServiceRequest(profile.role);
+
+    return [
+      {
+        title: "Servicios",
+        links: [
+          { label: "Buscar con IA", href: "/ia/resultados" },
+          { label: "Categorías", href: "/categorias" },
+          ...(showPublishLink
+            ? [{ label: "Publicar solicitud", href: "/solicitudes/nueva" }]
+            : [{ label: "Ver trabajos", href: "/trabajos" }]),
+          { label: "Profesionales verificados", href: "/servicios" },
+        ],
+      },
+      {
+        title: "Cuenta",
+        links: [
+          { label: "Crear cuenta", href: "/registro" },
+          { label: "Ingresar", href: "/login" },
+          { label: "Mi panel", href: "/panel" },
+          ...(isProfessional
+            ? [{ label: "Ver trabajos", href: "/trabajos" }]
+            : []),
+          { label: "Verificación biométrica", href: "/registro/biometria" },
+        ],
+      },
+      {
+        title: "ZOVIT",
+        links: [
+          { label: "¿Por qué ZOVIT?", href: "/#confianza" },
+          { label: "Seguridad", href: "/verificacion" },
+          { label: "Profesionales", href: "/registro" },
+          { label: "Ingreso intranet", href: "/intranet/acceso" },
+        ],
+      },
+      {
+        title: "Legal",
+        links: [
+          { label: "Términos y condiciones", href: "/legal/terminos" },
+          { label: "Política de privacidad", href: "/legal/privacidad" },
+          { label: "Política de cookies", href: "/legal/cookies" },
+          { label: "Ayuda", href: "/login" },
+        ],
+      },
+    ];
+  }, [profile?.role]);
 
   return (
     <footer className="siteFooter">
@@ -76,7 +92,7 @@ export function SiteFooter() {
         </div>
 
         <div className="siteFooterColumns">
-          {FOOTER_COLUMNS.map((column) => (
+          {footerColumns.map((column) => (
             <div className="siteFooterColumn" key={column.title}>
               <h3>{column.title}</h3>
               <ul>

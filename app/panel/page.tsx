@@ -37,7 +37,6 @@ function PanelContent() {
   const { user, profile } = useAuth();
   const searchParams = useSearchParams();
   const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [publishedRequests, setPublishedRequests] = useState<RequestItem[]>([]);
   const [requestCount, setRequestCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -65,28 +64,21 @@ function PanelContent() {
       setError("");
 
       if (isProfessionalView) {
-        const [jobsResult, publishedResult, statsResult] = await Promise.all([
+        const [jobsResult, statsResult] = await Promise.all([
           supabase
             .from("solicitudes_de_servicio")
             .select("id,category,description,status,created_at")
             .eq("professional_id", userId)
             .order("created_at", { ascending: false })
             .limit(6),
-          supabase
-            .from("solicitudes_de_servicio")
-            .select("id,category,description,status,created_at")
-            .eq("client_id", userId)
-            .order("created_at", { ascending: false })
-            .limit(6),
           supabase.rpc("get_professional_stats", { p_professional_id: userId }),
         ]);
 
-        if (jobsResult.error || publishedResult.error) {
+        if (jobsResult.error) {
           setError("No fue posible cargar tu actividad. Intenta nuevamente.");
         } else {
           setRequests((jobsResult.data ?? []) as RequestItem[]);
-          setPublishedRequests((publishedResult.data ?? []) as RequestItem[]);
-          setRequestCount((jobsResult.data?.length ?? 0) + (publishedResult.data?.length ?? 0));
+          setRequestCount(jobsResult.data?.length ?? 0);
         }
 
         const statsRow = Array.isArray(statsResult.data) ? statsResult.data[0] : statsResult.data;
@@ -154,8 +146,8 @@ function PanelContent() {
 
         {isProfessionalView ? (
           <div className="panelHeroActions">
-            <Link className="whiteButton" href="/experiencia"><Sparkles size={18} /> Mi experiencia</Link>
-            <Link className="secondaryButton" href="/solicitudes/nueva"><Plus size={18} /> Nueva solicitud</Link>
+            <Link className="whiteButton" href="/trabajos"><BriefcaseBusiness size={18} /> Ver trabajos</Link>
+            <Link className="secondaryButton" href="/experiencia"><Sparkles size={18} /> Mi experiencia</Link>
           </div>
         ) : (
           <Link className="whiteButton" href="/solicitudes/nueva"><Plus size={18} /> Nueva solicitud</Link>
@@ -265,25 +257,17 @@ function PanelContent() {
         )}
 
         {(isProfessionalView || isAdmin) && (
+          <Link href="/trabajos" className="dashboardCard">
+            <div className="dashboardIcon"><BriefcaseBusiness /></div>
+            <div><h3>Trabajos disponibles</h3><p>Revisa solicitudes de clientes y envía propuestas.</p></div>
+            <ArrowRight />
+          </Link>
+        )}
+
+        {(isProfessionalView || isAdmin) && (
           <Link href="/experiencia" className="dashboardCard">
             <div className="dashboardIcon"><Sparkles /></div>
             <div><h3>Experiencia verificada</h3><p>Historial real de trabajos en ZOVIT.</p></div>
-            <ArrowRight />
-          </Link>
-        )}
-
-        {(isProfessionalView || isAdmin) && (
-          <Link href="/solicitudes/nueva" className="dashboardCard">
-            <div className="dashboardIcon"><Plus /></div>
-            <div><h3>Publicar solicitud</h3><p>Publica un trabajo para recibir propuestas.</p></div>
-            <ArrowRight />
-          </Link>
-        )}
-
-        {(isProfessionalView || isAdmin) && (
-          <Link href="/trabajos" className="dashboardCard">
-            <div className="dashboardIcon"><BriefcaseBusiness /></div>
-            <div><h3>Trabajos</h3><p>Revisa solicitudes disponibles y asignadas.</p></div>
             <ArrowRight />
           </Link>
         )}
@@ -309,47 +293,23 @@ function PanelContent() {
           <div className="emptyState">Cargando información…</div>
         ) : error ? (
           <div className="emptyState"><h3>No pudimos cargar la información</h3><p>{error}</p></div>
-        ) : requests.length === 0 && publishedRequests.length === 0 ? (
+        ) : requests.length === 0 ? (
           <div className="emptyState">
             <Clock3 size={34} />
-            <h3>{isProfessionalView ? "Todavía no tienes actividad" : "Todavía no tienes solicitudes"}</h3>
+            <h3>{isProfessionalView ? "Todavía no tienes trabajos asignados" : "Todavía no tienes solicitudes"}</h3>
             <p>
               {isProfessionalView
-                ? "Publica una solicitud o acepta un trabajo disponible."
+                ? "Revisa trabajos disponibles y envía propuestas a clientes."
                 : "Crea la primera para comenzar a utilizar ZOVIT."}
             </p>
             {isProfessionalView || isAdmin ? (
-              <div className="panelHeroActions">
-                <Link href="/solicitudes/nueva" className="primaryButton">Publicar solicitud</Link>
-                <Link href="/trabajos" className="secondaryButton">Ver trabajos</Link>
-              </div>
+              <Link href="/trabajos" className="primaryButton">Ver trabajos</Link>
             ) : (
               <Link href="/solicitudes/nueva" className="primaryButton">Crear solicitud</Link>
             )}
           </div>
         ) : (
           <div className="requestList">
-            {isProfessionalView && publishedRequests.length > 0 && (
-              <>
-                <p className="kicker">SOLICITUDES PUBLICADAS</p>
-                {publishedRequests.map((request) => (
-                  <Link
-                    href={`/solicitudes/${request.id}`}
-                    className="requestRow"
-                    key={`pub-${request.id}`}
-                  >
-                    <div>
-                      <span className={`statusPill status-${request.status}`}>
-                        {request.status.replaceAll("_", " ")}
-                      </span>
-                      <h3>{request.category}</h3>
-                      <p>{request.description}</p>
-                    </div>
-                    <time>{new Date(request.created_at).toLocaleDateString("es-CL")}</time>
-                  </Link>
-                ))}
-              </>
-            )}
             {isProfessionalView && requests.length > 0 && (
               <p className="kicker">TRABAJOS ASIGNADOS</p>
             )}

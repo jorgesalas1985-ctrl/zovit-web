@@ -6,6 +6,7 @@ import { ProfessionalBrowseCard } from "@/components/services/ProfessionalBrowse
 import { ServiceBrowseShell } from "@/components/services/ServiceBrowseShell";
 import { ServiceFilters } from "@/components/services/ServiceFilters";
 import { useAuth } from "@/components/AuthProvider";
+import { canPublishServiceRequest } from "@/lib/auth/roles";
 import type { RecommendedProfessional } from "@/lib/ai/types";
 import {
   getBreadcrumbSegments,
@@ -30,7 +31,7 @@ type Props = {
 
 export function SpecialtyBrowsePage({ resolved }: Props) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const searchParams = getSearchParamsForLeaf(resolved);
   const breadcrumbs = getBreadcrumbSegments(resolved);
   const Icon = getCategoryIconByKey(
@@ -130,6 +131,11 @@ export function SpecialtyBrowsePage({ resolved }: Props) {
 
     if (!user) {
       router.push(`/login?next=${encodeURIComponent("/solicitudes/nueva")}`);
+      return;
+    }
+
+    if (profile?.role && !canPublishServiceRequest(profile.role)) {
+      router.push("/trabajos");
       return;
     }
 

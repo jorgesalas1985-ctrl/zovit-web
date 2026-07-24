@@ -8,6 +8,7 @@ import Link from "next/link";
 type Props = {
   result: AiRecommendResponse;
   onCreateRequest: () => void;
+  canPublish?: boolean;
 };
 
 const badgeLabels = {
@@ -16,7 +17,7 @@ const badgeLabels = {
   expert: "Experto",
 } as const;
 
-export function AiRecommendations({ result, onCreateRequest }: Props) {
+export function AiRecommendations({ result, onCreateRequest, canPublish = true }: Props) {
   const { parsed, professionals } = result;
 
   return (
@@ -97,9 +98,15 @@ export function AiRecommendations({ result, onCreateRequest }: Props) {
       )}
 
       <div className="aiResultsActions">
-        <button className="primaryButton" onClick={onCreateRequest}>
-          Publicar solicitud con esta especialidad <ArrowRight size={18} />
-        </button>
+        {canPublish ? (
+          <button className="primaryButton" onClick={onCreateRequest}>
+            Publicar solicitud con esta especialidad <ArrowRight size={18} />
+          </button>
+        ) : (
+          <Link href="/trabajos" className="primaryButton">
+            Ver trabajos disponibles <ArrowRight size={18} />
+          </Link>
+        )}
       </div>
     </section>
   );

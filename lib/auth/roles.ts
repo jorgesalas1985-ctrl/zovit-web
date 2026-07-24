@@ -73,10 +73,14 @@ export function canAccessRoute(pathname: string, role: UserRole): boolean {
   }
 
   if (pathname === "/solicitudes/nueva" || pathname.startsWith("/solicitudes/nueva/")) {
-    return role === "client" || role === "professional" || role === "admin";
+    return role === "client" || role === "admin";
   }
 
   return true;
+}
+
+export function canPublishServiceRequest(role: UserRole): boolean {
+  return role === "client" || role === "admin";
 }
 
 export function resolvePostLoginPath(

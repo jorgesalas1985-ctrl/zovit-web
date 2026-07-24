@@ -1,7 +1,9 @@
 "use client";
 
 import { AiRecommendations } from "@/components/AiRecommendations";
+import { useAuth } from "@/components/AuthProvider";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
+import { canPublishServiceRequest } from "@/lib/auth/roles";
 import type { AiRecommendResponse } from "@/lib/ai/types";
 import { ArrowLeft, Bot } from "lucide-react";
 import Link from "next/link";
@@ -10,6 +12,7 @@ import { Suspense, useEffect, useState } from "react";
 
 function AiResultsContent() {
   const router = useRouter();
+  const { user, profile } = useAuth();
   const searchParams = useSearchParams();
   const query = searchParams.get("q")?.trim() ?? "";
 
@@ -69,6 +72,24 @@ function AiResultsContent() {
   const createRequest = () => {
     if (!query || !result) return;
 
+    if (!user) {
+      sessionStorage.setItem(
+        "zovit_ai_recommendation",
+        JSON.stringify({
+          description: query,
+          category: result.parsed.category,
+          specialty: result.parsed.specialty,
+        }),
+      );
+      router.push(`/login?next=${encodeURIComponent("/solicitudes/nueva")}`);
+      return;
+    }
+
+    if (profile?.role && !canPublishServiceRequest(profile.role)) {
+      router.push("/trabajos");
+      return;
+    }
+
     sessionStorage.setItem(
       "zovit_ai_recommendation",
       JSON.stringify({
@@ -79,6 +100,9 @@ function AiResultsContent() {
     );
     router.push("/solicitudes/nueva");
   };
+
+  const canPublish =
+    !profile?.role || canPublishServiceRequest(profile.role);
 
   return (
     <>
@@ -116,7 +140,11 @@ function AiResultsContent() {
         )}
 
         {!loading && result && (
-          <AiRecommendations result={result} onCreateRequest={createRequest} />
+          <AiRecommendations
+            result={result}
+            onCreateRequest={createRequest}
+            canPublish={canPublish}
+          />
         )}
       </section>
     </main>
