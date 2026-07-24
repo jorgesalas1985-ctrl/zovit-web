@@ -1,4 +1,5 @@
 import { requireIntranetManager } from "@/lib/intranet/apiAuth";
+import { canViewerSeePlatformAccount } from "@/lib/intranet/accessVisibility";
 import { listPlatformUsers } from "@/lib/intranet/platformUsers";
 import { NextResponse } from "next/server";
 
@@ -10,7 +11,10 @@ export async function GET() {
     }
 
     const users = await listPlatformUsers();
-    return NextResponse.json({ users });
+    const visibleUsers = users.filter((user) =>
+      canViewerSeePlatformAccount(auth.manager.intranetRole, user)
+    );
+    return NextResponse.json({ users: visibleUsers });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -1,6 +1,10 @@
 import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
 import { USER_ROLES, type UserRole } from "@/lib/auth/roles";
 import { requireIntranetManager } from "@/lib/intranet/apiAuth";
+import {
+  canViewerSeePlatformAccount,
+  hiddenAccountResponse,
+} from "@/lib/intranet/accessVisibility";
 import { deletePlatformUser, getPlatformUser, getPlatformUserErrorMessage, updatePlatformUser } from "@/lib/intranet/platformUsers";
 import { NextResponse } from "next/server";
 
@@ -30,6 +34,11 @@ export async function PATCH(
 
     if (!current) {
       return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
+    }
+
+    if (!canViewerSeePlatformAccount(auth.manager.intranetRole, current)) {
+      const hidden = hiddenAccountResponse();
+      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
     }
 
     if (current.intranetRole === "super_admin" && id !== auth.manager.userId) {
@@ -84,6 +93,16 @@ export async function DELETE(
 
     if (id === auth.manager.userId) {
       return NextResponse.json({ error: "No puedes eliminar tu propia cuenta." }, { status: 400 });
+    }
+
+    const current = await getPlatformUser(id);
+    if (!current) {
+      return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
+    }
+
+    if (!canViewerSeePlatformAccount(auth.manager.intranetRole, current)) {
+      const hidden = hiddenAccountResponse();
+      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
     }
 
     await deletePlatformUser(id);

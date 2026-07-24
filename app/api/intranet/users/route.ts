@@ -1,6 +1,7 @@
 import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
 import { validatePasswordForCreate } from "@/lib/auth/passwordPolicy";
 import { canManageTargetRole, requireIntranetManager } from "@/lib/intranet/apiAuth";
+import { canViewerSeeIntranetAccount } from "@/lib/intranet/accessVisibility";
 import { createIntranetUser, listIntranetUsers } from "@/lib/intranet/manageUsers";
 import { NextResponse } from "next/server";
 
@@ -20,7 +21,10 @@ export async function GET() {
     }
 
     const users = await listIntranetUsers();
-    return NextResponse.json({ users });
+    const visibleUsers = users.filter((user) =>
+      canViewerSeeIntranetAccount(auth.manager.intranetRole, user.intranetRole)
+    );
+    return NextResponse.json({ users: visibleUsers });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -176,6 +176,15 @@ a { color: inherit; text-decoration: none; }
   color: var(--muted);
   line-height: 1.4;
 }
+.corporateEmailRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+@media (max-width: 560px) {
+  .corporateEmailRow { grid-template-columns: 1fr; }
+}
 .ctaSection {
   margin: 20px 5vw 75px; padding: 45px; display: flex; align-items: center; justify-content: space-between; gap: 25px;
   border-radius: 28px; color: white; background: var(--gradient-alt); border: 1px solid var(--line-blue);

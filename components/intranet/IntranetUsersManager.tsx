@@ -12,7 +12,12 @@ import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
 } from "@/lib/auth/passwordPolicy";
-import { AlertCircle, CheckCircle2, Loader2, Trash2, UserPlus } from "lucide-react";
+import {
+  CORPORATE_EMAIL_DOMAIN,
+  suggestAvailableCorporateEmail,
+  validateCorporateEmail,
+} from "@/lib/intranet/corporateEmail";
+import { AlertCircle, CheckCircle2, Loader2, Mail, Trash2, UserPlus } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type IntranetUserRecord = {
@@ -41,6 +46,7 @@ export function IntranetUsersManager() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const [password, setPassword] = useState("");
   const [intranetRole, setIntranetRole] = useState<IntranetRole>("worker");
 
@@ -66,11 +72,38 @@ export function IntranetUsersManager() {
     void loadUsers();
   }, [loadUsers]);
 
+  useEffect(() => {
+    if (emailTouched) return;
+    const suggested = suggestAvailableCorporateEmail(
+      firstName,
+      lastName,
+      users.map((user) => user.email)
+    );
+    setEmail(suggested);
+  }, [emailTouched, firstName, lastName, users]);
+
+  function generateCorporateEmail() {
+    const suggested = suggestAvailableCorporateEmail(
+      firstName,
+      lastName,
+      users.map((user) => user.email)
+    );
+    setEmail(suggested);
+    setEmailTouched(false);
+  }
+
   async function createUser(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setMessage("");
     setError("");
+
+    const corporateEmailError = validateCorporateEmail(email);
+    if (corporateEmailError) {
+      setError(corporateEmailError);
+      setBusy(false);
+      return;
+    }
 
     const response = await fetch("/api/intranet/users", {
       method: "POST",
@@ -96,6 +129,7 @@ export function IntranetUsersManager() {
     setFirstName("");
     setLastName("");
     setEmail("");
+    setEmailTouched(false);
     setPassword("");
     setIntranetRole("worker");
     await loadUsers();
@@ -149,7 +183,7 @@ export function IntranetUsersManager() {
         <UserPlus size={24} />
         <h3>Crear acceso interno</h3>
         <p className="muted">
-          Crea credenciales reales en Supabase Auth. Si el correo ya existe, se activará el acceso intranet y se actualizará la contraseña.
+          Genera un correo corporativo @{CORPORATE_EMAIL_DOMAIN} y credenciales en Supabase Auth para ingresar a la intranet.
         </p>
 
         <form className="formStack intranetInlineForm" onSubmit={createUser}>
@@ -176,13 +210,29 @@ export function IntranetUsersManager() {
 
           <label>
             Correo corporativo
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="nombre@zovit.cl"
-            />
+            <div className="corporateEmailRow">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(event) => {
+                  setEmailTouched(true);
+                  setEmail(event.target.value);
+                }}
+                placeholder={`nombre.apellido@${CORPORATE_EMAIL_DOMAIN}`}
+              />
+              <button
+                type="button"
+                className="secondaryButton"
+                onClick={generateCorporateEmail}
+                disabled={!firstName.trim() && !lastName.trim()}
+              >
+                <Mail size={16} /> Generar
+              </button>
+            </div>
+            <small className="fieldHint">
+              Se propone automáticamente desde nombre y apellido. Ejemplo: maria.gonzalez@{CORPORATE_EMAIL_DOMAIN}
+            </small>
           </label>
 
           <label>

@@ -1,5 +1,6 @@
 import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
 import { validatePasswordForCreate } from "@/lib/auth/passwordPolicy";
+import { validateCorporateEmail } from "@/lib/intranet/corporateEmail";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { User } from "@supabase/supabase-js";
 
@@ -103,6 +104,11 @@ export async function createIntranetUser(input: CreateIntranetUserInput): Promis
   const lastName = input.lastName?.trim() || null;
 
   const existing = await findAuthUserByEmail(email);
+
+  if (!existing) {
+    const corporateEmailError = validateCorporateEmail(email);
+    if (corporateEmailError) throw new Error(corporateEmailError);
+  }
 
   if (existing) {
     const validationMessage = validatePasswordForCreate(input.password);

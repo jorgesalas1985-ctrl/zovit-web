@@ -28,8 +28,13 @@ export type UpdatePlatformUserInput = {
   intranetRole?: IntranetRole | null;
 };
 
-export function canDeletePlatformUser(user: Pick<PlatformUserRecord, "intranetRole">): boolean {
-  return user.intranetRole !== "super_admin";
+export function canDeletePlatformUser(
+  user: Pick<PlatformUserRecord, "intranetRole">,
+  viewerRole?: IntranetRole | null
+): boolean {
+  if (user.intranetRole === "super_admin") return false;
+  if (user.intranetRole === "hr_admin" && viewerRole !== "super_admin") return false;
+  return true;
 }
 
 export function canVerifyPlatformUser(user: Pick<PlatformUserRecord, "role">): boolean {

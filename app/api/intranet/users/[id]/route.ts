@@ -1,6 +1,10 @@
 import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
 import { canManageTargetRole, requireIntranetManager } from "@/lib/intranet/apiAuth";
 import {
+  canViewerSeeIntranetAccount,
+  hiddenAccountResponse,
+} from "@/lib/intranet/accessVisibility";
+import {
   getIntranetRoleForUser,
   revokeIntranetAccess,
   updateIntranetUserRole,
@@ -32,6 +36,11 @@ export async function PATCH(
     const currentRole = await getIntranetRoleForUser(id);
     if (!currentRole) {
       return NextResponse.json({ error: "Usuario intranet no encontrado." }, { status: 404 });
+    }
+
+    if (!canViewerSeeIntranetAccount(auth.manager.intranetRole, currentRole)) {
+      const hidden = hiddenAccountResponse();
+      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
     }
 
     if (!canManageTargetRole(auth.manager.intranetRole, currentRole)) {
@@ -73,6 +82,11 @@ export async function DELETE(
     const currentRole = await getIntranetRoleForUser(id);
     if (!currentRole) {
       return NextResponse.json({ error: "Usuario intranet no encontrado." }, { status: 404 });
+    }
+
+    if (!canViewerSeeIntranetAccount(auth.manager.intranetRole, currentRole)) {
+      const hidden = hiddenAccountResponse();
+      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
     }
 
     if (!canManageTargetRole(auth.manager.intranetRole, currentRole)) {

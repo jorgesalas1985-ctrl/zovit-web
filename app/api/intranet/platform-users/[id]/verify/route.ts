@@ -1,4 +1,8 @@
 import { requireIntranetManager } from "@/lib/intranet/apiAuth";
+import {
+  canViewerSeePlatformAccount,
+  hiddenAccountResponse,
+} from "@/lib/intranet/accessVisibility";
 import { getPlatformUser, reviewPlatformUserVerification } from "@/lib/intranet/platformUsers";
 import { NextResponse } from "next/server";
 
@@ -31,6 +35,11 @@ export async function POST(
     const current = await getPlatformUser(id);
     if (!current) {
       return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
+    }
+
+    if (!canViewerSeePlatformAccount(auth.manager.intranetRole, current)) {
+      const hidden = hiddenAccountResponse();
+      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
     }
 
     if (current.identityStatus !== "pending") {
