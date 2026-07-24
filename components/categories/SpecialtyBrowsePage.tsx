@@ -99,6 +99,8 @@ export function SpecialtyBrowsePage({ resolved }: Props) {
 
     if (modality === "presential") {
       copy = copy.filter((professional) => Boolean(professional.commune));
+    } else if (modality === "remote") {
+      copy = copy.filter((professional) => !professional.commune);
     }
 
     if (sortBy === "rating") {
