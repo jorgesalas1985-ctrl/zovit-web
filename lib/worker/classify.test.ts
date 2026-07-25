@@ -77,7 +77,7 @@ describe("worker validation", () => {
       firstName: "Ana",
       lastName: "Pérez",
       rut: "11.111.111-1",
-      birthDate: "1990-01-01",
+      birthDate: "01/01/1990",
       phone: "+56911111111",
       email: "ana@example.com",
       commune: "Santiago",
@@ -96,7 +96,7 @@ describe("worker validation", () => {
       commune: "Santiago",
     });
     draft.personal.rut = "12.345.678-5";
-    draft.personal.birthDate = "1990-01-01";
+    draft.personal.birthDate = "01/01/1990";
     draft.participations = ["certified"];
     draft.participation = "certified";
     draft.suggestedProfiles = ["certified"];

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthenticatedUser } from "@/lib/auth/requirePlatformAdmin";
+import { chileanDateToIso } from "@/lib/ui/chileanDate";
 import { pickPrimaryProfile } from "@/lib/worker/classify";
 import type { WorkerRegistrationDraft } from "@/lib/worker/types";
 import { validateReviewStep } from "@/lib/worker/validate";
@@ -120,7 +121,7 @@ export async function PUT(request: Request) {
         phone: draft.personal.phone.trim() || null,
         address: draft.personal.address.trim() || null,
         commune: draft.personal.commune.trim() || null,
-        birth_date: draft.personal.birthDate || null,
+        birth_date: chileanDateToIso(draft.personal.birthDate) || null,
         worker_registration_status: draft.status === "submitted" ? "submitted" : "incomplete",
         primary_service_profile: primary,
         updated_at: new Date().toISOString(),
@@ -256,7 +257,7 @@ export async function POST(request: Request) {
         phone: draft.personal.phone.trim() || null,
         address: draft.personal.address.trim() || null,
         commune: draft.personal.commune.trim() || null,
-        birth_date: draft.personal.birthDate || null,
+        birth_date: chileanDateToIso(draft.personal.birthDate) || null,
         worker_registration_status: "submitted",
         primary_service_profile: draft.primaryProfile,
         worker_consent_at: now,

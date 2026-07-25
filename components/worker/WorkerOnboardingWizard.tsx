@@ -51,6 +51,7 @@ import {
   validateReviewStep,
   validateServicesStep,
 } from "@/lib/worker/validate";
+import { isoToChileanDate } from "@/lib/ui/chileanDate";
 import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
 import { createClient } from "@/lib/supabase/client";
 
@@ -116,7 +117,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
             phone: data.profile.phone ?? "",
             address: data.profile.address ?? "",
             commune: data.profile.commune ?? "",
-            birthDate: data.profile.birth_date ?? "",
+            birthDate: isoToChileanDate(data.profile.birth_date ?? ""),
             email: data.email ?? user.email ?? "",
           });
         }
@@ -137,6 +138,15 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       };
     }
 
+    if (next.personal.birthDate) {
+      next = {
+        ...next,
+        personal: {
+          ...next.personal,
+          birthDate: isoToChileanDate(next.personal.birthDate),
+        },
+      };
+    }
     setDraft(normalizeWorkerDraft(next));
   }, [profile, user]);
 
@@ -446,13 +456,16 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
           <label>
             Fecha de nacimiento
             <input
-              type="date"
+              type="text"
+              inputMode="numeric"
+              autoComplete="bday"
               value={draft.personal.birthDate}
               placeholder={FIELD_PLACEHOLDERS.birthDate}
               onChange={(e) =>
                 setDraft({ ...draft, personal: { ...draft.personal, birthDate: e.target.value } })
               }
             />
+            <small className="fieldHint">{FIELD_PLACEHOLDERS.birthDateHint}</small>
           </label>
           <label>
             Teléfono

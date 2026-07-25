@@ -1,4 +1,5 @@
 import { isValidChileanRut } from "@/lib/registration/validateRegistration";
+import { isValidChileanDate } from "@/lib/ui/chileanDate";
 import { RUT_FORMAT_ERROR } from "@/lib/ui/fieldPlaceholders";
 import type { ServiceProfileType, WorkerRegistrationDraft } from "@/lib/worker/types";
 import { deriveSuggestedProfiles } from "@/lib/worker/classify";
@@ -13,7 +14,10 @@ export function validatePersonalStep(draft: WorkerRegistrationDraft): string | n
   if (!filled(p.lastName)) return "Completa tus apellidos.";
   if (!filled(p.rut)) return `Completa el RUT. ${RUT_FORMAT_ERROR}`;
   if (!isValidChileanRut(p.rut)) return RUT_FORMAT_ERROR;
-  if (!filled(p.birthDate)) return "Ingresa tu fecha de nacimiento (dd-mm-aaaa).";
+  if (!filled(p.birthDate)) return "Ingresa tu fecha de nacimiento (dd/mm/aaaa).";
+  if (!isValidChileanDate(p.birthDate)) {
+    return "Fecha de nacimiento inválida. Usa día/mes/año, ej: 02/05/1985.";
+  }
   if (!filled(p.phone)) return "Ingresa tu teléfono. Ejemplo: +56 9 1234 5678";
   if (!filled(p.email)) return "Ingresa tu correo. Ejemplo: nombre@correo.com";
   if (!filled(p.address) && !filled(p.commune)) {
