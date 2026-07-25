@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAuthenticatedUser } from "@/lib/auth/requirePlatformAdmin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { chileanDateToIso } from "@/lib/ui/chileanDate";
 import { pickPrimaryProfile } from "@/lib/worker/classify";
+import {
+  isMissingWorkerTableError,
+  loadWorkerDraftFallback,
+  saveWorkerDraftFallback,
+} from "@/lib/worker/registrationFallback";
 import type { WorkerRegistrationDraft } from "@/lib/worker/types";
 import { validateReviewStep } from "@/lib/worker/validate";
 
@@ -20,6 +27,54 @@ function applyServiceLocks(draft: WorkerRegistrationDraft): WorkerRegistrationDr
   };
 }
 
+async function syncProfileBasics(
+  supabase: SupabaseClient,
+  userId: string,
+  draft: WorkerRegistrationDraft,
+  status: "draft" | "incomplete" | "submitted",
+  now = new Date().toISOString()
+) {
+  const primary = pickPrimaryProfile(draft.suggestedProfiles);
+  const specialties = draft.services.map((s) => s.specialtyName);
+  const categories = Array.from(new Set(draft.services.map((s) => s.categoryName)));
+
+  const fullUpdate = {
+    first_name: draft.personal.firstName.trim() || null,
+    last_name: draft.personal.lastName.trim() || null,
+    phone: draft.personal.phone.trim() || null,
+    address: draft.personal.address.trim() || null,
+    commune: draft.personal.commune.trim() || null,
+    birth_date: chileanDateToIso(draft.personal.birthDate) || null,
+    worker_registration_status: status,
+    primary_service_profile: primary,
+    worker_consent_at: status === "submitted" ? now : undefined,
+    worker_consent_version: status === "submitted" ? "worker-v1" : undefined,
+    service_categories: categories.length ? categories : undefined,
+    specialties: specialties.length ? specialties : undefined,
+    can_act_as_professional: status === "submitted" ? true : undefined,
+    updated_at: now,
+  };
+
+  let { error } = await supabase.from("profiles").update(fullUpdate).eq("id", userId);
+  if (error && /column|schema cache/i.test(error.message)) {
+    ({ error } = await supabase
+      .from("profiles")
+      .update({
+        first_name: fullUpdate.first_name,
+        last_name: fullUpdate.last_name,
+        phone: fullUpdate.phone,
+        address: fullUpdate.address,
+        commune: fullUpdate.commune,
+        updated_at: now,
+        can_act_as_professional: status === "submitted" ? true : undefined,
+        specialties: specialties.length ? specialties : undefined,
+        service_categories: categories.length ? categories : undefined,
+      })
+      .eq("id", userId));
+  }
+  return error;
+}
+
 export async function GET() {
   try {
     const auth = await requireAuthenticatedUser();
@@ -32,20 +87,36 @@ export async function GET() {
       .eq("profile_id", user.id)
       .maybeSingle();
 
+    if (error && isMissingWorkerTableError(error.message)) {
+      const admin = createAdminClient();
+      const fallback = await loadWorkerDraftFallback(admin, user.id);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select(
+          "first_name,last_name,rut,phone,address,commune,birth_date,worker_registration_status,primary_service_profile"
+        )
+        .eq("id", user.id)
+        .maybeSingle();
+
+      return NextResponse.json({
+        registration: fallback
+          ? {
+              draft: fallback.draft,
+              status: fallback.status,
+              suggested_profiles: fallback.draft.suggestedProfiles,
+              submitted_at: fallback.status === "submitted" ? fallback.draft.updatedAt : null,
+              review_message: null,
+              updated_at: fallback.draft.updatedAt,
+            }
+          : null,
+        profile,
+        email: user.email ?? null,
+        storageMode: "fallback",
+      });
+    }
+
     if (error) {
-      const missingTable = /worker_registrations|schema cache|does not exist/i.test(
-        error.message
-      );
-      return NextResponse.json(
-        {
-          error: missingTable
-            ? "Falta aplicar la migración de trabajadores en Supabase."
-            : error.message,
-          code: missingTable ? "MIGRATION_REQUIRED" : "QUERY_ERROR",
-          hint: "Ejecuta supabase/SPRINT_11_WORKER_PROFILES.sql en el SQL Editor de Supabase.",
-        },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     const { data: profile } = await supabase
@@ -97,38 +168,33 @@ export async function PUT(request: Request) {
       { onConflict: "profile_id" }
     );
 
-    if (error) {
-      const missingTable = /worker_registrations|schema cache|does not exist/i.test(
-        error.message
+    if (error && isMissingWorkerTableError(error.message)) {
+      const admin = createAdminClient();
+      await saveWorkerDraftFallback(
+        admin,
+        user.id,
+        draft,
+        draft.status === "submitted" ? "submitted" : "draft"
       );
-      return NextResponse.json(
-        {
-          error: missingTable
-            ? "Falta aplicar la migración de trabajadores en Supabase."
-            : error.message,
-          code: missingTable ? "MIGRATION_REQUIRED" : "QUERY_ERROR",
-          hint: "Ejecuta supabase/SPRINT_11_WORKER_PROFILES.sql en el SQL Editor de Supabase.",
-        },
-        { status: 400 }
+      await syncProfileBasics(
+        supabase,
+        user.id,
+        { ...draft, primaryProfile: primary },
+        draft.status === "submitted" ? "submitted" : "incomplete"
       );
+      return NextResponse.json({ ok: true, draft, storageMode: "fallback" });
     }
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        first_name: draft.personal.firstName.trim() || null,
-        last_name: draft.personal.lastName.trim() || null,
-        phone: draft.personal.phone.trim() || null,
-        address: draft.personal.address.trim() || null,
-        commune: draft.personal.commune.trim() || null,
-        birth_date: chileanDateToIso(draft.personal.birthDate) || null,
-        worker_registration_status: draft.status === "submitted" ? "submitted" : "incomplete",
-        primary_service_profile: primary,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
-    // Si faltan columnas nuevas del sprint, igual devolvemos ok del borrador.
+    const profileError = await syncProfileBasics(
+      supabase,
+      user.id,
+      { ...draft, primaryProfile: primary },
+      draft.status === "submitted" ? "submitted" : "incomplete"
+    );
     if (profileError && !/column|schema cache/i.test(profileError.message)) {
       return NextResponse.json({ error: profileError.message }, { status: 400 });
     }
@@ -183,8 +249,7 @@ export async function POST(request: Request) {
       .from("worker_registrations")
       .upsert(registrationPayload, { onConflict: "profile_id" });
 
-    // Si aún no está SPRINT_12, reintentar sin columnas IA.
-    if (error && /ai_review_|document_mime|schema cache|column/i.test(error.message)) {
+    if (error && /ai_review_|document_mime|column/i.test(error.message)) {
       const { ai_review_status, ai_review_at, ai_review_summary, ai_confidence, ai_forgery_risk, ...base } =
         registrationPayload;
       void ai_review_status;
@@ -197,23 +262,24 @@ export async function POST(request: Request) {
         .upsert(base, { onConflict: "profile_id" }));
     }
 
-    if (error) {
-      const missingTable = /worker_registrations|schema cache|does not exist/i.test(
-        error.message
-      );
-      return NextResponse.json(
-        {
-          error: missingTable
-            ? "Falta aplicar la migración de trabajadores en Supabase antes de enviar a revisión."
-            : error.message,
-          code: missingTable ? "MIGRATION_REQUIRED" : "QUERY_ERROR",
-          hint: "Ejecuta supabase/SPRINT_11_WORKER_PROFILES.sql y SPRINT_12_WORKER_AI_VALIDATION.sql en Supabase.",
-        },
-        { status: 400 }
-      );
+    if (error && isMissingWorkerTableError(error.message)) {
+      const admin = createAdminClient();
+      await saveWorkerDraftFallback(admin, user.id, draft, "submitted");
+      await syncProfileBasics(supabase, user.id, draft, "submitted", now);
+      return NextResponse.json({
+        ok: true,
+        status: "submitted",
+        draft,
+        storageMode: "fallback",
+        notice:
+          "Registro enviado. Pendiente aplicar SPRINT_11 en Supabase para revisión completa en intranet.",
+      });
     }
 
-    // Sync credentials + service authorizations
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     await supabase.from("worker_credentials").delete().eq("profile_id", user.id);
     if (draft.credentials.length) {
       await supabase.from("worker_credentials").insert(
@@ -246,28 +312,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const specialties = draft.services.map((s) => s.specialtyName);
-    const categories = Array.from(new Set(draft.services.map((s) => s.categoryName)));
-
-    await supabase
-      .from("profiles")
-      .update({
-        first_name: draft.personal.firstName.trim() || null,
-        last_name: draft.personal.lastName.trim() || null,
-        phone: draft.personal.phone.trim() || null,
-        address: draft.personal.address.trim() || null,
-        commune: draft.personal.commune.trim() || null,
-        birth_date: chileanDateToIso(draft.personal.birthDate) || null,
-        worker_registration_status: "submitted",
-        primary_service_profile: draft.primaryProfile,
-        worker_consent_at: now,
-        worker_consent_version: "worker-v1",
-        service_categories: categories,
-        specialties,
-        can_act_as_professional: true,
-        updated_at: now,
-      })
-      .eq("id", user.id);
+    await syncProfileBasics(supabase, user.id, draft, "submitted", now);
 
     await supabase.from("worker_review_history").insert({
       profile_id: user.id,

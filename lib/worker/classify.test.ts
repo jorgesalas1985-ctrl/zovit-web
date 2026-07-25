@@ -9,6 +9,7 @@ import {
 import { specialtyRequiresCredential } from "./regulatedServices";
 import { createEmptyWorkerDraft } from "./draft";
 import {
+  getStepValidationIssue,
   validateAntecedentsStep,
   validateParticipationStep,
   validatePersonalStep,
@@ -101,5 +102,15 @@ describe("worker validation", () => {
     draft.participation = "certified";
     draft.suggestedProfiles = ["certified"];
     assert.match(validateAntecedentsStep(draft) ?? "", /certificación/i);
+  });
+
+  it("points to enrollment field when training document is missing", () => {
+    const draft = createEmptyWorkerDraft();
+    draft.participations = ["training"];
+    draft.suggestedProfiles = ["in_training"];
+    draft.training.institution = "Duoc UC";
+    draft.training.career = "Administración";
+    const issue = getStepValidationIssue(3, draft);
+    assert.equal(issue?.fieldId, "training.enrollment");
   });
 });

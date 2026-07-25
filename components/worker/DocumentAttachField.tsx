@@ -8,15 +8,29 @@ type Props = {
   fileName?: string;
   busy?: boolean;
   hint?: string;
+  fieldId?: string;
+  highlight?: boolean;
   onPick: (file: File) => void | Promise<void>;
   onClear?: () => void;
 };
 
-export function DocumentAttachField({ label, fileName, busy, hint, onPick, onClear }: Props) {
+export function DocumentAttachField({
+  label,
+  fileName,
+  busy,
+  hint,
+  fieldId,
+  highlight,
+  onPick,
+  onClear,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <label className="full workerDocAttach">
+    <label
+      className={`full workerDocAttach ${highlight ? "isMissingField" : ""}`}
+      data-field-id={fieldId}
+    >
       <span>{label}</span>
       <div className="workerDocAttachRow">
         <input

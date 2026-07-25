@@ -36,7 +36,7 @@ values (
   'worker-credentials',
   false,
   10485760,
-  array['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+  array['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/json']
 )
 on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,

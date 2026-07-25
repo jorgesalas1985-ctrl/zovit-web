@@ -3711,6 +3711,25 @@ html[data-theme="dark"] .homeStoryWallPeel {
   padding: 2px;
   opacity: 0.85;
 }
+.isMissingField {
+  outline: 2px solid rgba(239, 68, 68, 0.85) !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.22), 0 0 28px rgba(239, 68, 68, 0.28) !important;
+  border-radius: 16px;
+  animation: missingPulse 1.2s ease-in-out 0s 3;
+}
+.workerDocAttach.isMissingField .workerDocAttachName,
+.workerDocAttach.isMissingField .workerDocAttachBtn {
+  border-color: rgba(239, 68, 68, 0.75) !important;
+}
+@keyframes missingPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18), 0 0 18px rgba(239, 68, 68, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(239, 68, 68, 0.3), 0 0 34px rgba(239, 68, 68, 0.35);
+  }
+}
 .workerServiceList {
   display: grid;
   gap: 8px;

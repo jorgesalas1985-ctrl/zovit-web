@@ -48,12 +48,9 @@ import type {
   WorkerRegistrationDraft,
 } from "@/lib/worker/types";
 import {
-  validateAntecedentsStep,
-  validateAvailabilityStep,
-  validateParticipationStep,
-  validatePersonalStep,
+  getStepValidationIssue,
   validateReviewStep,
-  validateServicesStep,
+  type WorkerFieldId,
 } from "@/lib/worker/validate";
 import { chileanDateToIso, isoToChileanDate } from "@/lib/ui/chileanDate";
 import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
@@ -82,6 +79,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   const [toastTone, setToastTone] = useState<"error" | "success" | "info">("error");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [busy, setBusy] = useState(false);
+  const [missingFieldId, setMissingFieldId] = useState<WorkerFieldId | null>(null);
 
   const showToast = useCallback((text: string, tone: "error" | "success" | "info" = "error") => {
     setToastTone(tone);
@@ -89,6 +87,18 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   }, []);
 
   const clearToast = useCallback(() => setMessage(""), []);
+
+  const focusMissingField = useCallback((fieldId: WorkerFieldId, targetStep: number) => {
+    setMissingFieldId(fieldId);
+    setStep(targetStep);
+    window.setTimeout(() => {
+      const el = document.querySelector(`[data-field-id="${fieldId}"]`) as HTMLElement | null;
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const focusable = el.querySelector<HTMLElement>("input, textarea, select, button");
+      focusable?.focus({ preventScroll: true });
+    }, 120);
+  }, []);
   const [guided, setGuided] = useState<GuidedAnswers>({
     hasFormalCredential: null,
     hasExperience: null,
@@ -299,30 +309,13 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     return { path: data.path, mime: data.mime ?? file.type, name: data.name ?? file.name };
   }
 
-  function validateCurrent(): string | null {
-    switch (step) {
-      case 1:
-        return validatePersonalStep(draft);
-      case 2:
-        return validateParticipationStep(draft);
-      case 3:
-        return validateAntecedentsStep(draft);
-      case 4:
-        return validateServicesStep(draft);
-      case 5:
-        return validateAvailabilityStep(draft);
-      case 6:
-        return validateReviewStep(draft);
-      default:
-        return null;
-    }
-  }
-
   async function goNext() {
     clearToast();
-    const error = validateCurrent();
-    if (error) {
-      showToast(error, "error");
+    setMissingFieldId(null);
+    const issue = getStepValidationIssue(step, draft);
+    if (issue) {
+      showToast(issue.message, "error");
+      focusMissingField(issue.fieldId, issue.step);
       return;
     }
     // Avanzamos aunque el servidor aún no tenga la migración; el borrador queda local.
@@ -333,9 +326,11 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
 
   async function submit() {
     clearToast();
-    const error = validateReviewStep(draft);
-    if (error) {
-      showToast(error, "error");
+    setMissingFieldId(null);
+    const issue = getStepValidationIssue(6, draft);
+    if (issue) {
+      showToast(issue.message, "error");
+      focusMissingField(issue.fieldId, issue.step);
       return;
     }
     if (!user) {
@@ -359,6 +354,8 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
 
     clearLocalWorkerDraft();
     setDraft(data.draft ?? { ...draft, status: "submitted" });
+    setMissingFieldId(null);
+    if (data.notice) showToast(data.notice, "info");
     setStep(7);
   }
 
@@ -534,7 +531,10 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       )}
 
       {step === 2 && (
-        <div className="workerChoiceGrid">
+        <div
+          className={`workerChoiceGrid ${missingFieldId === "participation" ? "isMissingField" : ""}`}
+          data-field-id="participation"
+        >
           <h2>¿Qué tipo de servicios deseas ofrecer?</h2>
           <p className="muted">
             Puedes marcar una, varias o todas las opciones según tus capacidades. En el siguiente
@@ -655,7 +655,14 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
           <p className="muted">{WORKER_COPY.documents}</p>
 
           {activeProfiles.includes("certified") && (
-            <div className="workerBlock">
+            <div
+              className={`workerBlock ${
+                missingFieldId === "credentials" || missingFieldId === "credentials.document"
+                  ? "isMissingField"
+                  : ""
+              }`}
+              data-field-id="credentials"
+            >
               <h2>Profesional Certificado</h2>
               {draft.credentials.map((cred, index) => (
                 <div key={cred.id} className="formGrid workerNestedCard">
@@ -750,6 +757,8 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                     label="Documento de respaldo (certificado / licencia)"
                     fileName={cred.documentName}
                     busy={busy}
+                    fieldId="credentials.document"
+                    highlight={missingFieldId === "credentials.document"}
                     hint="Pulsa + para adjuntar JPG, PNG, WEBP o PDF"
                     onPick={async (file) => {
                       setBusy(true);
@@ -818,7 +827,10 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
           )}
 
           {activeProfiles.includes("experience_verified") && (
-            <div className="workerBlock formGrid">
+            <div
+              className={`workerBlock formGrid ${missingFieldId === "experience" ? "isMissingField" : ""}`}
+              data-field-id="experience"
+            >
               <h2 className="full">Profesional Verificado por Experiencia</h2>
               <label>
                 Oficio o especialidad
@@ -916,7 +928,15 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
           )}
 
           {activeProfiles.includes("in_training") && (
-            <div className="workerBlock formGrid">
+            <div
+              className={`workerBlock formGrid ${
+                missingFieldId === "training.institution" ||
+                missingFieldId === "training.enrollment"
+                  ? "isMissingField"
+                  : ""
+              }`}
+              data-field-id="training.institution"
+            >
               <h2 className="full">Profesional en Formación</h2>
               <label>
                 Institución educacional
@@ -1020,6 +1040,8 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                 label="Certificado de alumno regular / matrícula"
                 fileName={draft.training.enrollmentDocName}
                 busy={busy}
+                fieldId="training.enrollment"
+                highlight={missingFieldId === "training.enrollment"}
                 hint="Pulsa + para adjuntar el certificado (JPG, PNG, WEBP o PDF)"
                 onPick={async (file) => {
                   setBusy(true);
@@ -1091,7 +1113,12 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
           )}
 
           {activeProfiles.includes("community_collaborator") && (
-            <div className="workerBlock formGrid">
+            <div
+              className={`workerBlock formGrid ${
+                missingFieldId?.startsWith("community.") ? "isMissingField" : ""
+              }`}
+              data-field-id="community.availability"
+            >
               <h2 className="full">Colaborador Comunitario</h2>
               <p className="workerHighlight full">{WORKER_COPY.community}</p>
               <label>
@@ -1181,7 +1208,12 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   }
                 />
               </label>
-              <fieldset className="full workerTaskFieldset">
+              <fieldset
+                className={`full workerTaskFieldset ${
+                  missingFieldId === "community.tasks" ? "isMissingField" : ""
+                }`}
+                data-field-id="community.tasks"
+              >
                 <legend>Tipo de tareas que deseas realizar</legend>
                 {COMMUNITY_TASK_OPTIONS.map((task) => {
                   const checked = draft.community.taskTypes.includes(task);
