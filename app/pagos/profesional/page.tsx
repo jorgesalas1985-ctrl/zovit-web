@@ -8,7 +8,7 @@ import type { PaymentRecord, WalletSummary } from "@/lib/payments/types";
 import { formatCLP } from "@/lib/payments/types";
 import { ArrowRight, Wallet } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 type WalletTransaction = {
   id: string;
@@ -25,6 +25,15 @@ export default function ProfessionalPaymentsPage() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [payoutBusy, setPayoutBusy] = useState(false);
+  const [payoutForm, setPayoutForm] = useState({
+    amount: "",
+    bankName: "",
+    bankAccountType: "cuenta_vista",
+    bankAccountNumber: "",
+    accountHolderName: "",
+    accountHolderRut: "",
+  });
 
   async function loadDashboard() {
     const response = await fetch("/api/payments/dashboard/professional");
@@ -67,6 +76,33 @@ export default function ProfessionalPaymentsPage() {
     await loadDashboard();
   }
 
+  async function requestPayout(event: FormEvent) {
+    event.preventDefault();
+    setPayoutBusy(true);
+    setMessage("");
+    const response = await fetch("/api/payments/payouts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: Number(payoutForm.amount),
+        bankName: payoutForm.bankName,
+        bankAccountType: payoutForm.bankAccountType,
+        bankAccountNumber: payoutForm.bankAccountNumber,
+        accountHolderName: payoutForm.accountHolderName,
+        accountHolderRut: payoutForm.accountHolderRut,
+      }),
+    });
+    const data = await response.json();
+    setPayoutBusy(false);
+    if (!response.ok) {
+      setMessage(data.error ?? "No se pudo solicitar el retiro.");
+      return;
+    }
+    setMessage("Retiro solicitado. ZOVIT lo transferirá tras revisión del super admin.");
+    setPayoutForm((prev) => ({ ...prev, amount: "" }));
+    await loadDashboard();
+  }
+
   return (
     <Protected>
       <RoleGuard requiredMode="professional">
@@ -78,6 +114,81 @@ export default function ProfessionalPaymentsPage() {
             {message && <p className="aiError">{message}</p>}
 
             {summary && <WalletSummaryCards summary={summary} />}
+
+            <section className="paymentsSection">
+              <h2>Solicitar retiro</h2>
+              <p className="muted">
+                Retira tu saldo disponible a tu cuenta bancaria. Mínimo $1.000. El super admin
+                aprueba y marca la transferencia.
+              </p>
+              <form className="formStack" onSubmit={(event) => void requestPayout(event)}>
+                <label>
+                  Monto CLP
+                  <input
+                    type="number"
+                    min={1000}
+                    required
+                    value={payoutForm.amount}
+                    onChange={(e) => setPayoutForm((p) => ({ ...p, amount: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Banco
+                  <input
+                    required
+                    value={payoutForm.bankName}
+                    onChange={(e) => setPayoutForm((p) => ({ ...p, bankName: e.target.value }))}
+                    placeholder="Banco Estado"
+                  />
+                </label>
+                <label>
+                  Tipo de cuenta
+                  <select
+                    value={payoutForm.bankAccountType}
+                    onChange={(e) =>
+                      setPayoutForm((p) => ({ ...p, bankAccountType: e.target.value }))
+                    }
+                  >
+                    <option value="cuenta_vista">Cuenta vista</option>
+                    <option value="cuenta_corriente">Cuenta corriente</option>
+                    <option value="cuenta_rut">Cuenta RUT</option>
+                  </select>
+                </label>
+                <label>
+                  Número de cuenta
+                  <input
+                    required
+                    value={payoutForm.bankAccountNumber}
+                    onChange={(e) =>
+                      setPayoutForm((p) => ({ ...p, bankAccountNumber: e.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  Titular
+                  <input
+                    required
+                    value={payoutForm.accountHolderName}
+                    onChange={(e) =>
+                      setPayoutForm((p) => ({ ...p, accountHolderName: e.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  RUT titular
+                  <input
+                    required
+                    value={payoutForm.accountHolderRut}
+                    onChange={(e) =>
+                      setPayoutForm((p) => ({ ...p, accountHolderRut: e.target.value }))
+                    }
+                  />
+                </label>
+                <button className="primaryButton" type="submit" disabled={payoutBusy}>
+                  {payoutBusy ? "Enviando…" : "Solicitar retiro"}
+                </button>
+              </form>
+            </section>
 
             <section className="paymentsSection">
               <h2>Próximos pagos / trabajos activos</h2>

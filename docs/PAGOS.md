@@ -76,13 +76,44 @@ Calificación + experiencia verificable (requiere pago_liberado)
 | `/api/payments/dashboard/admin` | GET | Panel admin |
 | `/api/payments/webhook/[provider]` | POST | Webhook proveedor |
 
+## Fase A (activa): escrow contable + retiros
+
+El cobro usa **un solo collector** (`MERCADOPAGO_ACCESS_TOKEN`). El “escrow” es el ledger ZOVIT (`held_balance` → `available_balance`).
+
+| Capacidad | Estado |
+|-----------|--------|
+| Cobro Checkout Pro + webhook HMAC | Activo |
+| Disputa cliente/pro → `en_disputa` | Activo (`open_payment_dispute`) |
+| Reembolso MP + unwind wallet | Activo (`/api/payments/orders/[id]/refund`, resolve disputa) |
+| Retiro pro → banco (aprobación super admin) | Activo (`payout_requests`) |
+| Marketplace MP split a seller | **Fase B** (columnas `mp_collector_id` preparadas) |
+
+### APIs Fase A
+
+| Endpoint | Descripción |
+|----------|-------------|
+| `POST /api/payments/orders/[id]/dispute` | Abrir disputa |
+| `POST /api/payments/disputes/[id]/resolve` | Super admin: `reembolso` \| `liberacion` |
+| `POST /api/payments/orders/[id]/refund` | Super admin: refund MP + ledger |
+| `GET/POST /api/payments/payouts` | Listar / solicitar retiro |
+| `POST /api/payments/payouts/[id]` | Super admin: `aprobar` \| `pagar` \| `rechazar` |
+
+SQL: `supabase/SPRINT_5B_PAYOUTS_DISPUTES_REFUNDS.sql`
+
+## Fase B (pendiente): Mercado Pago Marketplace
+
+1. OAuth del profesional → guardar `mp_collector_id` / token seller
+2. Preference con `marketplace_fee` (comisión ZOVIT)
+3. Release/disbursement nativo MP al aprobar trabajo
+4. Wallet pasa a espejo del estado MP (no fuente de verdad del cash)
+
 ## Próximos pasos
 
 1. Integrar SDK Webpay Plus (Transbank) en `lib/payments/providers/webpay.ts`
-2. ~~Integrar Mercado Pago Checkout Pro~~ (base implementada)
-3. Configurar webhooks en producción con dominio público
+2. ~~Disputas / reembolsos / retiros (Fase A)~~
+3. Marketplace MP OAuth + split (Fase B)
 4. Facturación electrónica (SII) sobre comisiones
-5. Retiros bancarios automáticos para profesionales
+5. Automatizar transferencia bancaria (API banco / MP money-out) al marcar `pagar`
 
 ---
 

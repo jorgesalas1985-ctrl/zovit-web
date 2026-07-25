@@ -68,6 +68,30 @@ export default function ClientPaymentsPage() {
     await loadDashboard();
   }
 
+  async function openDispute(paymentId: string) {
+    const reason = window.prompt(
+      "Describe el problema (mín. 10 caracteres). Se abrirá una disputa y el pago quedará retenido.",
+    );
+    if (!reason || reason.trim().length < 10) {
+      setMessage("Debes describir el motivo de la disputa.");
+      return;
+    }
+    setBusyId(paymentId);
+    const response = await fetch(`/api/payments/orders/${paymentId}/dispute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: reason.trim() }),
+    });
+    const data = await response.json();
+    setBusyId("");
+    if (!response.ok) {
+      setMessage(data.error ?? "No se pudo abrir la disputa.");
+      return;
+    }
+    setMessage("Disputa abierta. ZOVIT la revisará.");
+    await loadDashboard();
+  }
+
   return (
     <Protected>
       <RoleGuard requiredMode="client">
@@ -118,15 +142,27 @@ export default function ClientPaymentsPage() {
                     key={payment.id}
                     payment={payment}
                     actions={
-                      payment.status === "esperando_aprobacion_cliente" ? (
-                        <button className="primaryButton" disabled={busyId === payment.id} onClick={() => void approveWork(payment.id)}>
-                          Confirmar trabajo y liberar pago <ArrowRight size={16} />
-                        </button>
-                      ) : (
+                      <div className="browseProfessionalActions">
+                        {payment.status === "esperando_aprobacion_cliente" && (
+                          <button className="primaryButton" disabled={busyId === payment.id} onClick={() => void approveWork(payment.id)}>
+                            Confirmar trabajo y liberar pago <ArrowRight size={16} />
+                          </button>
+                        )}
+                        {["pago_retenido", "trabajo_en_ejecucion", "esperando_aprobacion_cliente"].includes(
+                          payment.status,
+                        ) && (
+                          <button
+                            className="secondaryButton"
+                            disabled={busyId === payment.id}
+                            onClick={() => void openDispute(payment.id)}
+                          >
+                            Abrir disputa
+                          </button>
+                        )}
                         <Link href={`/solicitudes/${payment.requestId}`} className="secondaryButton">
                           Ver estado del trabajo
                         </Link>
-                      )
+                      </div>
                     }
                   />
                 ))

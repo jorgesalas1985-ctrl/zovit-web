@@ -12,20 +12,29 @@ export async function GET() {
 
     // service_role solo tras verificar super_admin (RR.HH. no entra aquí).
     const admin = createAdminClient();
-    const [paymentsResult, disputesResult, walletsResult, eventsResult] = await Promise.all([
-      admin.from("payments").select("*").order("created_at", { ascending: false }).limit(50),
-      admin.from("payment_disputes").select("*").order("created_at", { ascending: false }).limit(20),
-      admin.from("wallets").select("*").order("updated_at", { ascending: false }).limit(50),
-      admin.from("payment_events").select("*").order("created_at", { ascending: false }).limit(40),
-    ]);
+    const [paymentsResult, disputesResult, walletsResult, eventsResult, payoutsResult] =
+      await Promise.all([
+        admin.from("payments").select("*").order("created_at", { ascending: false }).limit(50),
+        admin.from("payment_disputes").select("*").order("created_at", { ascending: false }).limit(40),
+        admin.from("wallets").select("*").order("updated_at", { ascending: false }).limit(50),
+        admin.from("payment_events").select("*").order("created_at", { ascending: false }).limit(40),
+        admin.from("payout_requests").select("*").order("created_at", { ascending: false }).limit(50),
+      ]);
 
     const payments = (paymentsResult.data ?? []).map((row) => mapPaymentRow(row as never));
     const stats = {
       totalVolume: payments.reduce((sum, p) => sum + p.amountGross, 0),
       totalFees: payments.reduce((sum, p) => sum + p.platformFee + p.taxAmount, 0),
-      heldCount: payments.filter((p) => p.status === "pago_retenido").length,
+      heldCount: payments.filter((p) =>
+        ["pago_retenido", "trabajo_en_ejecucion", "esperando_aprobacion_cliente", "en_disputa"].includes(
+          p.status,
+        ),
+      ).length,
       releasedCount: payments.filter((p) => p.status === "pago_liberado").length,
       disputedCount: payments.filter((p) => p.status === "en_disputa").length,
+      pendingPayouts: (payoutsResult.data ?? []).filter((p) =>
+        ["pendiente", "aprobado"].includes(p.status),
+      ).length,
     };
 
     return NextResponse.json({
@@ -34,6 +43,7 @@ export async function GET() {
       disputes: disputesResult.data ?? [],
       wallets: walletsResult.data ?? [],
       events: eventsResult.data ?? [],
+      payouts: payoutsResult.data ?? [],
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";

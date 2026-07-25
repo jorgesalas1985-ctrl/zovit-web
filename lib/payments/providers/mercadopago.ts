@@ -126,11 +126,47 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
   }
 
   async refund(reference: string): Promise<PaymentProviderResult> {
+    const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
+    if (!token) {
+      throw new Error("Falta MERCADOPAGO_ACCESS_TOKEN para reembolsar.");
+    }
+
+    const paymentId = reference.trim();
+    if (!/^\d+$/.test(paymentId)) {
+      throw new Error("Referencia de pago Mercado Pago inválida para reembolso.");
+    }
+
+    const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}/refunds`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": `zovit-refund-${paymentId}`,
+      },
+      body: JSON.stringify({}),
+    });
+
+    const raw = (await response.json().catch(() => ({}))) as {
+      id?: number;
+      status?: string;
+      message?: string;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      throw new Error(
+        raw.message || raw.error || `Mercado Pago rechazó el reembolso (${response.status}).`,
+      );
+    }
+
+    const ok = ["approved", "authorized"].includes(String(raw.status ?? "").toLowerCase())
+      || Boolean(raw.id);
+
     return {
-      success: false,
-      reference,
-      status: "failed",
-      raw: { message: "Reembolso Mercado Pago pendiente de implementación." },
+      success: ok,
+      reference: String(raw.id ?? paymentId),
+      status: ok ? "refunded" : "failed",
+      raw,
     };
   }
 

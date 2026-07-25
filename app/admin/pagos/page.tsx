@@ -8,7 +8,7 @@ import { formatCLP } from "@/lib/payments/types";
 import { isSuperAdminRole } from "@/lib/auth/intranetRoles";
 import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type AdminStats = {
   totalVolume: number;
@@ -16,6 +16,7 @@ type AdminStats = {
   heldCount: number;
   releasedCount: number;
   disputedCount: number;
+  pendingPayouts?: number;
 };
 
 type WalletRow = {
@@ -23,7 +24,26 @@ type WalletRow = {
   user_id: string;
   available_balance: number;
   held_balance: number;
-  currency: string;
+};
+
+type DisputeRow = {
+  id: string;
+  payment_id: string;
+  reason: string;
+  status: string;
+  created_at: string;
+};
+
+type PayoutRow = {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  bank_name: string;
+  bank_account_number: string;
+  account_holder_name: string;
+  account_holder_rut: string;
+  created_at: string;
 };
 
 export default function AdminPaymentsPage() {
@@ -32,28 +52,73 @@ export default function AdminPaymentsPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [wallets, setWallets] = useState<WalletRow[]>([]);
+  const [disputes, setDisputes] = useState<DisputeRow[]>([]);
+  const [payouts, setPayouts] = useState<PayoutRow[]>([]);
   const [events, setEvents] = useState<Array<{ id: string; event_type: string; created_at: string }>>(
     [],
   );
   const [message, setMessage] = useState("");
+  const [busyId, setBusyId] = useState("");
+
+  const load = useCallback(async () => {
+    const response = await fetch("/api/payments/dashboard/admin");
+    const data = await response.json();
+    if (!response.ok) {
+      setMessage(data.error ?? "No se pudo cargar el panel administrativo.");
+      return;
+    }
+    setStats(data.stats ?? null);
+    setPayments(data.payments ?? []);
+    setWallets(data.wallets ?? []);
+    setDisputes(data.disputes ?? []);
+    setPayouts(data.payouts ?? []);
+    setEvents(data.events ?? []);
+  }, []);
 
   useEffect(() => {
     if (loading || !isSuperAdmin) return;
-
-    async function load() {
-      const response = await fetch("/api/payments/dashboard/admin");
-      const data = await response.json();
-      if (!response.ok) {
-        setMessage(data.error ?? "No se pudo cargar el panel administrativo.");
-        return;
-      }
-      setStats(data.stats ?? null);
-      setPayments(data.payments ?? []);
-      setWallets(data.wallets ?? []);
-      setEvents(data.events ?? []);
-    }
     void load();
-  }, [isSuperAdmin, loading]);
+  }, [isSuperAdmin, loading, load]);
+
+  async function resolveDispute(disputeId: string, resolution: "reembolso" | "liberacion") {
+    const note = window.prompt("Nota de resolución (opcional):") ?? "";
+    setBusyId(disputeId);
+    const response = await fetch(`/api/payments/disputes/${disputeId}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resolution, note }),
+    });
+    const data = await response.json();
+    setBusyId("");
+    if (!response.ok) {
+      setMessage(data.error ?? "No se pudo resolver la disputa.");
+      return;
+    }
+    setMessage(
+      resolution === "reembolso"
+        ? "Disputa resuelta: reembolso al cliente."
+        : "Disputa resuelta: pago liberado al profesional.",
+    );
+    await load();
+  }
+
+  async function processPayout(payoutId: string, action: "aprobar" | "pagar" | "rechazar") {
+    const note = window.prompt("Nota administrativa (opcional):") ?? "";
+    setBusyId(payoutId);
+    const response = await fetch(`/api/payments/payouts/${payoutId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, note }),
+    });
+    const data = await response.json();
+    setBusyId("");
+    if (!response.ok) {
+      setMessage(data.error ?? "No se pudo procesar el retiro.");
+      return;
+    }
+    setMessage(`Retiro: acción ${action} aplicada.`);
+    await load();
+  }
 
   if (loading) {
     return <div className="centerState">Cargando…</div>;
@@ -78,6 +143,9 @@ export default function AdminPaymentsPage() {
     );
   }
 
+  const openDisputes = disputes.filter((d) => ["abierta", "en_revision"].includes(d.status));
+  const openPayouts = payouts.filter((p) => ["pendiente", "aprobado"].includes(p.status));
+
   return (
     <Protected>
       <main className="simplePage">
@@ -85,9 +153,10 @@ export default function AdminPaymentsPage() {
           <div className="eyebrow">
             <ShieldCheck size={16} /> Super administrador
           </div>
-          <h1>Estados de cuenta y pagos</h1>
+          <h1>Estados de cuenta, disputas y retiros</h1>
           <p className="muted">
-            Supervisión exclusiva de wallets, retenciones, liberaciones, disputas y comisiones.
+            Escrow contable ZOVIT + reembolsos Mercado Pago. Marketplace MP (split a sellers) es Fase
+            B.
           </p>
           {message && <p className="aiError">{message}</p>}
 
@@ -103,17 +172,95 @@ export default function AdminPaymentsPage() {
               </article>
               <article className="walletCard">
                 <strong>{stats.heldCount}</strong>
-                <span>Pagos retenidos</span>
+                <span>En retención / curso</span>
               </article>
               <article className="walletCard">
-                <strong>{stats.releasedCount}</strong>
-                <span>Pagos liberados</span>
+                <strong>{stats.disputedCount}</strong>
+                <span>En disputa</span>
+              </article>
+              <article className="walletCard">
+                <strong>{stats.pendingPayouts ?? openPayouts.length}</strong>
+                <span>Retiros pendientes</span>
               </article>
             </div>
           )}
 
           <section className="paymentsSection">
-            <h2>Wallets (estados de cuenta)</h2>
+            <h2>Disputas abiertas</h2>
+            {openDisputes.length === 0 ? (
+              <p className="muted">Sin disputas abiertas.</p>
+            ) : (
+              openDisputes.map((dispute) => (
+                <article className="paymentHistoryItem" key={dispute.id}>
+                  <strong>{dispute.status}</strong>
+                  <p>{dispute.reason}</p>
+                  <div className="browseProfessionalActions">
+                    <button
+                      className="secondaryButton"
+                      disabled={busyId === dispute.id}
+                      onClick={() => void resolveDispute(dispute.id, "reembolso")}
+                    >
+                      Resolver → reembolso
+                    </button>
+                    <button
+                      className="primaryButton"
+                      disabled={busyId === dispute.id}
+                      onClick={() => void resolveDispute(dispute.id, "liberacion")}
+                    >
+                      Resolver → liberar al pro
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </section>
+
+          <section className="paymentsSection">
+            <h2>Retiros a profesionales</h2>
+            {openPayouts.length === 0 ? (
+              <p className="muted">Sin retiros pendientes.</p>
+            ) : (
+              openPayouts.map((payout) => (
+                <article className="paymentHistoryItem" key={payout.id}>
+                  <strong>
+                    {formatCLP(Number(payout.amount))} · {payout.status}
+                  </strong>
+                  <p>
+                    {payout.account_holder_name} · {payout.bank_name} ·{" "}
+                    {payout.bank_account_number} · RUT {payout.account_holder_rut}
+                  </p>
+                  <div className="browseProfessionalActions">
+                    {payout.status === "pendiente" && (
+                      <button
+                        className="secondaryButton"
+                        disabled={busyId === payout.id}
+                        onClick={() => void processPayout(payout.id, "aprobar")}
+                      >
+                        Aprobar
+                      </button>
+                    )}
+                    <button
+                      className="primaryButton"
+                      disabled={busyId === payout.id}
+                      onClick={() => void processPayout(payout.id, "pagar")}
+                    >
+                      Marcar transferido
+                    </button>
+                    <button
+                      className="secondaryButton"
+                      disabled={busyId === payout.id}
+                      onClick={() => void processPayout(payout.id, "rechazar")}
+                    >
+                      Rechazar
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </section>
+
+          <section className="paymentsSection">
+            <h2>Wallets</h2>
             {wallets.length === 0 ? (
               <p className="muted">Sin wallets aún.</p>
             ) : (
