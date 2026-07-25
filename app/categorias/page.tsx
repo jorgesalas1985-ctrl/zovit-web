@@ -15,9 +15,9 @@ export default function CategoriasPage() {
 
   return (
     <ServiceBrowseShell
-      title="Elegir categoría manualmente"
-      description="Explora todas las categorías de servicio, entra a subcategorías y especialidades con perfiles verificados."
-      kicker="NAVEGACIÓN MANUAL"
+      title="Búsqueda manual"
+      description="Explora categorías, subcategorías y especialidades. Elige el servicio y revisa profesionales verificados."
+      kicker="BÚSQUEDA MANUAL"
     >
       <div className="browseGrid">
         {categories.map((category) => {

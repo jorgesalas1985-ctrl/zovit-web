@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BriefcaseBusiness } from "lucide-react";
+import { ArrowRight, Bot, BriefcaseBusiness, LayoutGrid } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { HomeHeroStory } from "@/components/home/HomeHeroStory";
 import { TrustPillars } from "@/components/home/TrustPillars";
-import { ClickableServiceCard } from "@/components/services/ClickableServiceCard";
 import { IntranetFooterAccess } from "@/components/intranet/IntranetFooterAccess";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ScrollReveal } from "@/components/home/ScrollReveal";
@@ -14,10 +13,6 @@ import {
   getBrowseServicesHref,
   getRequestServiceHref,
 } from "@/lib/auth/roles";
-import { getCategoryLeafCount, getFeaturedCategories } from "@/lib/services/catalog";
-import { getCategoryIcon } from "@/lib/services/icons";
-
-const featuredCategories = getFeaturedCategories(5);
 
 export default function HomePage() {
   const { user, profile } = useAuth();
@@ -75,42 +70,58 @@ export default function HomePage() {
 
       <TrustPillars />
 
-      <section className="contentSection homeCategories">
+      <section className="contentSection homeCategories" id="explorar-servicios">
         <ScrollReveal>
           <div className="sectionHeading">
             <div>
               <p className="kicker">EXPLORAR SERVICIOS</p>
               <h2>¿Qué necesitas hoy?</h2>
               <p className="muted homeCategoriesLead">
-                Explora categorías. Para publicar una solicitud debes crear una cuenta verificada.
+                Elige cómo buscar. Para publicar una solicitud debes crear una cuenta verificada.
               </p>
             </div>
-            <Link href="/categorias" className="textLink">
-              Ver todas <ArrowRight size={17} />
-            </Link>
           </div>
         </ScrollReveal>
 
-        <div className="browseGrid browseGridHome">
-          {featuredCategories.map((category, index) => {
-            const Icon = getCategoryIcon(category.name);
-            return (
-              <ScrollReveal key={category.slug} delay={index * 70}>
-                <ClickableServiceCard
-                  href={`/categorias/${category.slug}`}
-                  title={category.name}
-                  description={category.summary}
-                  icon={Icon}
-                  meta={
-                    <span className="browseCardMeta">
-                      {getCategoryLeafCount(category.slug)} especialidades
-                    </span>
-                  }
-                />
-              </ScrollReveal>
-            );
-          })}
-        </div>
+        <ScrollReveal>
+          <div className="searchMethodsGrid homeSearchMethods">
+            <Link href="/ia" className="searchMethodCard searchMethodCardLink">
+              <div className="searchMethodHead">
+                <div className="searchMethodIcon ai">
+                  <Bot size={22} />
+                </div>
+                <div>
+                  <p className="kicker">Opción 1</p>
+                  <h2>Buscar con IA</h2>
+                </div>
+              </div>
+              <p className="muted">
+                Describe el problema con tus palabras. ZOVIT sugiere la especialidad y profesionales.
+              </p>
+              <span className="primaryButton browsePrimaryLink">
+                Buscar con IA <ArrowRight size={18} />
+              </span>
+            </Link>
+
+            <Link href="/categorias" className="searchMethodCard searchMethodCardLink">
+              <div className="searchMethodHead">
+                <div className="searchMethodIcon manual">
+                  <LayoutGrid size={22} />
+                </div>
+                <div>
+                  <p className="kicker">Opción 2</p>
+                  <h2>Búsqueda manual</h2>
+                </div>
+              </div>
+              <p className="muted">
+                Explora categorías, subcategorías y especialidades hasta encontrar el servicio.
+              </p>
+              <span className="secondaryButton browsePrimaryLink">
+                Ir a categorías <ArrowRight size={18} />
+              </span>
+            </Link>
+          </div>
+        </ScrollReveal>
       </section>
 
       <section className="homeFinalCta">
