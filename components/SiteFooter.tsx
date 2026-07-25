@@ -72,7 +72,7 @@ export function SiteFooter() {
           { label: "Política de privacidad", href: "/legal/privacidad" },
           { label: "Política de seguridad", href: "/legal/seguridad" },
           { label: "Política de cookies", href: "/legal/cookies" },
-          { label: "Ayuda", href: "/login" },
+          { label: "Ayuda", href: "/ayuda" },
         ],
       },
     ];
