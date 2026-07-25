@@ -148,7 +148,7 @@ as $$
   from public.profiles p
   where p.id = p_profile_id
     and coalesce(p.public_profile, true) = true
-    and p.role in ('professional', 'admin');
+    and p.role in ('client', 'professional', 'admin');
 $$;
 
 revoke all on function public.get_public_credential(uuid) from public;
