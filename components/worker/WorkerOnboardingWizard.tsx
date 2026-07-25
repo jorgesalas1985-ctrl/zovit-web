@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CheckCircle2,
   CheckSquare,
+  ChevronDown,
   HelpCircle,
   Plus,
   Save,
@@ -15,6 +16,9 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { FloatingToast } from "@/components/ui/FloatingToast";
+import { DocumentAttachField } from "@/components/worker/DocumentAttachField";
+import { CHILE_SERVICE_ZONES, SPANISH_MONTHS } from "@/lib/geo/rmCommunes";
 import { listWorkerSpecialtyOptions } from "@/lib/worker/catalog";
 import {
   getParticipations,
@@ -51,7 +55,7 @@ import {
   validateReviewStep,
   validateServicesStep,
 } from "@/lib/worker/validate";
-import { isoToChileanDate } from "@/lib/ui/chileanDate";
+import { chileanDateToIso, isoToChileanDate } from "@/lib/ui/chileanDate";
 import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
 import { createClient } from "@/lib/supabase/client";
 
@@ -77,8 +81,16 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   const [step, setStep] = useState(1);
   const [draft, setDraft] = useState<WorkerRegistrationDraft>(() => createEmptyWorkerDraft());
   const [message, setMessage] = useState("");
+  const [toastTone, setToastTone] = useState<"error" | "success" | "info">("error");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [busy, setBusy] = useState(false);
+
+  const showToast = useCallback((text: string, tone: "error" | "success" | "info" = "error") => {
+    setToastTone(tone);
+    setMessage(text);
+  }, []);
+
+  const clearToast = useCallback(() => setMessage(""), []);
   const [guided, setGuided] = useState<GuidedAnswers>({
     hasFormalCredential: null,
     hasExperience: null,
@@ -190,16 +202,20 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       setSaveState("error");
       if (!options?.quiet) {
         if (isMigrationError(data.error, data.code)) {
-          setMessage(
-            "Tu avance quedó guardado en este dispositivo. Para sincronizar con el servidor hay que aplicar en Supabase el SQL SPRINT_11_WORKER_PROFILES.sql."
+          showToast(
+            "Tu avance quedó guardado en este dispositivo. Para sincronizar con el servidor hay que aplicar en Supabase el SQL SPRINT_11_WORKER_PROFILES.sql.",
+            "info"
           );
         } else {
-          setMessage(data.error ?? "No se pudo sincronizar con el servidor. Quedó guardado aquí.");
+          showToast(
+            data.error ?? "No se pudo sincronizar con el servidor. Quedó guardado aquí.",
+            "error"
+          );
         }
       }
       return false;
     }
-    if (!options?.quiet) setMessage("");
+    if (!options?.quiet) clearToast();
     setSaveState("saved");
     return true;
   }
@@ -249,15 +265,15 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     folder: string
   ): Promise<{ path: string; mime: string; name: string } | null> {
     if (!user) {
-      setMessage("Inicia sesión para subir documentos.");
+      showToast("Inicia sesión para subir documentos.", "error");
       return null;
     }
     if (!WORKER_DOC_TYPES.includes(file.type)) {
-      setMessage("Formato no permitido. Usa JPG, PNG, WEBP o PDF.");
+      showToast("Formato no permitido. Usa JPG, PNG, WEBP o PDF.", "error");
       return null;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setMessage("El archivo no puede superar 10 MB.");
+      showToast("El archivo no puede superar 10 MB.", "error");
       return null;
     }
 
@@ -269,10 +285,11 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       .upload(path, file, { contentType: file.type, upsert: false });
 
     if (error) {
-      setMessage(
+      showToast(
         /bucket|not found|row-level/i.test(error.message)
           ? "Falta crear el bucket worker-credentials (SPRINT_12_WORKER_AI_VALIDATION.sql)."
-          : error.message
+          : error.message,
+        "error"
       );
       return null;
     }
@@ -300,27 +317,27 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   }
 
   async function goNext() {
-    setMessage("");
+    clearToast();
     const error = validateCurrent();
     if (error) {
-      setMessage(error);
+      showToast(error, "error");
       return;
     }
     // Avanzamos aunque el servidor aún no tenga la migración; el borrador queda local.
     await persistDraft(draft, { quiet: true });
-    setMessage("");
+    clearToast();
     setStep((current) => Math.min(7, current + 1));
   }
 
   async function submit() {
-    setMessage("");
+    clearToast();
     const error = validateReviewStep(draft);
     if (error) {
-      setMessage(error);
+      showToast(error, "error");
       return;
     }
     if (!user) {
-      setMessage("Inicia sesión o crea tu cuenta para enviar el registro a revisión.");
+      showToast("Inicia sesión o crea tu cuenta para enviar el registro a revisión.", "error");
       return;
     }
 
@@ -334,7 +351,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     setBusy(false);
 
     if (!response.ok) {
-      setMessage(data.error ?? "No se pudo enviar el registro.");
+      showToast(data.error ?? "No se pudo enviar el registro.", "error");
       return;
     }
 
@@ -412,11 +429,9 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
         </span>
       </div>
 
-      {message && (
-        <div className="formMessage" role="alert">
-          <AlertCircle size={17} /> {message}
-        </div>
-      )}
+      {message ? (
+        <FloatingToast message={message} tone={toastTone} seconds={10} onClose={clearToast} />
+      ) : null}
 
       {step === 1 && (
         <div className="formGrid">
@@ -705,46 +720,61 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   <label>
                     Fecha de vencimiento
                     <input
-                      type="date"
-                      value={cred.expiresAt}
+                      type="text"
+                      inputMode="numeric"
+                      lang="es-CL"
+                      placeholder="dd/mm/aaaa"
+                      value={
+                        cred.expiresAt.includes("-")
+                          ? isoToChileanDate(cred.expiresAt)
+                          : cred.expiresAt
+                      }
                       onChange={(e) => {
                         const credentials = [...draft.credentials];
                         credentials[index] = { ...cred, expiresAt: e.target.value };
                         setDraft({ ...draft, credentials });
                       }}
-                    />
-                  </label>
-                  <label className="full">
-                    Documento de respaldo (imagen o PDF)
-                    <input
-                      type="file"
-                      accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        void (async () => {
-                          setBusy(true);
-                          const uploaded = await uploadWorkerDocument(file, `cred-${cred.id}`);
-                          setBusy(false);
-                          if (!uploaded) return;
-                          const credentials = [...draft.credentials];
-                          credentials[index] = {
-                            ...cred,
-                            documentName: uploaded.name,
-                            storagePath: uploaded.path,
-                            documentMime: uploaded.mime,
-                          };
-                          setDraft({ ...draft, credentials });
-                          setMessage("Documento subido.");
-                        })();
+                      onBlur={() => {
+                        const iso = chileanDateToIso(cred.expiresAt);
+                        if (!iso || !cred.expiresAt.trim()) return;
+                        const credentials = [...draft.credentials];
+                        credentials[index] = { ...cred, expiresAt: iso };
+                        setDraft({ ...draft, credentials });
                       }}
                     />
-                    {cred.storagePath ? (
-                      <small className="muted">Archivo listo: {cred.documentName}</small>
-                    ) : (
-                      <small className="muted">Obligatorio para validación automática.</small>
-                    )}
+                    <small className="fieldHint">Formato: día/mes/año</small>
                   </label>
+                  <DocumentAttachField
+                    label="Documento de respaldo (certificado / licencia)"
+                    fileName={cred.documentName}
+                    busy={busy}
+                    hint="Pulsa + para adjuntar JPG, PNG, WEBP o PDF"
+                    onPick={async (file) => {
+                      setBusy(true);
+                      const uploaded = await uploadWorkerDocument(file, `cred-${cred.id}`);
+                      setBusy(false);
+                      if (!uploaded) return;
+                      const credentials = [...draft.credentials];
+                      credentials[index] = {
+                        ...cred,
+                        documentName: uploaded.name,
+                        storagePath: uploaded.path,
+                        documentMime: uploaded.mime,
+                      };
+                      setDraft({ ...draft, credentials });
+                      showToast("Documento adjuntado correctamente.", "success");
+                    }}
+                    onClear={() => {
+                      const credentials = [...draft.credentials];
+                      credentials[index] = {
+                        ...cred,
+                        documentName: "",
+                        storagePath: "",
+                        documentMime: "",
+                      };
+                      setDraft({ ...draft, credentials });
+                    }}
+                  />
                   <button
                     type="button"
                     className="secondaryButton"
@@ -925,53 +955,98 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   }
                 />
               </label>
-              <label>
-                Fecha estimada de egreso
-                <input
-                  type="month"
-                  value={draft.training.expectedGraduation}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      training: { ...draft.training, expectedGraduation: e.target.value },
-                    })
-                  }
-                />
-              </label>
               <label className="full">
-                Certificado de alumno regular / matrícula (imagen o PDF)
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    void (async () => {
-                      setBusy(true);
-                      const uploaded = await uploadWorkerDocument(file, "enrollment");
-                      setBusy(false);
-                      if (!uploaded) return;
-                      setDraft({
-                        ...draft,
-                        training: {
-                          ...draft.training,
-                          enrollmentDocName: uploaded.name,
-                          enrollmentStoragePath: uploaded.path,
-                          enrollmentMime: uploaded.mime,
-                        },
-                      });
-                      setMessage("Certificado de matrícula subido.");
-                    })();
-                  }}
-                />
-                {draft.training.enrollmentStoragePath ? (
-                  <small className="muted">
-                    Archivo listo: {draft.training.enrollmentDocName}
-                  </small>
-                ) : (
-                  <small className="muted">Obligatorio para validación automática.</small>
-                )}
+                Fecha estimada de egreso
+                <div className="workerMonthYearRow">
+                  <div className="workerSelectWrap">
+                    <select
+                      lang="es-CL"
+                      value={draft.training.expectedGraduation.split("-")[1] || ""}
+                      onChange={(e) => {
+                        const year =
+                          draft.training.expectedGraduation.split("-")[0] ||
+                          String(new Date().getFullYear() + 1);
+                        const month = e.target.value;
+                        setDraft({
+                          ...draft,
+                          training: {
+                            ...draft.training,
+                            expectedGraduation: month ? `${year}-${month}` : "",
+                          },
+                        });
+                      }}
+                    >
+                      <option value="">Mes</option>
+                      {SPANISH_MONTHS.map((month) => (
+                        <option key={month.value} value={month.value}>
+                          {month.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} aria-hidden />
+                  </div>
+                  <div className="workerSelectWrap">
+                    <select
+                      lang="es-CL"
+                      value={draft.training.expectedGraduation.split("-")[0] || ""}
+                      onChange={(e) => {
+                        const month = draft.training.expectedGraduation.split("-")[1] || "01";
+                        const year = e.target.value;
+                        setDraft({
+                          ...draft,
+                          training: {
+                            ...draft.training,
+                            expectedGraduation: year ? `${year}-${month}` : "",
+                          },
+                        });
+                      }}
+                    >
+                      <option value="">Año</option>
+                      {Array.from({ length: 12 }, (_, i) => new Date().getFullYear() - 2 + i).map(
+                        (year) => (
+                          <option key={year} value={String(year)}>
+                            {year}
+                          </option>
+                        )
+                      )}
+                    </select>
+                    <ChevronDown size={16} aria-hidden />
+                  </div>
+                </div>
               </label>
+              <DocumentAttachField
+                label="Certificado de alumno regular / matrícula"
+                fileName={draft.training.enrollmentDocName}
+                busy={busy}
+                hint="Pulsa + para adjuntar el certificado (JPG, PNG, WEBP o PDF)"
+                onPick={async (file) => {
+                  setBusy(true);
+                  const uploaded = await uploadWorkerDocument(file, "enrollment");
+                  setBusy(false);
+                  if (!uploaded) return;
+                  setDraft({
+                    ...draft,
+                    training: {
+                      ...draft.training,
+                      enrollmentDocName: uploaded.name,
+                      enrollmentStoragePath: uploaded.path,
+                      enrollmentMime: uploaded.mime,
+                    },
+                  });
+                  showToast("Certificado de matrícula adjuntado.", "success");
+                }}
+                onClear={() =>
+                  setDraft({
+                    ...draft,
+                    training: {
+                      ...draft.training,
+                      enrollmentDocName: "",
+                      enrollmentStoragePath: "",
+                      enrollmentMime: "",
+                    },
+                  })
+                }
+              />
               <label className="full">
                 Competencias declaradas
                 <textarea
@@ -1032,16 +1107,31 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
               </label>
               <label>
                 Comuna o zona de atención
-                <input
-                  value={draft.community.communes}
-                  placeholder={FIELD_PLACEHOLDERS.commune}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      community: { ...draft.community, communes: e.target.value },
-                    })
-                  }
-                />
+                <div className="workerSelectWrap">
+                  <select
+                    value={draft.community.communes}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        community: { ...draft.community, communes: e.target.value },
+                      })
+                    }
+                  >
+                    <option value="">Selecciona una comuna</option>
+                    {CHILE_SERVICE_ZONES.map((zone) => (
+                      <option key={zone} value={zone}>
+                        {zone}
+                      </option>
+                    ))}
+                    {draft.community.communes &&
+                    !CHILE_SERVICE_ZONES.includes(
+                      draft.community.communes as (typeof CHILE_SERVICE_ZONES)[number]
+                    ) ? (
+                      <option value={draft.community.communes}>{draft.community.communes}</option>
+                    ) : null}
+                  </select>
+                  <ChevronDown size={16} aria-hidden />
+                </div>
               </label>
               <label>
                 Medios de transporte
@@ -1250,16 +1340,33 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
           </label>
           <label>
             Comunas o radio de atención
-            <input
-              value={draft.availability.communes}
-              placeholder={FIELD_PLACEHOLDERS.serviceZones}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  availability: { ...draft.availability, communes: e.target.value },
-                })
-              }
-            />
+            <div className="workerSelectWrap">
+              <select
+                value={draft.availability.communes}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    availability: { ...draft.availability, communes: e.target.value },
+                  })
+                }
+              >
+                <option value="">Selecciona una comuna o zona</option>
+                {CHILE_SERVICE_ZONES.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {zone}
+                  </option>
+                ))}
+                {draft.availability.communes &&
+                !CHILE_SERVICE_ZONES.includes(
+                  draft.availability.communes as (typeof CHILE_SERVICE_ZONES)[number]
+                ) ? (
+                  <option value={draft.availability.communes}>
+                    {draft.availability.communes}
+                  </option>
+                ) : null}
+              </select>
+              <ChevronDown size={16} aria-hidden />
+            </div>
           </label>
           <label>
             Radio (km, opcional)
