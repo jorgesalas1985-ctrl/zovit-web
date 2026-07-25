@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Bot, BriefcaseBusiness, LayoutGrid } from "lucide-react";
+import { ArrowRight, Bot, BriefcaseBusiness, FileBadge2, LayoutGrid } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { HomeHeroStory } from "@/components/home/HomeHeroStory";
 import { TrustPillars } from "@/components/home/TrustPillars";
@@ -119,6 +119,21 @@ export default function HomePage() {
               <span className="secondaryButton browsePrimaryLink">
                 Ir a categorías <ArrowRight size={18} />
               </span>
+            </Link>
+          </div>
+        </ScrollReveal>
+
+        <ScrollReveal>
+          <div className="homeCertificateCta">
+            <div>
+              <p className="kicker">EXPERIENCIA VERIFICABLE</p>
+              <h3>Certificado de experiencia laboral</h3>
+              <p className="muted">
+                Genera o verifica un certificado ZOVIT con identidad y trayectoria comprobables.
+              </p>
+            </div>
+            <Link href="/certificado-experiencia" className="primaryButton">
+              <FileBadge2 size={18} /> Crear certificado de experiencia laboral
             </Link>
           </div>
         </ScrollReveal>

@@ -46,6 +46,7 @@ export function SiteFooter() {
           { label: "Categorías", href: "/categorias" },
           serviceAction,
           { label: "Profesionales verificados", href: "/profesionales-verificados" },
+          { label: "Certificado de experiencia", href: "/certificado-experiencia" },
         ],
       },
       {

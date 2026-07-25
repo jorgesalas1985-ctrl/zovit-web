@@ -2427,6 +2427,67 @@ html[data-theme="dark"] .homeStoryWallPeel {
 
 .homeCategories { padding-top: 32px; }
 .homeCategoriesLead { max-width: 520px; margin-top: 10px; }
+.homeCertificateCta {
+  margin-top: 28px;
+  padding: 22px 24px;
+  border-radius: 22px;
+  border: 1px solid var(--line-blue);
+  background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 22px;
+  align-items: center;
+  justify-content: space-between;
+}
+.homeCertificateCta h3 {
+  margin: 6px 0 8px;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.homeCertificateCta .muted {
+  margin: 0;
+  max-width: 46ch;
+}
+.certificateHubCard { max-width: 720px; }
+.certificateHubTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 22px 0 18px;
+}
+.certificateHubTab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line-blue);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 800;
+  cursor: pointer;
+}
+.certificateHubTab.isActive {
+  border-color: rgba(37, 99, 235, 0.5);
+  background: rgba(37, 99, 235, 0.12);
+}
+.certificateHubPanel { display: grid; gap: 14px; }
+.certificateHubPoints {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line-blue);
+  background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+}
+.certificateHubPoints p {
+  margin: 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  line-height: 1.45;
+}
 
 .homeFinalCta {
   padding: clamp(56px, 8vw, 96px) 5vw;
