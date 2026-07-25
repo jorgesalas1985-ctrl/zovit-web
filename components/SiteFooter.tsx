@@ -55,7 +55,6 @@ export function SiteFooter() {
           { label: "Ingresar", href: "/login" },
           { label: "Mi panel", href: "/panel" },
           ...(isProfessional ? [{ label: "Ver trabajos", href: "/trabajos" }] : []),
-          { label: "Verificación biométrica", href: "/registro/biometria" },
         ],
       },
       {
@@ -64,7 +63,6 @@ export function SiteFooter() {
           { label: "¿Por qué ZOVIT?", href: "/#confianza" },
           { label: "Seguridad", href: "/seguridad" },
           { label: "Profesionales", href: "/registro" },
-          { label: "Ingreso intranet", href: "/intranet/acceso" },
         ],
       },
       {
