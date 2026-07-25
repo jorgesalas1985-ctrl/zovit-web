@@ -3382,3 +3382,324 @@ html[data-theme="dark"] .homeStoryWallPeel {
   }
 }
 
+/* Worker registration / service profiles */
+.workerWizardCard { max-width: 920px; }
+.workerProgress {
+  list-style: none;
+  margin: 22px 0 18px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+.workerProgressItem {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  text-align: center;
+  opacity: 0.45;
+}
+.workerProgressItem span {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--blue-bright);
+}
+.workerProgressItem small { font-size: 11px; line-height: 1.2; }
+.workerProgressItem.isActive,
+.workerProgressItem.isDone { opacity: 1; }
+.workerProgressItem.isActive span,
+.workerProgressItem.isDone span {
+  background: var(--gradient-brand);
+  color: white;
+}
+.workerSaveRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.workerChoiceGrid { display: grid; gap: 12px; }
+.workerChoiceCard {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line-blue);
+  background: var(--surface);
+  cursor: pointer;
+}
+.workerChoiceCard.isActive {
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+.workerGuidedBox,
+.workerNestedCard,
+.workerBlock,
+.workerReview,
+.workerStatusBox {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line-blue);
+  background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+}
+.workerProfileCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.workerProfileCard {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line-blue);
+  background: var(--surface);
+}
+.workerProfileCard h3 { margin: 0 0 8px; font-size: 16px; }
+.workerProfileCard p { margin: 0; color: var(--muted); line-height: 1.5; font-size: 14px; }
+.workerHighlight {
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.28);
+  color: var(--ink);
+  line-height: 1.5;
+}
+.workerYesNo { display: grid; gap: 6px; margin-top: 10px; }
+.workerTaskFieldset {
+  border: 1px solid var(--line-blue);
+  border-radius: 16px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+.workerCheckRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.workerServiceList {
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.workerServiceRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line-blue);
+  background: var(--surface);
+}
+.workerServiceRow.isSelected {
+  border-color: rgba(37, 99, 235, 0.45);
+}
+.workerServiceRow.isBlocked { opacity: 0.55; }
+.workerServiceRow small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.workerReviewList {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+.workerReviewList div {
+  display: grid;
+  gap: 4px;
+}
+.workerReviewList dt { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.workerReviewList dd { margin: 0; font-weight: 700; }
+.workerStatusBox {
+  text-align: center;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+.workerPanelNotice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+.workerPublicBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.workerPublicBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+}
+.workerAdminFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.workerAdminFilters label { display: grid; gap: 6px; min-width: 180px; }
+.workerAdminLayout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: 18px;
+}
+.workerAdminList { display: grid; gap: 8px; align-content: start; }
+.workerAdminRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line-blue);
+  background: var(--surface);
+  cursor: pointer;
+}
+.workerAdminRow.isActive {
+  border-color: rgba(37, 99, 235, 0.5);
+}
+.workerAdminRow small { display: block; color: var(--muted); margin-top: 4px; }
+.workerAdminDetail {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--line-blue);
+  background: var(--surface);
+  display: grid;
+  gap: 12px;
+}
+.workerAdminActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.workerAdminCredList,
+.workerAdminHistory {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.workerAdminCredList li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+}
+.workerAdminCredList small { display: block; color: var(--muted); margin-top: 4px; }
+@media (max-width: 900px) {
+  .workerProgress { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .workerAdminLayout { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .workerProgress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Superadmin floating account switcher */
+.superAdminFab {
+  position: fixed;
+  right: 18px;
+  bottom: 22px;
+  z-index: 80;
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+.superAdminFab--hidden {
+  transform: translateY(120%);
+  opacity: 0;
+  pointer-events: none;
+}
+.superAdminFabButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 999px;
+  padding: 14px 18px;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(135deg, #5b21b6 0%, #d97706 100%);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+.superAdminFabMenu {
+  width: min(280px, calc(100vw - 36px));
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--surface) 94%, #050816);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  display: grid;
+  gap: 6px;
+}
+.superAdminFabMenuTitle {
+  margin: 0 0 4px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.superAdminFabItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.superAdminFabItem:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.12);
+}
+.superAdminFabItem.isActive {
+  background: rgba(217, 119, 6, 0.18);
+  color: var(--ink);
+  cursor: default;
+}
+.superAdminFabItem:disabled:not(.isActive) {
+  opacity: 0.6;
+  cursor: wait;
+}
+

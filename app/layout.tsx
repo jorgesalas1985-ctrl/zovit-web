@@ -5,6 +5,8 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Header } from "@/components/Header";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { SuperAdminAccountFab } from "@/components/superadmin/SuperAdminAccountFab";
+import { SuperAdminViewProvider } from "@/components/superadmin/SuperAdminViewProvider";
 import {
   getSiteUrl,
   SITE_DESCRIPTION,
@@ -83,8 +85,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Script>
         <JsonLd />
         <AuthProvider>
-          <Header />
-          {children}
+          <SuperAdminViewProvider>
+            <Header />
+            {children}
+            <SuperAdminAccountFab />
+          </SuperAdminViewProvider>
         </AuthProvider>
       </body>
     </html>
