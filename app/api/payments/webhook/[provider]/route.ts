@@ -1,16 +1,30 @@
 import { confirmPaymentReceived, PaymentConfirmationError } from "@/lib/payments/confirmPayment";
 import { createAdminClient } from "@/lib/payments/server";
-import { getPaymentProvider } from "@/lib/payments/providers";
+import { getPaymentProvider, isMockPaymentsAllowed } from "@/lib/payments/providers";
 import { MercadoPagoWebhookSignatureError } from "@/lib/payments/providers/mercadopago";
 import type { PaymentProviderName } from "@/lib/payments/types";
+import {
+  clientIpFromRequest,
+  rateLimit,
+  rateLimitResponse,
+} from "@/lib/security/rateLimit";
 import { NextResponse } from "next/server";
 
 type Params = { params: Promise<{ provider: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   try {
+    const ip = clientIpFromRequest(request);
+    const limited = rateLimit(`webhook:${ip}`, { limit: 120, windowMs: 60_000 });
+    if (!limited.ok) return rateLimitResponse(limited.retryAfterSec);
+
     const { provider: providerSlug } = await params;
     const providerName = providerSlug as PaymentProviderName;
+
+    if (providerName === "mock" && !isMockPaymentsAllowed()) {
+      return NextResponse.json({ error: "Webhook mock deshabilitado." }, { status: 404 });
+    }
+
     const provider = getPaymentProvider(providerName);
     const payload = await request.json();
     const url = new URL(request.url);

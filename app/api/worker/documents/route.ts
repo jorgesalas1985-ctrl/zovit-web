@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAuthenticatedUser } from "@/lib/auth/requirePlatformAdmin";
+import { assertSameOrigin, csrfDeniedResponse } from "@/lib/security/csrf";
+import {
+  clientIpFromRequest,
+  rateLimit,
+  rateLimitResponse,
+} from "@/lib/security/rateLimit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const BUCKET = "worker-credentials";
@@ -11,10 +17,53 @@ const ALLOWED = new Set([
 ]);
 const MAX_BYTES = 10 * 1024 * 1024;
 
+function sniffMime(buffer: Buffer): string | null {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
+  ) {
+    return "image/png";
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  if (buffer.length >= 5 && buffer.toString("ascii", 0, 5) === "%PDF-") {
+    return "application/pdf";
+  }
+  return null;
+}
+
+const EXT_BY_MIME: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "application/pdf": "pdf",
+};
+
 export async function POST(request: Request) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (!csrf.ok) return csrfDeniedResponse(csrf.error);
+
     const auth = await requireAuthenticatedUser();
     if ("error" in auth) return auth.error;
+
+    const ip = clientIpFromRequest(request);
+    const limited = rateLimit(`upload:worker:${auth.user.id}:${ip}`, {
+      limit: 30,
+      windowMs: 60_000,
+    });
+    if (!limited.ok) return rateLimitResponse(limited.retryAfterSec);
 
     const form = await request.formData();
     const file = form.get("file");
@@ -23,14 +72,17 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Falta el archivo." }, { status: 400 });
     }
-    if (!ALLOWED.has(file.type)) {
-      return NextResponse.json(
-        { error: "Formato no permitido. Usa JPG, PNG, WEBP o PDF." },
-        { status: 400 }
-      );
-    }
     if (file.size > MAX_BYTES) {
       return NextResponse.json({ error: "El archivo no puede superar 10 MB." }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const sniffed = sniffMime(buffer);
+    if (!sniffed || !ALLOWED.has(sniffed)) {
+      return NextResponse.json(
+        { error: "Formato no permitido. Usa JPG, PNG, WEBP o PDF reales." },
+        { status: 400 },
+      );
     }
 
     const admin = createAdminClient();
@@ -55,12 +107,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const extension = file.name.split(".").pop()?.toLowerCase() || "bin";
+    const extension = EXT_BY_MIME[sniffed] ?? "bin";
     const path = `${auth.user.id}/${folder || "docs"}/${crypto.randomUUID()}.${extension}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await admin.storage.from(BUCKET).upload(path, buffer, {
-      contentType: file.type,
+      contentType: sniffed,
       upsert: false,
     });
 
@@ -77,7 +128,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       path,
-      mime: file.type,
+      mime: sniffed,
       name: file.name,
       bucket: BUCKET,
     });

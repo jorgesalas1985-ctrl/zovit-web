@@ -7,12 +7,16 @@ import {
   isUserRole,
   type ProfileModeFields,
 } from "@/lib/auth/roles";
+import { isIntranetRole } from "@/lib/auth/intranetRoles";
+import { applySecurityHeaders } from "@/lib/security/headers";
 import { needsBiometricOnboarding, canAccessPanel } from "@/lib/verification/types";
 import { mergeCookies, updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
   const { supabase, user, supabaseResponse } = await updateSession(request);
   const { pathname } = request.nextUrl;
+
+  applySecurityHeaders(supabaseResponse);
 
   if (isPublicIntranetRoute(pathname)) {
     return supabaseResponse;
@@ -26,7 +30,7 @@ export async function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("next", pathname);
-    return mergeCookies(supabaseResponse, NextResponse.redirect(loginUrl));
+    return applySecurityHeaders(mergeCookies(supabaseResponse, NextResponse.redirect(loginUrl)));
   }
 
   if (pathname.startsWith("/auth/restablecer-clave")) {
@@ -35,7 +39,9 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("role, can_act_as_client, can_act_as_professional, active_mode, identity_status")
+    .select(
+      "role, can_act_as_client, can_act_as_professional, active_mode, identity_status, intranet_role",
+    )
     .eq("id", user.id)
     .maybeSingle();
 
@@ -44,7 +50,7 @@ export async function middleware(request: NextRequest) {
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("error", "perfil-incompleto");
     loginUrl.searchParams.delete("next");
-    return mergeCookies(supabaseResponse, NextResponse.redirect(loginUrl));
+    return applySecurityHeaders(mergeCookies(supabaseResponse, NextResponse.redirect(loginUrl)));
   }
 
   const registrationRole = profile.role;
@@ -65,23 +71,37 @@ export async function middleware(request: NextRequest) {
         : "client",
   };
 
+  // Intranet: requiere rol intranet real (no basta estar logueado).
+  if (pathname.startsWith("/intranet") && !isPublicIntranetRoute(pathname)) {
+    if (!isIntranetRole(profile.intranet_role) && registrationRole !== "admin") {
+      const accesoUrl = request.nextUrl.clone();
+      accesoUrl.pathname = "/intranet/acceso";
+      accesoUrl.searchParams.set("error", "sin-permiso");
+      return applySecurityHeaders(mergeCookies(supabaseResponse, NextResponse.redirect(accesoUrl)));
+    }
+  }
+
   if (!canAccessRoute(pathname, profileMode)) {
     const panelUrl = request.nextUrl.clone();
     panelUrl.pathname = "/panel";
     panelUrl.searchParams.set("error", "sin-permiso");
-    return mergeCookies(supabaseResponse, NextResponse.redirect(panelUrl));
+    return applySecurityHeaders(mergeCookies(supabaseResponse, NextResponse.redirect(panelUrl)));
   }
 
-  const identityStatus = profile.identity_status as "none" | "pending" | "approved" | "rejected" | null;
+  const identityStatus = profile.identity_status as
+    | "none"
+    | "pending"
+    | "approved"
+    | "rejected"
+    | null;
 
   if (pathname.startsWith("/registro/biometria") && canAccessPanel(identityStatus)) {
     const panelUrl = request.nextUrl.clone();
     panelUrl.pathname = "/panel";
     panelUrl.search = "";
-    return mergeCookies(supabaseResponse, NextResponse.redirect(panelUrl));
+    return applySecurityHeaders(mergeCookies(supabaseResponse, NextResponse.redirect(panelUrl)));
   }
 
-  // Cliente y profesional: misma barrera de identidad antes de operar en la plataforma.
   const requiresIdentityGate =
     pathname.startsWith("/panel") ||
     pathname.startsWith("/solicitudes/nueva") ||
@@ -93,7 +113,9 @@ export async function middleware(request: NextRequest) {
     const biometricUrl = request.nextUrl.clone();
     biometricUrl.pathname = "/registro/biometria";
     biometricUrl.search = "";
-    return mergeCookies(supabaseResponse, NextResponse.redirect(biometricUrl));
+    return applySecurityHeaders(
+      mergeCookies(supabaseResponse, NextResponse.redirect(biometricUrl)),
+    );
   }
 
   return supabaseResponse;
@@ -101,17 +123,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/panel",
-    "/panel/:path*",
-    "/perfil/:path*",
-    "/verificacion/:path*",
-    "/registro/biometria",
-    "/experiencia/:path*",
-    "/solicitudes/:path*",
-    "/trabajos/:path*",
-    "/pagos/:path*",
-    "/intranet/:path*",
-    "/admin/:path*",
-    "/auth/restablecer-clave",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

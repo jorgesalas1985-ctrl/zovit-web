@@ -2,6 +2,7 @@ export type UserRole = "client" | "professional" | "admin";
 
 import type { IdentityStatus } from "@/lib/verification/types";
 import { needsBiometricOnboarding } from "@/lib/verification/types";
+import { safeNextPath } from "@/lib/auth/safeNextPath";
 
 export type RoleMode = "client" | "professional";
 
@@ -75,6 +76,7 @@ export function isProtectedRoute(pathname: string): boolean {
     pathname.startsWith("/perfil") ||
     pathname.startsWith("/verificacion") ||
     pathname.startsWith("/registro/biometria") ||
+    pathname.startsWith("/registro/trabajador") ||
     pathname.startsWith("/experiencia") ||
     pathname.startsWith("/solicitudes") ||
     pathname.startsWith("/trabajos") ||
@@ -191,7 +193,7 @@ export function resolvePostLoginPath(
     return "/registro/biometria";
   }
 
-  const path = nextPath && nextPath.startsWith("/") ? nextPath : "/panel";
+  const path = safeNextPath(nextPath, "/panel");
   return canAccessRoute(path, profile) ? path : "/panel";
 }
 

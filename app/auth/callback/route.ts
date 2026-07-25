@@ -1,4 +1,5 @@
 import { getRedirectOrigin } from "@/lib/auth/redirects";
+import { safeNextPath } from "@/lib/auth/safeNextPath";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -14,15 +15,11 @@ function getSupabaseEnv() {
 }
 
 function resolveNextPath(next: string | null, type: string | null): string {
-  if (next && next.startsWith("/") && !next.startsWith("//")) {
-    return next;
-  }
-
   if (type === "recovery" || type === "invite") {
     return "/auth/restablecer-clave";
   }
 
-  return "/panel";
+  return safeNextPath(next, "/panel");
 }
 
 export async function GET(request: NextRequest) {

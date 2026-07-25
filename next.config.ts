@@ -1,15 +1,25 @@
 import type { NextConfig } from "next";
+import { getSecurityHeaders } from "./lib/security/headers";
+
+const securityHeaderList = Object.entries(getSecurityHeaders()).map(([key, value]) => ({
+  key,
+  value,
+}));
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   async rewrites() {
     return [
-      // Keep legacy /sitemap.xml working while serving the nested App Router sitemap.
       { source: "/sitemap.xml", destination: "/sitemap/sitemap.xml" },
     ];
   },
   async headers() {
     return [
+      {
+        source: "/:path*",
+        headers: securityHeaderList,
+      },
       {
         source: "/sitemap.xml",
         headers: [

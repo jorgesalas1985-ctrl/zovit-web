@@ -1,8 +1,21 @@
 import { recommendProfessionals } from "@/lib/ai/recommendProfessionals";
+import { assertSameOrigin, csrfDeniedResponse } from "@/lib/security/csrf";
+import {
+  clientIpFromRequest,
+  rateLimit,
+  rateLimitResponse,
+} from "@/lib/security/rateLimit";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (!csrf.ok) return csrfDeniedResponse(csrf.error);
+
+    const ip = clientIpFromRequest(request);
+    const limited = rateLimit(`ai:recommend:${ip}`, { limit: 20, windowMs: 60_000 });
+    if (!limited.ok) return rateLimitResponse(limited.retryAfterSec);
+
     const body = (await request.json()) as { query?: string; commune?: string };
     const query = body.query?.trim() ?? "";
 

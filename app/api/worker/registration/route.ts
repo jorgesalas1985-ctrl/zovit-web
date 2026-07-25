@@ -51,7 +51,6 @@ async function syncProfileBasics(
     worker_consent_version: status === "submitted" ? "worker-v1" : undefined,
     service_categories: categories.length ? categories : undefined,
     specialties: specialties.length ? specialties : undefined,
-    can_act_as_professional: status === "submitted" ? true : undefined,
     updated_at: now,
   };
 
@@ -66,12 +65,22 @@ async function syncProfileBasics(
         address: fullUpdate.address,
         commune: fullUpdate.commune,
         updated_at: now,
-        can_act_as_professional: status === "submitted" ? true : undefined,
         specialties: specialties.length ? specialties : undefined,
         service_categories: categories.length ? categories : undefined,
       })
       .eq("id", userId));
   }
+
+  // Privileges only via service_role (DB trigger blocks self-escalation).
+  if (!error && status === "submitted") {
+    const admin = createAdminClient();
+    const { error: privError } = await admin
+      .from("profiles")
+      .update({ can_act_as_professional: true, updated_at: now })
+      .eq("id", userId);
+    if (privError) return privError;
+  }
+
   return error;
 }
 
