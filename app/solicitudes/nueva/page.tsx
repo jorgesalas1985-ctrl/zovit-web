@@ -156,7 +156,7 @@ export default function NewRequestPage() {
                   minLength={10}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Detalle opcional adicional sobre lo que necesitas…"
+                  placeholder="Describe el trabajo con el mayor detalle posible"
                 />
               </label>
               <label>
@@ -165,7 +165,7 @@ export default function NewRequestPage() {
                   required
                   value={form.address}
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  placeholder="Ejemplo: San Bernardo"
+                  placeholder="Ej: San Bernardo, Maipú, Ñuñoa"
                 />
               </label>
 

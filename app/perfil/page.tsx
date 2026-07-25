@@ -9,6 +9,7 @@ import { getActiveMode } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 import { FormEvent, useEffect, useState } from "react";
 import { Save } from "lucide-react";
+import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
@@ -73,12 +74,55 @@ export default function ProfilePage() {
           )}
 
           <form className="formGrid" onSubmit={save}>
-            <label>Nombres<input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} /></label>
-            <label>Apellidos<input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} /></label>
-            <label>RUT<input value={form.rut} onChange={e => setForm({ ...form, rut: e.target.value })} /></label>
-            <label>Teléfono<input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
-            <label>Dirección<input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></label>
-            <label>Comuna<input value={form.commune} onChange={e => setForm({ ...form, commune: e.target.value })} /></label>
+            <label>
+              Nombres
+              <input
+                value={form.first_name}
+                placeholder={FIELD_PLACEHOLDERS.firstName}
+                onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+              />
+            </label>
+            <label>
+              Apellidos
+              <input
+                value={form.last_name}
+                placeholder={FIELD_PLACEHOLDERS.lastName}
+                onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+              />
+            </label>
+            <label>
+              RUT
+              <input
+                value={form.rut}
+                placeholder={FIELD_PLACEHOLDERS.rut}
+                onChange={(e) => setForm({ ...form, rut: e.target.value })}
+              />
+              <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
+            </label>
+            <label>
+              Teléfono
+              <input
+                value={form.phone}
+                placeholder={FIELD_PLACEHOLDERS.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </label>
+            <label>
+              Dirección
+              <input
+                value={form.address}
+                placeholder={FIELD_PLACEHOLDERS.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </label>
+            <label>
+              Comuna
+              <input
+                value={form.commune}
+                placeholder={FIELD_PLACEHOLDERS.commune}
+                onChange={(e) => setForm({ ...form, commune: e.target.value })}
+              />
+            </label>
             {message && <div className="notice full">{message}</div>}
             <button className="primaryButton full"><Save size={18} /> Guardar cambios</button>
           </form>

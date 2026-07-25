@@ -67,16 +67,16 @@ export function validateRegistrationFields(
   }
 
   if (!isValidChileanRut(fields.rut)) {
-    return "Ingresa un RUT chileno válido (ejemplo: 12.345.678-9).";
+    return "Ingresa un RUT válido. Formatos: 16032189k · 16.032.189-k · 16032189-k";
   }
 
   const phoneDigits = fields.phone.replace(/\D/g, "");
   if (phoneDigits.length < 8) {
-    return "Ingresa un teléfono válido (al menos 8 dígitos).";
+    return "Ingresa un teléfono válido. Ejemplo: +56 9 1234 5678";
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.trim())) {
-    return "Ingresa un correo electrónico válido.";
+    return "Ingresa un correo válido. Ejemplo: nombre@correo.com";
   }
 
   return null;

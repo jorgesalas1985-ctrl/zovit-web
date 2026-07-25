@@ -24,6 +24,7 @@ import {
   normalizeChileanRut,
   validateRegistrationFields,
 } from "@/lib/registration/validateRegistration";
+import { FIELD_PLACEHOLDERS, RUT_FORMAT_ERROR } from "@/lib/ui/fieldPlaceholders";
 import { supabase } from "@/lib/supabase";
 import type { IdentityDocumentType } from "@/lib/verification/types";
 
@@ -104,7 +105,7 @@ function RegisterPageContent() {
     }
 
     if (!isValidChileanRut(rut)) {
-      setMessage("Ingresa un RUT chileno válido (ejemplo: 12.345.678-9).");
+      setMessage(RUT_FORMAT_ERROR);
       return;
     }
 
@@ -184,7 +185,10 @@ function RegisterPageContent() {
         return;
       }
 
-      window.location.assign(nextPath);
+      // Profesionales continúan con el registro de perfiles de servicio.
+      window.location.assign(
+        role === "professional" ? "/registro/trabajador" : nextPath
+      );
       return;
     }
 
@@ -218,7 +222,20 @@ function RegisterPageContent() {
               ? "Revisa tu correo, confirma tu cuenta e ingresa. Tu verificación biométrica se enviará automáticamente al confirmar."
               : "Tu cuenta y verificación biométrica fueron registradas correctamente."}
           </p>
-          <Link className="primaryButton wide" href={loginHref}>
+          {role === "professional" && (
+            <p className="muted">
+              Después de ingresar, completa tu registro de trabajador para declarar formación,
+              experiencia y servicios.
+            </p>
+          )}
+          <Link
+            className="primaryButton wide"
+            href={
+              role === "professional"
+                ? `/login?next=${encodeURIComponent("/registro/trabajador")}`
+                : loginHref
+            }
+          >
             Ir a ingresar <ArrowRight size={18} />
           </Link>
         </section>
@@ -263,6 +280,7 @@ function RegisterPageContent() {
               <input
                 required
                 autoComplete="given-name"
+                placeholder={FIELD_PLACEHOLDERS.firstName}
                 value={form.firstName}
                 onChange={(e) => setForm({ ...form, firstName: e.target.value })}
               />
@@ -272,14 +290,23 @@ function RegisterPageContent() {
               <input
                 required
                 autoComplete="family-name"
+                placeholder={FIELD_PLACEHOLDERS.lastName}
                 value={form.lastName}
                 onChange={(e) => setForm({ ...form, lastName: e.target.value })}
               />
             </label>
             <label>
               RUT
-              <input required value={rut} readOnly aria-readonly="true" />
-              <small className="fieldHint">Definido en el paso de verificación biométrica.</small>
+              <input
+                required
+                value={rut}
+                readOnly
+                aria-readonly="true"
+                placeholder={FIELD_PLACEHOLDERS.rut}
+              />
+              <small className="fieldHint">
+                Definido en verificación biométrica. {FIELD_PLACEHOLDERS.rutHint}
+              </small>
             </label>
             <label>
               Teléfono
@@ -288,7 +315,7 @@ function RegisterPageContent() {
                 type="tel"
                 autoComplete="tel"
                 inputMode="tel"
-                placeholder="+56 9 1234 5678"
+                placeholder={FIELD_PLACEHOLDERS.phone}
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
@@ -298,7 +325,7 @@ function RegisterPageContent() {
               <input
                 required
                 autoComplete="street-address"
-                placeholder="Calle, número, depto/casa"
+                placeholder={FIELD_PLACEHOLDERS.address}
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
               />
@@ -308,7 +335,7 @@ function RegisterPageContent() {
               <input
                 required
                 autoComplete="address-level2"
-                placeholder="Ej: Santiago, Maipú, Providencia"
+                placeholder={FIELD_PLACEHOLDERS.commune}
                 value={form.commune}
                 onChange={(e) => setForm({ ...form, commune: e.target.value })}
               />
@@ -319,6 +346,7 @@ function RegisterPageContent() {
                 type="email"
                 required
                 autoComplete="email"
+                placeholder={FIELD_PLACEHOLDERS.email}
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
@@ -331,6 +359,7 @@ function RegisterPageContent() {
                 minLength={PASSWORD_MIN_LENGTH}
                 maxLength={PASSWORD_MAX_LENGTH}
                 autoComplete="new-password"
+                placeholder={FIELD_PLACEHOLDERS.password}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
               />

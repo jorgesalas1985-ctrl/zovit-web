@@ -171,7 +171,7 @@ export function ExperienceCertificateHub() {
                 <input
                   value={verifyInput}
                   onChange={(e) => setVerifyInput(e.target.value)}
-                  placeholder="https://zovit.cl/credencial/… o ID"
+                  placeholder="https://zovit.cl/credencial/… o ID del certificado"
                   autoComplete="off"
                 />
               </label>

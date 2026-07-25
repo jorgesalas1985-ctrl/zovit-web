@@ -171,6 +171,7 @@ export default function IntranetAccessPage() {
                 required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                placeholder="Tu contraseña"
                 autoComplete="current-password"
               />
             </div>

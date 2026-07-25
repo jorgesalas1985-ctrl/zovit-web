@@ -5,6 +5,7 @@ import { FormEvent, useRef } from "react";
 import { BiometricWizard } from "@/components/verification/BiometricWizard";
 import type { RegistrationDocument } from "@/lib/registration/finishRegistration";
 import { isValidChileanRut } from "@/lib/registration/validateRegistration";
+import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
 import {
   getCarnetDocuments,
   hasAllBiometricDocuments,
@@ -81,8 +82,10 @@ export function PendingBiometricForm({
               required
               value={rut}
               onChange={(event) => onRutChange(event.target.value)}
-              placeholder="12.345.678-9"
+              placeholder={FIELD_PLACEHOLDERS.rut}
+              autoComplete="off"
             />
+            <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
           </label>
         </article>
 

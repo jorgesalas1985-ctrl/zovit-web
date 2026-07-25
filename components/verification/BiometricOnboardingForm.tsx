@@ -127,8 +127,12 @@ export function BiometricOnboardingForm({
                 required
                 value={rut}
                 onChange={(event) => onRutChange(event.target.value)}
-                placeholder="12.345.678-9"
+                placeholder="16.032.189-K"
+                autoComplete="off"
               />
+              <small className="fieldHint">
+                Formatos válidos: 16032189k · 16.032.189-k · 16032189-k
+              </small>
             </label>
             <button
               type="button"

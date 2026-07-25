@@ -206,11 +206,29 @@ function LoginForm() {
           </label>
           <label>
             Correo electrónico
-            <div className="inputWithIcon"><Mail size={18} /><input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></div>
+            <div className="inputWithIcon">
+              <Mail size={18} />
+              <input
+                type="email"
+                required
+                placeholder="nombre@correo.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
           </label>
           <label>
             Contraseña
-            <div className="inputWithIcon"><LockKeyhole size={18} /><input type="password" required value={password} onChange={(event) => setPassword(event.target.value)} /></div>
+            <div className="inputWithIcon">
+              <LockKeyhole size={18} />
+              <input
+                type="password"
+                required
+                placeholder="Tu contraseña"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
             <small className="fieldHint">{PASSWORD_HINT}</small>
           </label>
 
