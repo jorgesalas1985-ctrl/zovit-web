@@ -11,12 +11,13 @@ export const metadata: Metadata = {
 };
 
 type Props = {
-  searchParams?: Promise<{ q?: string }> | { q?: string };
+  searchParams?: Promise<{ q?: string | string[] }>;
 };
 
 export default async function AiSearchPage({ searchParams }: Props) {
-  const params = await Promise.resolve(searchParams ?? {});
-  const query = typeof params.q === "string" ? params.q.trim() : "";
+  const params = (await searchParams) ?? {};
+  const rawQuery = params.q;
+  const query = (Array.isArray(rawQuery) ? rawQuery[0] : rawQuery)?.trim() ?? "";
 
   if (query.length >= 8) {
     redirect(`/ia/resultados?q=${encodeURIComponent(query)}`);
