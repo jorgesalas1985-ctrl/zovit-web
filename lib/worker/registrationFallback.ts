@@ -25,6 +25,7 @@ export async function saveWorkerDraftFallback(
   const { error: uploadError } = await admin.storage.from(BUCKET).upload(path, payload, {
     contentType: "application/json",
     upsert: true,
+    cacheControl: "0",
   });
   if (uploadError) throw uploadError;
 

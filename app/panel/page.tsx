@@ -47,6 +47,7 @@ function PanelContent() {
   const [error, setError] = useState("");
   const [accessMessage, setAccessMessage] = useState("");
   const [professionalStats, setProfessionalStats] = useState<ProfessionalStats | null>(null);
+  const [workerRegistrationStatus, setWorkerRegistrationStatus] = useState<string | null>(null);
 
   const role = profile?.role;
   const activeMode = profile ? getActiveMode(profile) : "client";
@@ -71,7 +72,7 @@ function PanelContent() {
       setError("");
 
       if (isProfessionalView) {
-        const [jobsResult, statsResult] = await Promise.all([
+        const [jobsResult, statsResult, registrationResult] = await Promise.all([
           supabase
             .from("solicitudes_de_servicio")
             .select("id,category,description,status,created_at")
@@ -79,7 +80,18 @@ function PanelContent() {
             .order("created_at", { ascending: false })
             .limit(6),
           supabase.rpc("get_professional_stats", { p_professional_id: userId }),
+          fetch("/api/worker/registration", { cache: "no-store" })
+            .then(async (response) => {
+              if (!response.ok) return null;
+              const data = (await response.json()) as {
+                registration?: { status?: string } | null;
+              };
+              return data.registration?.status ?? null;
+            })
+            .catch(() => null),
         ]);
+
+        setWorkerRegistrationStatus(registrationResult);
 
         if (jobsResult.error) {
           setError("No fue posible cargar tu actividad. Intenta nuevamente.");
@@ -135,13 +147,26 @@ function PanelContent() {
 
       <RoleModeBanner role={activeMode} />
 
-      {isProfessionalView && (
+      {isProfessionalView && workerRegistrationStatus !== "verified" && (
         <section className="panelSection compactSection">
           <div className="notice workerPanelNotice">
-            Completa tu registro de trabajador para declarar formación, experiencia y servicios.
-            <Link href="/registro/trabajador" className="textLink">
-              Continuar registro <ArrowRight size={16} />
-            </Link>
+            {workerRegistrationStatus === "submitted" ||
+            workerRegistrationStatus === "needs_info" ? (
+              <>
+                Tu registro de trabajador está en revisión. Puedes ver el estado o corregir datos si
+                hiciera falta.
+                <Link href="/registro/trabajador" className="textLink">
+                  Ver estado del registro <ArrowRight size={16} />
+                </Link>
+              </>
+            ) : (
+              <>
+                Completa tu registro de trabajador para declarar formación, experiencia y servicios.
+                <Link href="/registro/trabajador" className="textLink">
+                  Continuar registro <ArrowRight size={16} />
+                </Link>
+              </>
+            )}
           </div>
         </section>
       )}

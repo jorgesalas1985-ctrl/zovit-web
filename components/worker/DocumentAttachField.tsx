@@ -67,6 +67,8 @@ export function DocumentAttachField({
         ref={inputRef}
         type="file"
         className="workerDocAttachHidden"
+        tabIndex={-1}
+        aria-hidden="true"
         accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
         onChange={(e) => {
           const file = e.target.files?.[0];

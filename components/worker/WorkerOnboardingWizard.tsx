@@ -51,6 +51,7 @@ import {
   getStepValidationIssue,
   type WorkerFieldId,
 } from "@/lib/worker/validate";
+import { normalizeChileanRut } from "@/lib/registration/validateRegistration";
 import { chileanDateToIso, isoToChileanDate } from "@/lib/ui/chileanDate";
 import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
 
@@ -124,9 +125,15 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
         const response = await fetch("/api/worker/registration", { cache: "no-store" });
         const data = await response.json();
         if (response.ok && data.registration?.draft) {
-          next = data.registration.draft as WorkerRegistrationDraft;
-          if (data.registration.status === "submitted" || data.registration.status === "verified") {
+          const serverStatus = data.registration.status as WorkerRegistrationDraft["status"];
+          next = {
+            ...(data.registration.draft as WorkerRegistrationDraft),
+            status: serverStatus || data.registration.draft.status,
+          };
+          if (serverStatus === "submitted" || serverStatus === "verified") {
             setStep(7);
+          } else {
+            setStep(1);
           }
         } else if (data.profile) {
           next = createEmptyWorkerDraft({
@@ -317,10 +324,11 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       focusMissingField(issue.fieldId, issue.step);
       return;
     }
-    // Avanzamos aunque el servidor aún no tenga la migración; el borrador queda local.
-    await persistDraft(draft, { quiet: true });
+    // Avance inmediato: el borrador ya queda en este dispositivo; sincronización en segundo plano.
+    saveLocalWorkerDraft(draft);
     clearToast();
     setStep((current) => Math.min(7, current + 1));
+    void persistDraft(draft, { quiet: true });
   }
 
   async function submit() {
@@ -356,6 +364,22 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     setMissingFieldId(null);
     if (data.notice) showToast(data.notice, "info");
     setStep(7);
+  }
+
+  async function reopenForEdit() {
+    clearToast();
+    const next = { ...draft, status: "draft" as const, updatedAt: new Date().toISOString() };
+    setBusy(true);
+    const ok = await persistDraft(next, { quiet: true });
+    setBusy(false);
+    setDraft(next);
+    setStep(1);
+    showToast(
+      ok
+        ? "Puedes corregir tus datos y volver a enviar a revisión."
+        : "Edición abierta en este dispositivo. Revisa cada paso y vuelve a enviar.",
+      "info"
+    );
   }
 
   if (loading) {
@@ -453,7 +477,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
               }
             />
           </label>
-          <label>
+          <label data-field-id="personal.rut">
             RUT
             <input
               value={draft.personal.rut}
@@ -463,6 +487,15 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
               onChange={(e) =>
                 setDraft({ ...draft, personal: { ...draft.personal, rut: e.target.value } })
               }
+              onBlur={() => {
+                const normalized = normalizeChileanRut(draft.personal.rut);
+                if (normalized && normalized !== draft.personal.rut) {
+                  setDraft({
+                    ...draft,
+                    personal: { ...draft.personal, rut: normalized },
+                  });
+                }
+              }}
             />
             <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
           </label>
@@ -512,15 +545,25 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
               }
             />
           </label>
-          <label>
+          <label data-field-id="personal.address">
             Comuna
-            <input
+            <select
               value={draft.personal.commune}
-              placeholder={FIELD_PLACEHOLDERS.commune}
               onChange={(e) =>
                 setDraft({ ...draft, personal: { ...draft.personal, commune: e.target.value } })
               }
-            />
+            >
+              <option value="">Selecciona tu comuna</option>
+              {CHILE_SERVICE_ZONES.map((zone) => (
+                <option key={zone} value={zone}>
+                  {zone}
+                </option>
+              ))}
+              {draft.personal.commune &&
+                !(CHILE_SERVICE_ZONES as readonly string[]).includes(draft.personal.commune) && (
+                  <option value={draft.personal.commune}>{draft.personal.commune}</option>
+                )}
+            </select>
           </label>
           <p className="muted full">
             La verificación de identidad y fotografía de perfil se completan en el registro de
@@ -1522,6 +1565,18 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
             <Link href="/verificacion" className="secondaryButton">
               Verificación gratuita (usar docs del registro)
             </Link>
+            {(draft.status === "submitted" ||
+              draft.status === "needs_info" ||
+              draft.status === "rejected") && (
+              <button
+                type="button"
+                className="secondaryButton"
+                disabled={busy}
+                onClick={() => void reopenForEdit()}
+              >
+                Editar y corregir datos
+              </button>
+            )}
           </div>
         </div>
       )}

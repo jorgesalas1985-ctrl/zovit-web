@@ -164,9 +164,9 @@ export const CATEGORY_TREE: CategoryNode[] = [
         id: "scanner",
         name: "Scanner",
         specialties: [
-          { id: "scanner-motocicletas", label: "Motocicletas" },
-          { id: "scanner-automotriz", label: "Automotriz" },
-          { id: "scanner-maquinaria-pesada", label: "Maquinaria pesada" },
+          { id: "scanner-motocicletas", label: "Scanner motocicletas" },
+          { id: "scanner-automotriz", label: "Scanner automotriz" },
+          { id: "scanner-maquinaria-pesada", label: "Scanner maquinaria pesada" },
         ],
       },
       {

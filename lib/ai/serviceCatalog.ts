@@ -41,7 +41,7 @@ export const SERVICE_CATALOG: CategoryDefinition[] = [
       },
       {
         id: "scanner-motocicletas",
-        label: "Motocicletas",
+        label: "Scanner motocicletas",
         keywords: [
           "scanner", "moto", "motocicleta", "motos", "check engine", "luz motor",
           "falla electronica", "falla electrónica", "codigo error", "código error", "obd",
@@ -49,7 +49,7 @@ export const SERVICE_CATALOG: CategoryDefinition[] = [
       },
       {
         id: "scanner-automotriz",
-        label: "Automotriz",
+        label: "Scanner automotriz",
         keywords: [
           "scanner", "auto", "automotriz", "automovil", "automóvil", "vehiculo", "vehículo",
           "check engine", "luz motor", "falla electronica", "falla electrónica",
@@ -58,7 +58,7 @@ export const SERVICE_CATALOG: CategoryDefinition[] = [
       },
       {
         id: "scanner-maquinaria-pesada",
-        label: "Maquinaria pesada",
+        label: "Scanner maquinaria pesada",
         keywords: [
           "scanner", "maquinaria pesada", "camion", "camión", "bus", "excavadora",
           "grua", "grúa", "check engine", "falla electronica", "falla electrónica", "obd",
