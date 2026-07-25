@@ -1,185 +1,114 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BadgeCheck,
-  BriefcaseBusiness,
-  HandCoins,
-  LockKeyhole,
-  MessageSquareText,
-  ScanFace,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, BriefcaseBusiness } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "¿Por qué ZOVIT? | ZOVIT",
   description:
-    "Descubre por qué elegir ZOVIT: profesionales verificados, pago protegido, experiencia demostrable y un proceso pensado para clientes y trabajadores en Chile.",
+    "La historia de por qué elegir ZOVIT: confianza, identidad verificada, pago protegido y experiencia real para clientes y profesionales en Chile.",
 };
 
-const REASONS = [
+const CHAPTERS = [
   {
-    title: "Identidad verificada",
-    description:
-      "Cliente y profesional se registran con verificación real. Menos perfiles falsos, más tranquilidad al abrir la puerta o al aceptar un trabajo.",
-    icon: ScanFace,
+    number: "I",
+    title: "El problema no era encontrar a alguien",
+    body: [
+      "En Chile siempre hubo alguien que podía pintar, arreglar, instalar o reparar. El problema era otro: ¿quién es realmente? ¿llegará? ¿cobrará y desaparecerá? ¿pagaré y el trabajo quedará a medias?",
+      "Entre grupos de WhatsApp, recomendaciones a medias y avisos sin respaldo, la confianza se diluía. Quien necesitaba ayuda dudaba. Quien trabajaba bien también: porque un buen oficio se confunde fácil con un perfil inventado.",
+    ],
   },
   {
-    title: "Pago solo al aprobar",
-    description:
-      "El dinero queda protegido y se libera cuando tú apruebas el trabajo terminado. Así se reduce el riesgo de no cobro o de pagar por algo incompleto.",
-    icon: HandCoins,
+    number: "II",
+    title: "ZOVIT nació para cambiar esa conversación",
+    body: [
+      "No para ser “otro lugar donde publicar un aviso”. Sino para construir un puente seguro entre dos personas: quien necesita un servicio y quien puede hacerlo.",
+      "La promesa es simple y firme: identidad real, trabajo claro y pago protegido. Tú apruebas. Solo entonces se libera el dinero.",
+    ],
   },
   {
-    title: "Profesionales con historial",
-    description:
-      "Cada servicio aprobado suma experiencia verificable. No es un CV inventado: es trayectoria respaldada por ZOVIT.",
-    icon: BadgeCheck,
+    number: "III",
+    title: "Primero la persona. Después el servicio.",
+    body: [
+      "En ZOVIT, cliente y profesional se registran con la misma exigencia de verificación. No hay un lado “libre” y otro “controlado”. Hay una sola regla: saber con quién estás tratando.",
+      "Eso reduce perfiles falsos, accesos sin respaldo y la sensación de estar jugando a la suerte. La seguridad no es un adorno: es el punto de partida.",
+    ],
   },
   {
-    title: "Dos formas de buscar",
-    description:
-      "Describe tu necesidad con IA o navega categorías a mano. Llegas más rápido al servicio correcto.",
-    icon: Sparkles,
+    number: "IV",
+    title: "El trabajo se cuenta. La experiencia se acumula.",
+    body: [
+      "Cuando un servicio se completa y se aprueba, no se esfuma en un chat. Queda en un historial verificable. El profesional construye reputación con hechos. El cliente elige con evidencia, no solo con promesas.",
+      "Y esa trayectoria puede convertirse en un certificado gratuito ZOVIT: algo concreto para presentar al postular, compartir o imprimir. Experiencia que se puede mostrar.",
+    ],
   },
   {
-    title: "Misma plataforma para ambos",
-    description:
-      "Quien necesita ayuda y quien trabaja usan el mismo estándar de seguridad. La confianza no es unilateral.",
-    icon: ShieldCheck,
+    number: "V",
+    title: "Por eso te conviene elegirla",
+    body: [
+      "Porque no te deja solo con un contacto. Te acompaña con verificación, proceso y pago al final.",
+      "Porque protege a quien abre la puerta y a quien pone el oficio en juego. Porque convierte un servicio cotidiano en una relación con respaldo.",
+      "ZOVIT no vende magia. Vende orden, claridad y confianza. Y en servicios, eso lo cambia todo.",
+    ],
   },
-  {
-    title: "Todo en un solo flujo",
-    description:
-      "Solicita, recibe ofertas, sigue el avance y libera el pago sin saltar entre apps o conversaciones sueltas.",
-    icon: MessageSquareText,
-  },
-] as const;
-
-const FOR_CLIENTS = [
-  "Sabes con quién estás tratando",
-  "El pago se libera solo cuando apruebas",
-  "Puedes comparar profesionales con historial real",
-] as const;
-
-const FOR_PROS = [
-  "Construyes reputación verificable",
-  "Obtienes certificado/credencial para postular",
-  "Cobras con respaldo de la plataforma",
 ] as const;
 
 export default function PorQueZovitPage() {
-  const registerClientHref = "/seguridad";
-
   return (
-    <main className="securityPage">
-      <section className="securityHero">
-        <div className="securityHeroInner">
-          <Link href="/" className="browseBackLink securityBack">
+    <main className="whyStoryPage">
+      <section className="whyStoryHero" aria-label="Historia ZOVIT">
+        <div className="whyStoryHeroGlow" aria-hidden="true" />
+        <div className="whyStoryHeroInner">
+          <Link href="/" className="browseBackLink whyStoryBack">
             <ArrowLeft size={18} /> Volver al inicio
           </Link>
-          <p className="kicker">¿POR QUÉ ZOVIT?</p>
-          <h1>Elige una plataforma hecha para confiar, no solo para publicar avisos</h1>
-          <p className="securityLead">
-            ZOVIT conecta a quien necesita un servicio con profesionales verificados en Chile. El
-            foco es simple: identidad real, trabajo claro y pago protegido hasta que apruebas.
+          <p className="whyStoryBrand">ZOVIT</p>
+          <h1>Hay una razón para no dejar el servicio al azar.</h1>
+          <p className="whyStoryHeroLead">
+            Esta es la historia de por qué elegir ZOVIT: para que contratar o trabajar deje de ser un
+            acto de fe… y pase a ser un acto de confianza.
           </p>
-          <div className="securityHeroActions">
-            <Link href={registerClientHref} className="primaryButton">
-              Solicitar un servicio <ArrowRight size={18} />
+        </div>
+      </section>
+
+      <section className="whyStoryBody" aria-label="Por qué elegir ZOVIT">
+        {CHAPTERS.map((chapter, index) => (
+          <article
+            key={chapter.number}
+            className={`whyStoryChapter ${index % 2 === 1 ? "whyStoryChapter--alt" : ""}`}
+          >
+            <div className="whyStoryChapterInner">
+              <p className="whyStoryChapterNum">Capítulo {chapter.number}</p>
+              <h2>{chapter.title}</h2>
+              {chapter.body.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <section className="whyStoryClose">
+        <div className="whyStoryCloseInner">
+          <p className="whyStoryBrand whyStoryBrand--onDark">ZOVIT</p>
+          <h2>Confianza primero. Pago al final.</h2>
+          <p>
+            Si necesitas un servicio o quieres trabajar con respaldo, el siguiente paso es el mismo:
+            crear tu cuenta y verificar tu identidad.
+          </p>
+          <div className="whyStoryActions">
+            <Link href="/seguridad" className="primaryButton">
+              Empezar como cliente <ArrowRight size={18} />
             </Link>
-            <Link href="/registro" className="secondaryButton">
+            <Link href="/registro" className="whiteButton">
               <BriefcaseBusiness size={18} /> Quiero trabajar con Zovit
             </Link>
           </div>
-        </div>
-      </section>
-
-      <section className="securitySection">
-        <div className="securitySectionInner">
-          <div className="sectionHeading">
-            <div>
-              <p className="kicker">MOTIVOS CLAROS</p>
-              <h2>Por qué elegir ZOVIT</h2>
-              <p className="muted">
-                No competimos por ser “otro listado”. Competimos por reducir riesgos en cada servicio.
-              </p>
-            </div>
-          </div>
-
-          <div className="securityProtectGrid">
-            {REASONS.map(({ title, description, icon: Icon }) => (
-              <article key={title} className="securityProtectCard">
-                <div className="securityProtectIcon">
-                  <Icon size={22} />
-                </div>
-                <h3>{title}</h3>
-                <p>{description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="securitySection securitySectionAlt">
-        <div className="securitySectionInner">
-          <div className="sectionHeading">
-            <div>
-              <p className="kicker">PARA CADA LADO</p>
-              <h2>Beneficios concretos</h2>
-              <p className="muted">La misma plataforma, con reglas que cuidan a ambos.</p>
-            </div>
-          </div>
-
-          <div className="whySplitGrid">
-            <article className="securityProtectCard">
-              <div className="securityProtectIcon">
-                <LockKeyhole size={22} />
-              </div>
-              <h3>Si necesitas un servicio</h3>
-              <ul className="whyBulletList">
-                {FOR_CLIENTS.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-              <Link href={registerClientHref} className="textLink">
-                Ver cómo registrarte <ArrowRight size={16} />
-              </Link>
-            </article>
-
-            <article className="securityProtectCard">
-              <div className="securityProtectIcon">
-                <BriefcaseBusiness size={22} />
-              </div>
-              <h3>Si quieres trabajar</h3>
-              <ul className="whyBulletList">
-                {FOR_PROS.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-              <Link href="/profesionales-verificados" className="textLink">
-                Ver profesionales verificados <ArrowRight size={16} />
-              </Link>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section className="securitySection">
-        <div className="securityCtaCard">
-          <p className="kicker">EMPIEZA AHORA</p>
-          <h2>Confianza primero. Pago al final.</h2>
-          <p>
-            Crea tu cuenta, verifica tu identidad y usa ZOVIT para solicitar o trabajar con respaldo.
-          </p>
-          <div className="securityHeroActions">
-            <Link href="/registro" className="primaryButton">
-              Crear cuenta <ArrowRight size={18} />
+          <div className="whyStorySecondaryLinks">
+            <Link href="/profesionales-verificados" className="textLink whyStoryLinkOnDark">
+              Profesionales verificados
             </Link>
-            <Link href="/ia" className="textLink">
-              Probar búsqueda con IA
+            <Link href="/ia" className="textLink whyStoryLinkOnDark">
+              Buscar con IA
             </Link>
           </div>
         </div>
