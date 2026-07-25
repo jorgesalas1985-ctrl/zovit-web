@@ -653,8 +653,69 @@ html[data-theme="light"] .authSelectMenu button {
 .aiProfessionalStats span { display: inline-flex; align-items: center; gap: 4px; }
 .aiTagRow { display: flex; flex-wrap: wrap; gap: 8px; }
 .aiTag { padding: 5px 10px; border-radius: 999px; background: rgba(37, 99, 235,.08); color: var(--blue-bright); font-size: 11px; font-weight: 800; }
-.aiEmptyState { padding: 18px; border-radius: 16px; background: rgba(245,158,11,.08); color: #92400e; }
+.aiEmptyState { padding: 18px; border-radius: 16px; background: rgba(245,158,11,.08); color: #92400e; display: grid; gap: 14px; }
 .aiResultsActions { margin-top: 18px; }
+.aiSearchForm {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border: 1px solid var(--line-blue);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow-small);
+}
+.aiSearchLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  color: var(--blue-bright);
+}
+.aiSearchInput {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.45;
+}
+.aiSearchInput:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.35);
+  border-color: var(--blue-bright);
+}
+.aiSearchError {
+  margin: 0;
+  color: #b91c1c;
+  font-weight: 700;
+  font-size: 14px;
+}
+.aiSearchSubmit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.aiSearchExamples { display: grid; gap: 10px; }
+.aiSearchExampleList { display: flex; flex-wrap: wrap; gap: 8px; }
+.aiSearchExample {
+  border: 1px solid var(--line-blue);
+  background: var(--surface-soft);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.aiSearchExample:hover {
+  border-color: var(--blue-bright);
+  color: var(--blue-bright);
+}
 .secondaryButton.wide { width: 100%; }
 .aiPrefillNote { margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: rgba(37, 99, 235,.08); color: var(--blue-bright); font-size: 14px; }
 .manualPrefillNote { margin-top: 10px; padding: 14px 16px; border-radius: 14px; background: rgba(16, 185, 129,.08); color: var(--green); font-size: 14px; display: grid; gap: 6px; }

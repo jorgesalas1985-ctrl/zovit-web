@@ -42,7 +42,7 @@ export function SiteFooter() {
       {
         title: "Servicios",
         links: [
-          { label: "Buscar con IA", href: "/ia/resultados" },
+          { label: "Buscar con IA", href: "/ia" },
           { label: "Categorías", href: "/categorias" },
           serviceAction,
           { label: "Profesionales verificados", href: "/servicios" },

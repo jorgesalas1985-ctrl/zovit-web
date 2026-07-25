@@ -222,7 +222,7 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
 
       <p className="browseFooterNote">
         ¿Prefieres describir el problema con tus palabras?{" "}
-        <Link href="/" className="textLink">
+        <Link href="/ia" className="textLink">
           Usa la búsqueda con IA
         </Link>
       </p>

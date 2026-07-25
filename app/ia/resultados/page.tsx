@@ -1,5 +1,6 @@
 "use client";
 
+import { AiSearchForm } from "@/components/ai/AiSearchForm";
 import { AiRecommendations } from "@/components/AiRecommendations";
 import { useAuth } from "@/components/AuthProvider";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
@@ -22,8 +23,9 @@ function AiResultsContent() {
 
   useEffect(() => {
     if (!query) {
-      setError("No hay una consulta para analizar.");
+      setError("");
       setLoading(false);
+      setResult(null);
       return;
     }
 
@@ -115,31 +117,37 @@ function AiResultsContent() {
 
         <div className="browseHeader">
           <p className="kicker">ZOVIT IA</p>
-          <h1>Análisis de tu necesidad</h1>
-          {query && (
+          <h1>{query ? "Análisis de tu necesidad" : "Buscar servicio con IA"}</h1>
+          {query ? (
             <p className="muted browseDescription">
               Consulta: <strong>&ldquo;{query}&rdquo;</strong>
+            </p>
+          ) : (
+            <p className="muted browseDescription">
+              Describe el problema con tus palabras para obtener recomendaciones.
             </p>
           )}
         </div>
 
-        {loading && (
+        {!query && <AiSearchForm autoFocus />}
+
+        {query && loading && (
           <div className="aiResultsLoading">
             <Bot size={28} />
             <p>Analizando tu consulta con ZOVIT IA…</p>
           </div>
         )}
 
-        {!loading && error && (
+        {query && !loading && error && (
           <div className="aiEmptyState">
             <p>{error}</p>
-            <Link href="/" className="secondaryButton wide">
+            <Link href="/ia" className="secondaryButton wide">
               Intentar de nuevo
             </Link>
           </div>
         )}
 
-        {!loading && result && (
+        {query && !loading && result && (
           <AiRecommendations
             result={result}
             onCreateRequest={createRequest}
