@@ -46,8 +46,9 @@ export async function GET(request: Request) {
     if (profileType) query = query.contains("suggested_profiles", [profileType]);
 
     let data: unknown[] | null = null;
-    let { data: primaryData, error } = await query.limit(100);
-    data = primaryData as unknown[] | null;
+    const primary = await query.limit(100);
+    let error = primary.error;
+    data = primary.data as unknown[] | null;
 
     if (error && /ai_review_|schema cache|column/i.test(error.message)) {
       let fallback = auth.supabase
