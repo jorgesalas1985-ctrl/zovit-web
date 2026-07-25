@@ -23,9 +23,18 @@ export function validatePersonalStep(draft: WorkerRegistrationDraft): string | n
 }
 
 export function validateParticipationStep(draft: WorkerRegistrationDraft): string | null {
-  if (!draft.participation) return "Elige cómo deseas participar en ZOVIT.";
-  if (draft.participation === "unsure" && draft.suggestedProfiles.length === 0) {
-    return "Completa el asistente guiado o elige otra opción.";
+  const choices =
+    Array.isArray(draft.participations) && draft.participations.length
+      ? draft.participations
+      : draft.participation
+        ? [draft.participation]
+        : [];
+
+  if (!choices.length) {
+    return "Elige una o más formas de participar en ZOVIT según tus capacidades.";
+  }
+  if (choices.includes("unsure") && draft.suggestedProfiles.length === 0) {
+    return "Completa el asistente guiado o marca otra opción.";
   }
   return null;
 }

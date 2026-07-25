@@ -6,18 +6,21 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  CheckSquare,
   HelpCircle,
   Plus,
   Save,
+  Square,
   Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { listWorkerSpecialtyOptions } from "@/lib/worker/catalog";
 import {
+  getParticipations,
   pickPrimaryProfile,
   suggestFromGuidedAssistant,
-  suggestProfilesFromParticipation,
+  suggestProfilesFromParticipations,
   type GuidedAnswers,
 } from "@/lib/worker/classify";
 import {
@@ -25,6 +28,7 @@ import {
   createEmptyWorkerDraft,
   loadLocalWorkerDraft,
   newCredentialId,
+  normalizeWorkerDraft,
   saveLocalWorkerDraft,
 } from "@/lib/worker/draft";
 import {
@@ -37,7 +41,6 @@ import {
 } from "@/lib/worker/profiles";
 import type {
   ParticipationChoice,
-  ServiceProfileType,
   WorkerRegistrationDraft,
 } from "@/lib/worker/types";
 import {
@@ -79,9 +82,14 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   });
 
   const specialties = useMemo(() => listWorkerSpecialtyOptions(), []);
-  const activeProfiles = draft.suggestedProfiles.length
-    ? draft.suggestedProfiles
-    : suggestProfilesFromParticipation(draft.participation);
+  const selectedParticipations = getParticipations(draft);
+  const activeProfiles = useMemo(() => {
+    if (selectedParticipations.includes("unsure")) {
+      return draft.suggestedProfiles;
+    }
+    const fromChoices = suggestProfilesFromParticipations(selectedParticipations);
+    return fromChoices.length ? fromChoices : draft.suggestedProfiles;
+  }, [draft.suggestedProfiles, selectedParticipations]);
 
   const hydrate = useCallback(async () => {
     const local = loadLocalWorkerDraft();
@@ -125,7 +133,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       };
     }
 
-    setDraft(next);
+    setDraft(normalizeWorkerDraft(next));
   }, [profile, user]);
 
   useEffect(() => {
@@ -182,14 +190,41 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     return true;
   }
 
-  function updateProfiles(choice: ParticipationChoice, guidedProfiles?: ServiceProfileType[]) {
-    const suggested =
-      choice === "unsure"
-        ? guidedProfiles ?? draft.suggestedProfiles
-        : suggestProfilesFromParticipation(choice);
+  function toggleParticipation(choice: ParticipationChoice) {
+    setDraft((current) => {
+      const currentChoices = getParticipations(current);
+      let nextChoices: ParticipationChoice[];
+
+      if (choice === "unsure") {
+        nextChoices = currentChoices.includes("unsure") ? [] : ["unsure"];
+      } else {
+        const withoutUnsure = currentChoices.filter((item) => item !== "unsure");
+        nextChoices = withoutUnsure.includes(choice)
+          ? withoutUnsure.filter((item) => item !== choice)
+          : [...withoutUnsure, choice];
+      }
+
+      const suggested = nextChoices.includes("unsure")
+        ? []
+        : suggestProfilesFromParticipations(nextChoices);
+
+      return {
+        ...current,
+        participations: nextChoices,
+        participation: nextChoices[0] ?? null,
+        suggestedProfiles: suggested,
+        primaryProfile: pickPrimaryProfile(suggested),
+      };
+    });
+  }
+
+  function applyGuidedProfiles(nextGuided: GuidedAnswers) {
+    setGuided(nextGuided);
+    const suggested = suggestFromGuidedAssistant(nextGuided);
     setDraft((current) => ({
       ...current,
-      participation: choice,
+      participations: ["unsure"],
+      participation: "unsure",
       suggestedProfiles: suggested,
       primaryProfile: pickPrimaryProfile(suggested),
     }));
@@ -431,19 +466,34 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       {step === 2 && (
         <div className="workerChoiceGrid">
           <h2>¿Qué tipo de servicios deseas ofrecer?</h2>
-          {PARTICIPATION_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={`workerChoiceCard ${draft.participation === option.id ? "isActive" : ""}`}
-              onClick={() => updateProfiles(option.id)}
-            >
-              {option.id === "unsure" ? <HelpCircle size={20} /> : <CheckCircle2 size={20} />}
-              <span>{option.label}</span>
-            </button>
-          ))}
+          <p className="muted">
+            Puedes marcar una, varias o todas las opciones según tus capacidades. En el siguiente
+            paso te pediremos los certificados o antecedentes que correspondan a cada selección.
+          </p>
+          {PARTICIPATION_OPTIONS.map((option) => {
+            const active = selectedParticipations.includes(option.id);
+            return (
+              <button
+                key={option.id}
+                type="button"
+                role="checkbox"
+                aria-checked={active}
+                className={`workerChoiceCard ${active ? "isActive" : ""}`}
+                onClick={() => toggleParticipation(option.id)}
+              >
+                {option.id === "unsure" ? (
+                  <HelpCircle size={20} />
+                ) : active ? (
+                  <CheckSquare size={20} />
+                ) : (
+                  <Square size={20} />
+                )}
+                <span>{option.label}</span>
+              </button>
+            );
+          })}
 
-          {draft.participation === "unsure" && (
+          {selectedParticipations.includes("unsure") && (
             <div className="workerGuidedBox">
               <h3>Asistente guiado</h3>
               <label className="workerYesNo">
@@ -452,9 +502,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   value={guided.hasFormalCredential === null ? "" : guided.hasFormalCredential ? "yes" : "no"}
                   onChange={(e) => {
                     const value = e.target.value === "" ? null : e.target.value === "yes";
-                    const next = { ...guided, hasFormalCredential: value };
-                    setGuided(next);
-                    updateProfiles("unsure", suggestFromGuidedAssistant(next));
+                    applyGuidedProfiles({ ...guided, hasFormalCredential: value });
                   }}
                 >
                   <option value="">Selecciona</option>
@@ -468,9 +516,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   value={guided.hasExperience === null ? "" : guided.hasExperience ? "yes" : "no"}
                   onChange={(e) => {
                     const value = e.target.value === "" ? null : e.target.value === "yes";
-                    const next = { ...guided, hasExperience: value };
-                    setGuided(next);
-                    updateProfiles("unsure", suggestFromGuidedAssistant(next));
+                    applyGuidedProfiles({ ...guided, hasExperience: value });
                   }}
                 >
                   <option value="">Selecciona</option>
@@ -484,9 +530,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   value={guided.isStudying === null ? "" : guided.isStudying ? "yes" : "no"}
                   onChange={(e) => {
                     const value = e.target.value === "" ? null : e.target.value === "yes";
-                    const next = { ...guided, isStudying: value };
-                    setGuided(next);
-                    updateProfiles("unsure", suggestFromGuidedAssistant(next));
+                    applyGuidedProfiles({ ...guided, isStudying: value });
                   }}
                 >
                   <option value="">Selecciona</option>
@@ -502,9 +546,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   }
                   onChange={(e) => {
                     const value = e.target.value === "" ? null : e.target.value === "yes";
-                    const next = { ...guided, wantsSupportTasks: value };
-                    setGuided(next);
-                    updateProfiles("unsure", suggestFromGuidedAssistant(next));
+                    applyGuidedProfiles({ ...guided, wantsSupportTasks: value });
                   }}
                 >
                   <option value="">Selecciona</option>
