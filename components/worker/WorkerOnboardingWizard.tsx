@@ -137,10 +137,10 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   }, [draft]);
 
   async function persistDraft(next: WorkerRegistrationDraft = draft) {
+    saveLocalWorkerDraft(next);
     if (!user) {
-      saveLocalWorkerDraft(next);
       setSaveState("saved");
-      return;
+      return true;
     }
     setSaveState("saving");
     const response = await fetch("/api/worker/registration", {
@@ -148,13 +148,26 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ draft: next }),
     });
-    const data = await response.json();
+    const data = (await response.json()) as {
+      error?: string;
+      code?: string;
+      hint?: string;
+    };
     if (!response.ok) {
+      // El borrador ya quedó en este dispositivo; no bloqueamos el flujo.
       setSaveState("error");
-      setMessage(data.error ?? "No se pudo guardar el borrador.");
-      return;
+      if (data.code === "MIGRATION_REQUIRED") {
+        setMessage(
+          "Tu avance quedó guardado en este dispositivo. Para sincronizar con el servidor hay que aplicar la migración SQL de trabajadores en Supabase (SPRINT_11_WORKER_PROFILES.sql)."
+        );
+      } else {
+        setMessage(data.error ?? "No se pudo sincronizar con el servidor. Quedó guardado aquí.");
+      }
+      return false;
     }
+    setMessage("");
     setSaveState("saved");
+    return true;
   }
 
   function updateProfiles(choice: ParticipationChoice, guidedProfiles?: ServiceProfileType[]) {
