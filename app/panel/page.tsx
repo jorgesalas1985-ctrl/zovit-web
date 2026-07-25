@@ -135,6 +135,17 @@ function PanelContent() {
 
       <RoleModeBanner role={activeMode} />
 
+      {isProfessionalView && (
+        <section className="panelSection compactSection">
+          <div className="notice workerPanelNotice">
+            Completa tu registro de trabajador para declarar formación, experiencia y servicios.
+            <Link href="/registro/trabajador" className="textLink">
+              Continuar registro <ArrowRight size={16} />
+            </Link>
+          </div>
+        </section>
+      )}
+
       {!isAdmin && (
         <section className="panelSection compactSection">
           <AccountModeControls />
@@ -223,7 +234,10 @@ function PanelContent() {
             <div className="dashboardIcon"><ShieldCheck /></div>
             <div>
               <h3>Verificación gratuita</h3>
-              <p>Sube tus certificados de estudios como profesional.</p>
+              <p>
+                Si ya adjuntaste certificados en el registro (botón +), úsalos aquí sin subirlos de
+                nuevo.
+              </p>
             </div>
             <ArrowRight />
           </Link>

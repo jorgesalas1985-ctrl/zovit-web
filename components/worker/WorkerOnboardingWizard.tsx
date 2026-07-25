@@ -1520,7 +1520,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
               Ir al panel
             </Link>
             <Link href="/verificacion" className="secondaryButton">
-              Verificación de identidad
+              Verificación gratuita (usar docs del registro)
             </Link>
           </div>
         </div>

@@ -3711,6 +3711,14 @@ html[data-theme="dark"] .homeStoryWallPeel {
   padding: 2px;
   opacity: 0.85;
 }
+.workerReuseBox {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.workerReuseBox strong {
+  display: block;
+}
 .isMissingField {
   outline: 2px solid rgba(239, 68, 68, 0.85) !important;
   box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.22), 0 0 28px rgba(239, 68, 68, 0.28) !important;
