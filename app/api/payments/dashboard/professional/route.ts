@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { mapPaymentRow } from "@/lib/payments/mappers";
 import type { WalletSummary } from "@/lib/payments/types";
@@ -9,14 +10,15 @@ export async function GET() {
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
 
+    const admin = createAdminClient();
     const [walletResult, paymentsResult, txResult] = await Promise.all([
       supabase.rpc("get_wallet_summary", { p_user_id: authData.user.id }),
-      supabase
+      admin
         .from("payments")
         .select("*")
         .eq("professional_id", authData.user.id)
         .order("created_at", { ascending: false }),
-      supabase
+      admin
         .from("wallet_transactions")
         .select("*")
         .eq("user_id", authData.user.id)

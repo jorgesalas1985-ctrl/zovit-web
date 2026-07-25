@@ -1,7 +1,6 @@
 "use client";
 
 import { calculateBreakdown, formatCLP, type ServiceProposal } from "@/lib/payments/types";
-import { supabase } from "@/lib/supabase";
 import { AlertCircle, ArrowRight, HandCoins } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 
@@ -23,29 +22,20 @@ export function ProposalSection({ requestId, requestStatus, isClient, isProfessi
 
   async function loadProposals() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("service_proposals")
-      .select("id,request_id,professional_id,amount,currency,description,estimated_hours,status,created_at")
-      .eq("request_id", requestId)
-      .order("created_at", { ascending: false });
+    const response = await fetch(`/api/payments/proposals?requestId=${encodeURIComponent(requestId)}`, {
+      cache: "no-store",
+    });
+    const data = (await response.json()) as {
+      error?: string;
+      proposals?: ServiceProposal[];
+    };
 
-    if (error) {
-      setMessage(error.message);
+    if (!response.ok) {
+      setMessage(data.error ?? "No se pudieron cargar las propuestas.");
       setProposals([]);
     } else {
-      setProposals(
-        (data ?? []).map((row) => ({
-          id: row.id,
-          requestId: row.request_id,
-          professionalId: row.professional_id,
-          amount: Number(row.amount),
-          currency: row.currency,
-          description: row.description,
-          estimatedHours: row.estimated_hours != null ? Number(row.estimated_hours) : null,
-          status: row.status,
-          createdAt: row.created_at,
-        })),
-      );
+      setMessage("");
+      setProposals(data.proposals ?? []);
     }
     setLoading(false);
   }
@@ -59,16 +49,21 @@ export function ProposalSection({ requestId, requestStatus, isClient, isProfessi
     setBusy(true);
     setMessage("");
 
-    const { error } = await supabase.rpc("create_service_proposal", {
-      p_request_id: requestId,
-      p_amount: Number(amount),
-      p_description: description,
-      p_estimated_hours: hours ? Number(hours) : null,
+    const response = await fetch("/api/payments/proposals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requestId,
+        amount: Number(amount),
+        description,
+        estimatedHours: hours ? Number(hours) : undefined,
+      }),
     });
+    const data = (await response.json()) as { error?: string };
 
     setBusy(false);
-    if (error) {
-      setMessage(error.message);
+    if (!response.ok) {
+      setMessage(data.error ?? "No se pudo enviar la propuesta.");
       return;
     }
 

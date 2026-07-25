@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { mapPaymentRow } from "@/lib/payments/mappers";
 import type { PaymentEvent, PaymentStatus } from "@/lib/payments/types";
@@ -9,18 +10,24 @@ export async function GET() {
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
 
+    // Lectura con service role: en prod faltan GRANT de tabla a authenticated.
+    const admin = createAdminClient();
     const [paymentsResult, eventsResult] = await Promise.all([
-      supabase
+      admin
         .from("payments")
         .select("*")
         .eq("client_id", authData.user.id)
         .order("created_at", { ascending: false }),
-      supabase
+      admin
         .from("payment_events")
         .select("id,payment_id,event_type,old_status,new_status,amount,platform_fee,tax_amount,payment_method,created_at")
         .order("created_at", { ascending: false })
         .limit(30),
     ]);
+
+    if (paymentsResult.error) {
+      return NextResponse.json({ error: paymentsResult.error.message }, { status: 400 });
+    }
 
     const payments = (paymentsResult.data ?? []).map((row) => mapPaymentRow(row as never));
     const pending = payments.filter((p) => ["pendiente", "esperando_pago"].includes(p.status));

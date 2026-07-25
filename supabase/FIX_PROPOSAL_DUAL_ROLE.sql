@@ -92,3 +92,9 @@ $$;
 
 grant execute on function public.create_service_proposal(uuid, numeric, text, numeric) to authenticated;
 grant execute on function public.accept_service_request(uuid) to authenticated;
+
+-- Service role necesita DML para scripts/ops
+grant select, insert, update, delete on public.service_proposals to service_role;
+grant select, insert, update, delete on public.work_orders to service_role;
+grant select, insert, update, delete on public.payments to service_role;
+grant select, insert, update, delete on public.payment_events to service_role;

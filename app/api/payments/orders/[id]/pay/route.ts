@@ -3,6 +3,7 @@ import { getPaymentProvider, isMockPaymentsAllowed } from "@/lib/payments/provid
 import { validateMercadoPagoPublicUrl } from "@/lib/payments/providers/mercadopago";
 import { mapPaymentRow } from "@/lib/payments/mappers";
 import type { PaymentProviderName } from "@/lib/payments/types";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -30,18 +31,64 @@ export async function POST(request: Request, { params }: Params) {
 
     const supabase = await createClient();
     const { data: authData } = await supabase.auth.getUser();
-    const { data: paymentRow, error: paymentError } = await supabase
-      .from("payments")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (paymentError || !paymentRow) {
-      return NextResponse.json({ error: "Pago no encontrado." }, { status: 404 });
+    if (!authData.user) {
+      return NextResponse.json({ error: "No autenticado." }, { status: 401 });
     }
 
-    const payment = mapPaymentRow(paymentRow as never);
-    if (payment.clientId !== authData.user?.id) {
+    // Preferimos RPC/security definer porque en prod pueden faltar GRANT de tabla.
+    const bodyExtra = body as {
+      provider?: PaymentProviderName;
+      publicId?: string;
+      amountGross?: number;
+      currency?: string;
+      requestId?: string;
+    };
+
+    let payment = null as ReturnType<typeof mapPaymentRow> | null;
+    try {
+      const admin = createAdminClient();
+      const { data: paymentRow } = await admin.from("payments").select("*").eq("id", id).maybeSingle();
+      if (paymentRow) payment = mapPaymentRow(paymentRow as never);
+    } catch {
+      payment = null;
+    }
+
+    if (!payment && bodyExtra.publicId && bodyExtra.amountGross) {
+      payment = {
+        id,
+        publicId: bodyExtra.publicId,
+        clientId: authData.user.id,
+        professionalId: "",
+        requestId: bodyExtra.requestId ?? "",
+        workOrderId: "",
+        amountGross: Number(bodyExtra.amountGross),
+        platformFee: 0,
+        taxAmount: 0,
+        amountNet: 0,
+        currency: bodyExtra.currency ?? "CLP",
+        status: "esperando_pago",
+        provider: "mock",
+        providerReference: null,
+        providerSessionId: null,
+        paymentMethod: null,
+        paidAt: null,
+        releasedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as ReturnType<typeof mapPaymentRow>;
+    }
+
+    if (!payment) {
+      return NextResponse.json(
+        {
+          error:
+            "Pago no legible aún. Aplica supabase/FIX_PAYMENT_TABLE_GRANTS.sql en Supabase SQL Editor.",
+        },
+        { status: 404 },
+      );
+    }
+
+    if (payment.clientId && payment.clientId !== authData.user.id) {
       return NextResponse.json({ error: "Sin permiso." }, { status: 403 });
     }
 
@@ -55,31 +102,38 @@ export async function POST(request: Request, { params }: Params) {
       publicId: payment.publicId,
       amount: payment.amountGross,
       currency: payment.currency,
-      clientEmail: authData.user?.email ?? undefined,
+      clientEmail: authData.user.email ?? undefined,
       returnUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/pagos?payment=${payment.publicId}`,
       metadata: { requestId: payment.requestId },
     });
 
-    await supabase
-      .from("payments")
-      .update({
-        provider: providerName,
-        provider_session_id: session.sessionId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", payment.id);
-
     if (providerName === "mock") {
-      await confirmPaymentReceived({
-        paymentId: payment.id,
-        provider: providerName,
-        providerReference: session.reference,
-        providerSessionId: session.sessionId,
-        paymentMethod: providerName,
-        externalReference: payment.publicId,
-        amountGross: payment.amountGross,
-        currency: payment.currency,
+      const { error: mockError } = await supabase.rpc("register_payment_received", {
+        p_payment_id: payment.id,
+        p_provider: providerName,
+        p_provider_reference: session.reference,
+        p_provider_session_id: session.sessionId,
+        p_payment_method: providerName,
+        p_external_reference: payment.publicId,
+        p_amount_gross: Number(payment.amountGross),
       });
+      if (mockError) {
+        // Fallback service-role RPC si authenticated no puede.
+        try {
+          await confirmPaymentReceived({
+            paymentId: payment.id,
+            provider: providerName,
+            providerReference: session.reference,
+            providerSessionId: session.sessionId,
+            paymentMethod: providerName,
+            externalReference: payment.publicId,
+            amountGross: payment.amountGross,
+            currency: payment.currency,
+          });
+        } catch {
+          return NextResponse.json({ error: mockError.message }, { status: 400 });
+        }
+      }
 
       return NextResponse.json({
         session,

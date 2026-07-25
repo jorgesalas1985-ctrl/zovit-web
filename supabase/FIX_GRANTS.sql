@@ -8,8 +8,16 @@ grant select, insert, update on public.profiles to authenticated, service_role;
 grant select, insert, update on public.solicitudes_de_servicio to authenticated, service_role;
 grant select, insert, update, delete on public.identity_documents to authenticated, service_role;
 grant select, insert, update, delete on public.intranet_payrolls to service_role;
-grant select, insert, update, delete on public.payment_events to service_role;
 grant select, insert, update, delete on public.request_status_history to service_role;
+
+-- Pagos / propuestas (sin esto aparece "permission denied for table service_proposals")
+grant select, insert, update on public.service_proposals to authenticated, service_role;
+grant select, insert, update on public.work_orders to authenticated, service_role;
+grant select, insert, update on public.payments to authenticated, service_role;
+grant select, insert on public.payment_events to authenticated, service_role;
+grant select, insert, update on public.wallets to authenticated, service_role;
+grant select, insert on public.wallet_transactions to authenticated, service_role;
+grant select, insert, update on public.payment_disputes to authenticated, service_role;
 grant select, insert on public.request_messages to authenticated;
 grant select, insert on public.request_photos to authenticated;
 grant select on public.request_status_history to authenticated;
