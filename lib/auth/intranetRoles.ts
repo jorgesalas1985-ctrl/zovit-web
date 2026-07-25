@@ -35,8 +35,15 @@ export type IntranetPermission =
   | "edit_payroll"
   | "view_financial_dashboard"
   | "edit_financial_dashboard"
-  | "manage_intranet_users";
+  | "manage_intranet_users"
+  | "manage_all_platform_accounts"
+  | "view_money_accounts";
 
+/**
+ * Separación de poderes:
+ * - hr_admin = solo Recursos Humanos (personal, verificación, credenciales internas).
+ * - super_admin = dinero, estados de cuenta y revisión de todas las cuentas.
+ */
 const ROLE_PERMISSIONS: Record<IntranetRole, IntranetPermission[]> = {
   worker: ["view_own_personal_file", "view_own_benefits", "view_own_payroll"],
   supervisor: [
@@ -50,7 +57,6 @@ const ROLE_PERMISSIONS: Record<IntranetRole, IntranetPermission[]> = {
     "view_own_benefits",
     "view_own_payroll",
     "view_all_personal_files",
-    "edit_payroll",
     "manage_intranet_users",
   ],
   super_admin: [
@@ -62,6 +68,8 @@ const ROLE_PERMISSIONS: Record<IntranetRole, IntranetPermission[]> = {
     "view_financial_dashboard",
     "edit_financial_dashboard",
     "manage_intranet_users",
+    "manage_all_platform_accounts",
+    "view_money_accounts",
   ],
 };
 
@@ -71,6 +79,10 @@ export function hasIntranetPermission(
 ): boolean {
   if (!role) return false;
   return ROLE_PERMISSIONS[role].includes(permission);
+}
+
+export function isSuperAdminRole(role: string | null | undefined): boolean {
+  return role === "super_admin";
 }
 
 export function intranetHomeForRole(role: IntranetRole): string {
@@ -97,11 +109,14 @@ export function portalMatchesRole(portal: IntranetPortal, role: IntranetRole): b
 export function requiredRolesForPath(pathname: string): IntranetRole[] | null {
   if (pathname.startsWith("/intranet/trabajador")) return ["worker"];
   if (pathname.startsWith("/intranet/supervisor")) return ["supervisor"];
-  if (pathname.startsWith("/intranet/admin/gestion-usuarios")) return ["hr_admin", "super_admin"];
+  // Todas las cuentas de la plataforma: solo super admin.
+  if (pathname.startsWith("/intranet/admin/gestion-usuarios")) return ["super_admin"];
+  // Credenciales internas (trabajadores/supervisores): RR.HH. + super admin.
   if (pathname.startsWith("/intranet/admin/usuarios")) return ["hr_admin", "super_admin"];
   if (pathname.startsWith("/intranet/admin")) return ["hr_admin", "super_admin"];
   if (pathname.startsWith("/intranet/finanzas")) return ["super_admin"];
   if (pathname.startsWith("/intranet/equipo")) return ["supervisor", "hr_admin", "super_admin"];
+  // Liquidaciones: cada uno ve las suyas; edición global solo super admin (vía permiso).
   if (pathname.startsWith("/intranet/liquidaciones")) {
     return ["worker", "supervisor", "hr_admin", "super_admin"];
   }
@@ -118,6 +133,7 @@ export function canAccessIntranetPath(pathname: string, role: IntranetRole): boo
 
 export function assignableIntranetRoles(callerRole: IntranetRole): IntranetRole[] {
   if (callerRole === "super_admin") return [...INTRANET_ROLES];
+  // RR.HH. solo crea personal operativo, nunca admins ni finanzas.
   if (callerRole === "hr_admin") return ["worker", "supervisor"];
   return [];
 }

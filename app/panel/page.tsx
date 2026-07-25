@@ -21,6 +21,7 @@ import { IdentityBadge } from "@/components/verification/IdentityBadge";
 import { ExperienceBadge, ProfessionalStatsGrid } from "@/components/experience/ExperienceSection";
 import { useAuth } from "@/components/AuthProvider";
 import type { ProfessionalStats } from "@/lib/experience/types";
+import { isSuperAdminRole } from "@/lib/auth/intranetRoles";
 import {
   getActiveMode,
   resolvePanelViewMode,
@@ -55,6 +56,7 @@ function PanelContent() {
   const isProfessionalView = panelView === "professional";
   const isClientView = panelView === "client";
   const isAdmin = role === "admin";
+  const isSuperAdmin = isSuperAdminRole(profile?.intranet_role);
 
   useEffect(() => {
     const accessError = searchParams.get("error");
@@ -292,10 +294,24 @@ function PanelContent() {
           </Link>
         )}
 
-        {isAdmin && (
+        {isSuperAdmin && (
           <Link href="/admin/pagos" className="dashboardCard">
             <div className="dashboardIcon"><Clock3 /></div>
-            <div><h3>Admin pagos</h3><p>Disputas, comisiones y auditoría.</p></div>
+            <div>
+              <h3>Estados de cuenta</h3>
+              <p>Solo super admin: wallets, disputas y auditoría de dinero.</p>
+            </div>
+            <ArrowRight />
+          </Link>
+        )}
+
+        {isSuperAdmin && (
+          <Link href="/intranet/admin/gestion-usuarios" className="dashboardCard">
+            <div className="dashboardIcon"><UserRound /></div>
+            <div>
+              <h3>Todas las cuentas</h3>
+              <p>Revisar clientes, profesionales e intranet.</p>
+            </div>
             <ArrowRight />
           </Link>
         )}

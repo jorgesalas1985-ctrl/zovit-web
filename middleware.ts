@@ -73,12 +73,20 @@ export async function middleware(request: NextRequest) {
 
   // Intranet: requiere rol intranet real (no basta estar logueado).
   if (pathname.startsWith("/intranet") && !isPublicIntranetRoute(pathname)) {
-    if (!isIntranetRole(profile.intranet_role) && registrationRole !== "admin") {
+    if (!isIntranetRole(profile.intranet_role)) {
       const accesoUrl = request.nextUrl.clone();
       accesoUrl.pathname = "/intranet/acceso";
       accesoUrl.searchParams.set("error", "sin-permiso");
       return applySecurityHeaders(mergeCookies(supabaseResponse, NextResponse.redirect(accesoUrl)));
     }
+  }
+
+  // Dinero / estados de cuenta: solo super_admin (RR.HH. bloqueado).
+  if (pathname.startsWith("/admin/pagos") && profile.intranet_role !== "super_admin") {
+    const deniedUrl = request.nextUrl.clone();
+    deniedUrl.pathname = "/panel";
+    deniedUrl.searchParams.set("error", "sin-permiso");
+    return applySecurityHeaders(mergeCookies(supabaseResponse, NextResponse.redirect(deniedUrl)));
   }
 
   if (!canAccessRoute(pathname, profileMode)) {

@@ -1,24 +1,16 @@
-"use client";
-
 import { IntranetGuard } from "@/components/intranet/IntranetGuard";
 import { IntranetShell } from "@/components/intranet/IntranetShell";
 import { PlatformUsersManager } from "@/components/intranet/PlatformUsersManager";
-import Link from "next/link";
 
-export default function PlatformUsersAdminPage() {
+export default function IntranetGestionUsuariosPage() {
   return (
-    <IntranetGuard allowedRoles={["hr_admin", "super_admin"]} permission="manage_intranet_users">
+    <IntranetGuard allowedRoles={["super_admin"]} permission="manage_all_platform_accounts">
       <IntranetShell
-        wide
-        title="Gestión de usuarios ZOVIT"
-        description="Administra clientes, profesionales e intranet. Modifica datos, verifica biometría y elimina cuentas. El super administrador no puede eliminarse."
-        kicker="USUARIOS PLATAFORMA"
+        title="Todas las cuentas"
+        description="Solo super administrador: revisión completa de clientes, profesionales e intranet."
+        kicker="SUPER ADMIN"
       >
         <PlatformUsersManager />
-
-        <Link href="/intranet/admin" className="secondaryButton wide">
-          Volver a administración
-        </Link>
       </IntranetShell>
     </IntranetGuard>
   );

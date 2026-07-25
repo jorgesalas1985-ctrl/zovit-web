@@ -1,8 +1,4 @@
-import { requireIntranetManager } from "@/lib/intranet/apiAuth";
-import {
-  canViewerSeePlatformAccount,
-  hiddenAccountResponse,
-} from "@/lib/intranet/accessVisibility";
+import { requireIntranetSuperAdmin } from "@/lib/intranet/apiAuth";
 import { getPlatformUser, reviewPlatformUserVerification } from "@/lib/intranet/platformUsers";
 import { NextResponse } from "next/server";
 
@@ -13,10 +9,10 @@ type VerifyBody = {
 
 export async function POST(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await requireIntranetManager();
+    const auth = await requireIntranetSuperAdmin();
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
@@ -37,17 +33,9 @@ export async function POST(
       return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
     }
 
-    if (!canViewerSeePlatformAccount(auth.manager.intranetRole, current)) {
-      const hidden = hiddenAccountResponse();
-      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
-    }
-
-    if (current.identityStatus !== "pending") {
-      return NextResponse.json({ error: "Este usuario no tiene verificación pendiente." }, { status: 400 });
-    }
-
     await reviewPlatformUserVerification(id, body.action, body.reason);
-    return NextResponse.json({ ok: true, status: body.action === "approve" ? "approved" : "rejected" });
+
+    return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";
     return NextResponse.json({ error: message }, { status: 500 });

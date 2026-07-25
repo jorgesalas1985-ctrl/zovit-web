@@ -1,20 +1,17 @@
-import { requireIntranetManager } from "@/lib/intranet/apiAuth";
-import { canViewerSeePlatformAccount } from "@/lib/intranet/accessVisibility";
+import { requireIntranetSuperAdmin } from "@/lib/intranet/apiAuth";
 import { listPlatformUsers } from "@/lib/intranet/platformUsers";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const auth = await requireIntranetManager();
+    // Todas las cuentas: solo super admin (RR.HH. no lista la plataforma completa).
+    const auth = await requireIntranetSuperAdmin();
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const users = await listPlatformUsers();
-    const visibleUsers = users.filter((user) =>
-      canViewerSeePlatformAccount(auth.manager.intranetRole, user)
-    );
-    return NextResponse.json({ users: visibleUsers }, {
+    return NextResponse.json({ users }, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {

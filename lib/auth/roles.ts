@@ -98,6 +98,12 @@ export function canAccessRoute(pathname: string, profile: ProfileModeFields | Us
         }
       : profile;
 
+  if (pathname.startsWith("/admin/pagos")) {
+    // El gate real es intranet_role=super_admin en middleware + API.
+    // No abrir por role=admin (RR.HH. podría tener role admin histórico).
+    return true;
+  }
+
   if (pathname.startsWith("/admin")) {
     return ctx.role === "admin";
   }

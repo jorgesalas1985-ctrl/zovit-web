@@ -14,6 +14,7 @@ const demoPayrolls = [
 export default function IntranetPayrollPage() {
   const { profile } = useAuth();
   const role = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
+  // Solo super admin edita liquidaciones globales; RR.HH. no maneja dineros.
   const canEdit = hasIntranetPermission(role, "edit_payroll");
 
   return (
@@ -22,8 +23,8 @@ export default function IntranetPayrollPage() {
         title={canEdit ? "Gestión de liquidaciones" : "Mis liquidaciones"}
         description={
           canEdit
-            ? "Módulo RR.HH. para revisar y modificar liquidaciones. Datos demo hasta conectar Supabase."
-            : "Consulta tus liquidaciones de sueldo. Datos demo hasta conectar Supabase."
+            ? "Solo super administrador puede modificar liquidaciones. Datos demo hasta conectar Supabase."
+            : "Consulta tus liquidaciones de sueldo. RR.HH. no administra dineros. Datos demo hasta conectar Supabase."
         }
       >
         <div className="intranetTableWrap">

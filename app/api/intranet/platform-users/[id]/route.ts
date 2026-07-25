@@ -1,11 +1,12 @@
 import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
 import { USER_ROLES, type UserRole } from "@/lib/auth/roles";
-import { requireIntranetManager } from "@/lib/intranet/apiAuth";
+import { requireIntranetSuperAdmin } from "@/lib/intranet/apiAuth";
 import {
-  canViewerSeePlatformAccount,
-  hiddenAccountResponse,
-} from "@/lib/intranet/accessVisibility";
-import { deletePlatformUser, getPlatformUser, getPlatformUserErrorMessage, updatePlatformUser } from "@/lib/intranet/platformUsers";
+  deletePlatformUser,
+  getPlatformUser,
+  getPlatformUserErrorMessage,
+  updatePlatformUser,
+} from "@/lib/intranet/platformUsers";
 import { NextResponse } from "next/server";
 
 type UpdateBody = {
@@ -20,10 +21,10 @@ type UpdateBody = {
 
 export async function PATCH(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await requireIntranetManager();
+    const auth = await requireIntranetSuperAdmin();
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
@@ -36,25 +37,23 @@ export async function PATCH(
       return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
     }
 
-    if (!canViewerSeePlatformAccount(auth.manager.intranetRole, current)) {
-      const hidden = hiddenAccountResponse();
-      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
-    }
-
     if (current.intranetRole === "super_admin" && id !== auth.manager.userId) {
-      return NextResponse.json({ error: "No puedes modificar al super administrador." }, { status: 403 });
+      return NextResponse.json(
+        { error: "No puedes modificar al super administrador." },
+        { status: 403 },
+      );
     }
 
     if (body.role && !USER_ROLES.includes(body.role as UserRole)) {
       return NextResponse.json({ error: "Rol de plataforma inválido." }, { status: 400 });
     }
 
-    if (body.intranetRole !== undefined && body.intranetRole !== null && !isIntranetRole(body.intranetRole)) {
+    if (
+      body.intranetRole !== undefined &&
+      body.intranetRole !== null &&
+      !isIntranetRole(body.intranetRole)
+    ) {
       return NextResponse.json({ error: "Perfil intranet inválido." }, { status: 400 });
-    }
-
-    if (body.intranetRole === "super_admin" && auth.manager.intranetRole !== "super_admin") {
-      return NextResponse.json({ error: "No puedes asignar super administrador." }, { status: 403 });
     }
 
     await updatePlatformUser(id, {
@@ -81,10 +80,10 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await requireIntranetManager();
+    const auth = await requireIntranetSuperAdmin();
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
@@ -98,11 +97,6 @@ export async function DELETE(
     const current = await getPlatformUser(id);
     if (!current) {
       return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
-    }
-
-    if (!canViewerSeePlatformAccount(auth.manager.intranetRole, current)) {
-      const hidden = hiddenAccountResponse();
-      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
     }
 
     await deletePlatformUser(id);

@@ -1,32 +1,22 @@
-import { createClient } from "@/lib/supabase/server";
+import { requireIntranetSuperAdmin } from "@/lib/intranet/apiAuth";
 import { mapPaymentRow } from "@/lib/payments/mappers";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData.user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", authData.user.id)
-      .maybeSingle();
-
-    if (profile?.role !== "admin") {
-      return NextResponse.json({ error: "Acceso restringido." }, { status: 403 });
+    const auth = await requireIntranetSuperAdmin();
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    // service_role solo tras verificar super_admin (RR.HH. no entra aquí).
+    const admin = createAdminClient();
     const [paymentsResult, disputesResult, walletsResult, eventsResult] = await Promise.all([
-      supabase.from("payments").select("*").order("created_at", { ascending: false }).limit(50),
-      supabase.from("payment_disputes").select("*").order("created_at", { ascending: false }).limit(20),
-      supabase.from("wallets").select("*").order("updated_at", { ascending: false }).limit(20),
-      supabase
-        .from("payment_events")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(40),
+      admin.from("payments").select("*").order("created_at", { ascending: false }).limit(50),
+      admin.from("payment_disputes").select("*").order("created_at", { ascending: false }).limit(20),
+      admin.from("wallets").select("*").order("updated_at", { ascending: false }).limit(50),
+      admin.from("payment_events").select("*").order("created_at", { ascending: false }).limit(40),
     ]);
 
     const payments = (paymentsResult.data ?? []).map((row) => mapPaymentRow(row as never));
