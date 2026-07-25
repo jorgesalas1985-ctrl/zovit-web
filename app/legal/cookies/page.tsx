@@ -1,4 +1,11 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Política de cookies",
+  description: "Uso de cookies y almacenamiento local en la plataforma ZOVIT.",
+  robots: { index: true, follow: true },
+};
 
 export default function CookiesPage() {
   return (

@@ -1,5 +1,12 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
+
+export const metadata: Metadata = {
+  title: "Términos y condiciones",
+  description: "Términos y condiciones de uso de la plataforma ZOVIT.",
+  robots: { index: true, follow: true },
+};
 
 function LegalPage({
   title,

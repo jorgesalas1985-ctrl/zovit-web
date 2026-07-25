@@ -1,4 +1,11 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Política de privacidad",
+  description: "Cómo ZOVIT protege y utiliza tus datos personales y de verificación.",
+  robots: { index: true, follow: true },
+};
 
 export default function PrivacyPage() {
   return (

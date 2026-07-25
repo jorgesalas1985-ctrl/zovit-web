@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import type { ResolvedCategoryPath } from "@/lib/categories/hierarchy";
+import { getSiteUrl } from "@/lib/seo/site";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.zovit.cl";
+const BASE_URL = getSiteUrl();
 
 export function buildCategoryMetadata(
   resolved: ResolvedCategoryPath,
