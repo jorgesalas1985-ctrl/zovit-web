@@ -7,16 +7,22 @@ import {
   BadgeCheck,
   BriefcaseBusiness,
   ClipboardCheck,
+  Copy,
+  FileBadge2,
   GraduationCap,
   History,
+  Mail,
+  MessageCircle,
+  Printer,
   ScanFace,
+  Share2,
   Star,
 } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Profesionales verificados | ZOVIT",
   description:
-    "Conoce cómo funciona la verificación de profesionales en ZOVIT y cómo construyen experiencia verificable con cada trabajo aprobado.",
+    "ZOVIT crea un certificado gratuito y verificable para presentar en postulaciones. Compártelo por correo, WhatsApp, imprímelo o envía el enlace.",
 };
 
 const STEPS = [
@@ -31,7 +37,7 @@ const STEPS = [
     step: "02",
     title: "Perfil y respaldo",
     description:
-      "Puede sumar certificados de estudios u otros respaldos. Eso refuerza confianza frente a los clientes.",
+      "Puede sumar certificados de estudios u otros respaldos. Eso refuerza confianza frente a clientes y empleadores.",
     icon: GraduationCap,
   },
   {
@@ -43,9 +49,9 @@ const STEPS = [
   },
   {
     step: "04",
-    title: "Experiencia verificable",
+    title: "Experiencia verificable + certificado",
     description:
-      "Cada trabajo aprobado queda en su historial ZOVIT: categoría, calificación y trayectoria real, no solo un CV escrito.",
+      "Cada trabajo aprobado suma a tu historial. ZOVIT genera una credencial/certificado gratuito para presentarlo donde postules.",
     icon: History,
   },
 ] as const;
@@ -60,14 +66,47 @@ const BENEFITS = [
   {
     title: "Reputación respaldada",
     description:
-      "Clientes ven trabajos completados, ratings y nivel de experiencia. Eso ayuda a elegir con más seguridad.",
+      "Clientes y empleadores ven trabajos completados, ratings y nivel de experiencia.",
     icon: Star,
   },
   {
-    title: "Credencial ZOVIT",
+    title: "Certificado gratuito ZOVIT",
     description:
-      "El profesional puede mostrar una credencial con su identidad y trayectoria verificada en la plataforma.",
-    icon: BadgeCheck,
+      "Recibes una credencial digital gratis, con QR verificable, lista para postular o mostrar en tu lugar de trabajo.",
+    icon: FileBadge2,
+  },
+] as const;
+
+const SHARE_FEATURES = [
+  {
+    title: "Correo",
+    description: "Envía el certificado por email a un empleador o RR.HH.",
+    icon: Mail,
+  },
+  {
+    title: "WhatsApp",
+    description: "Comparte el enlace o la credencial al instante por chat.",
+    icon: MessageCircle,
+  },
+  {
+    title: "Imprimir",
+    description: "Imprime o guarda en PDF para llevar a una entrevista.",
+    icon: Printer,
+  },
+  {
+    title: "Copiar enlace",
+    description: "Copia el link público con QR para pegarlo donde quieras.",
+    icon: Copy,
+  },
+  {
+    title: "Compartir",
+    description: "Usa el menú nativo del celular o PC (LinkedIn, Drive, etc.).",
+    icon: Share2,
+  },
+  {
+    title: "LinkedIn y más",
+    description: "Publica el enlace en LinkedIn, Telegram, SMS u otras apps del dispositivo.",
+    icon: Share2,
   },
 ] as const;
 
@@ -80,11 +119,11 @@ export default function ProfesionalesVerificadosPage() {
             <ArrowLeft size={18} /> Volver al inicio
           </Link>
           <p className="kicker">PROFESIONALES VERIFICADOS</p>
-          <h1>Verificación para acumular experiencia real y demostrable</h1>
+          <h1>Verificación para acumular experiencia y obtener un certificado gratuito</h1>
           <p className="securityLead">
             En ZOVIT, verificar a un profesional no es solo “aprobar una cuenta”. Es el punto de
-            partida para construir un historial verificable: trabajos terminados, calificaciones y
-            trayectoria que el cliente puede confiar.
+            partida para construir un historial real y recibir un certificado digital gratuito,
+            pensado para presentarlo en postulaciones y lugares de trabajo.
           </p>
           <div className="securityHeroActions">
             <Link href="/registro" className="primaryButton">
@@ -106,7 +145,7 @@ export default function ProfesionalesVerificadosPage() {
               <h2>La verificación abre tu carrera en ZOVIT</h2>
               <p className="muted">
                 Sin identidad validada no se puede operar. Con ella, cada servicio aprobado suma
-                experiencia verificable a tu perfil.
+                experiencia verificable y alimenta tu certificado.
               </p>
             </div>
           </div>
@@ -129,10 +168,57 @@ export default function ProfesionalesVerificadosPage() {
         <div className="securitySectionInner">
           <div className="sectionHeading">
             <div>
+              <p className="kicker">CERTIFICADO GRATUITO</p>
+              <h2>Preséntalo donde postules</h2>
+              <p className="muted">
+                ZOVIT crea una credencial/certificado digital con tu identidad y experiencia
+                verificable. Es gratis y puedes compartirlo como quieras.
+              </p>
+            </div>
+          </div>
+
+          <div className="certificateHighlight">
+            <div className="certificateHighlightIcon">
+              <FileBadge2 size={28} />
+            </div>
+            <div>
+              <h3>Certificado ZOVIT para trabajo y postulaciones</h3>
+              <p>
+                Úsalo para demostrar ante un empleador, cliente o empresa que tu identidad y
+                trayectoria están respaldadas por la plataforma. Incluye enlace público y código QR
+                para verificar en línea.
+              </p>
+            </div>
+          </div>
+
+          <div className="securityProtectGrid certificateShareGrid">
+            {SHARE_FEATURES.map(({ title, description, icon: Icon }) => (
+              <article key={title} className="securityProtectCard">
+                <div className="securityProtectIcon">
+                  <Icon size={22} />
+                </div>
+                <h3>{title}</h3>
+                <p>{description}</p>
+              </article>
+            ))}
+          </div>
+
+          <p className="certificateShareNote muted">
+            Al verificar tu cuenta, accedes a <strong>Mi credencial ZOVIT</strong> en el panel:
+            desde ahí puedes imprimir, enviar por correo, WhatsApp, SMS, copiar el enlace o
+            compartir con otras apps.
+          </p>
+        </div>
+      </section>
+
+      <section className="securitySection">
+        <div className="securitySectionInner">
+          <div className="sectionHeading">
+            <div>
               <p className="kicker">PROCESO</p>
               <h2>Cómo se verifica y crece un profesional</h2>
               <p className="muted">
-                Del registro al historial: un camino pensado para clientes y para quien trabaja.
+                Del registro al certificado: un camino pensado para clientes y para quien trabaja.
               </p>
             </div>
           </div>
@@ -157,10 +243,10 @@ export default function ProfesionalesVerificadosPage() {
       <section className="securitySection">
         <div className="securityCtaCard">
           <p className="kicker">EMPIEZA HOY</p>
-          <h2>Construye experiencia verificable en ZOVIT</h2>
+          <h2>Obtén tu certificado gratuito y experiencia verificable</h2>
           <p>
-            Regístrate como profesional, verifica tu identidad y comienza a sumar trabajos reales a
-            tu historial.
+            Regístrate como profesional, verifica tu identidad y comienza a sumar trabajos reales.
+            Tu credencial ZOVIT queda lista para compartir e imprimir.
           </p>
           <div className="securityHeroActions">
             <Link href="/registro" className="primaryButton">

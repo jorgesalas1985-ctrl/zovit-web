@@ -196,8 +196,8 @@ function PanelContent() {
           <Link href={`/credencial/${user.id}`} className="dashboardCard">
             <div className="dashboardIcon"><IdCard /></div>
             <div>
-              <h3>Mi credencial ZOVIT</h3>
-              <p>Credencial verificable con QR para imprimir, compartir o validar en línea.</p>
+              <h3>Mi certificado ZOVIT</h3>
+              <p>Certificado gratuito con QR: imprimir, correo, WhatsApp, LinkedIn o compartir.</p>
             </div>
             <ArrowRight />
           </Link>

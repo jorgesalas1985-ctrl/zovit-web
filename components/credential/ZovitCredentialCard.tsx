@@ -7,11 +7,15 @@ import {
   Check,
   Copy,
   GraduationCap,
+  Linkedin,
   Mail,
+  MessageCircle,
   Printer,
   QrCode,
+  Send,
   Share2,
   ShieldCheck,
+  Smartphone,
   UserRound,
 } from "lucide-react";
 import Image from "next/image";
@@ -69,6 +73,8 @@ export function ZovitCredentialCard({ profile, showActions = true }: ZovitCreden
     }
   }
 
+  const shareText = `Certificado / Credencial ZOVIT · ${name}\nExperiencia e identidad verificables.\nVerifica aquí: ${verifyUrl}`;
+
   async function shareNative() {
     if (!navigator.share) {
       await copyLink();
@@ -77,8 +83,8 @@ export function ZovitCredentialCard({ profile, showActions = true }: ZovitCreden
 
     try {
       await navigator.share({
-        title: `Credencial ZOVIT · ${name}`,
-        text: `Verifica mi credencial ZOVIT: ${name}`,
+        title: `Certificado ZOVIT · ${name}`,
+        text: `Verifica mi certificado ZOVIT (identidad y experiencia): ${name}`,
         url: verifyUrl,
       });
     } catch {
@@ -87,16 +93,42 @@ export function ZovitCredentialCard({ profile, showActions = true }: ZovitCreden
   }
 
   function shareWhatsApp() {
-    const text = encodeURIComponent(`Credencial ZOVIT · ${name}\nVerifica aquí: ${verifyUrl}`);
-    window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(shareText)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
   }
 
   function shareEmail() {
-    const subject = encodeURIComponent(`Credencial ZOVIT · ${name}`);
+    const subject = encodeURIComponent(`Certificado ZOVIT · ${name}`);
     const body = encodeURIComponent(
-      `Hola,\n\nPuedes verificar mi credencial ZOVIT en el siguiente enlace:\n${verifyUrl}\n\nEscanea el código QR o abre el enlace para confirmar mi identidad.\n\n— ${name}`
+      `Hola,\n\nAdjunto el enlace a mi certificado / credencial ZOVIT para que puedan verificar mi identidad y experiencia:\n${verifyUrl}\n\nPueden escanear el código QR o abrir el enlace. Este certificado es gratuito y está respaldado por ZOVIT.\n\n— ${name}`
     );
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
+
+  function shareLinkedIn() {
+    window.open(
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(verifyUrl)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+
+  function shareTelegram() {
+    window.open(
+      `https://t.me/share/url?url=${encodeURIComponent(verifyUrl)}&text=${encodeURIComponent(
+        `Certificado ZOVIT · ${name}`
+      )}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+
+  function shareSms() {
+    const body = encodeURIComponent(shareText);
+    window.location.href = `sms:?&body=${body}`;
   }
 
   function printCredential() {
@@ -109,13 +141,13 @@ export function ZovitCredentialCard({ profile, showActions = true }: ZovitCreden
         <div className="credentialBrand">
           <span className="credentialBrandMark">Z</span>
           <div>
-            <p className="kicker">CREDENCIAL ZOVIT</p>
-            <strong>Identidad verificable</strong>
+            <p className="kicker">CERTIFICADO ZOVIT</p>
+            <strong>Identidad y experiencia verificables</strong>
           </div>
         </div>
         <span className={`credentialStatus ${verified ? "verified" : "pending"}`}>
           <ShieldCheck size={16} />
-          {verified ? "Verificado" : "Pendiente de verificación"}
+          {verified ? "Certificado verificado" : "Pendiente de verificación"}
         </span>
       </header>
 
@@ -156,7 +188,7 @@ export function ZovitCredentialCard({ profile, showActions = true }: ZovitCreden
           )}
           <p className="credentialHint">
             {verified
-              ? "Escanea el código QR o abre el enlace para confirmar la identidad al momento del servicio."
+              ? "Certificado gratuito ZOVIT. Úsalo para presentar tu identidad y experiencia al postular a un trabajo, o para validarte ante un cliente."
               : "Esta credencial existe, pero la verificación biométrica aún no está completa."}
           </p>
         </div>
@@ -180,21 +212,30 @@ export function ZovitCredentialCard({ profile, showActions = true }: ZovitCreden
       {showActions && (
         <div className="credentialActions no-print">
           <button type="button" className="secondaryButton" onClick={printCredential}>
-            <Printer size={16} /> Imprimir
+            <Printer size={16} /> Imprimir / PDF
+          </button>
+          <button type="button" className="secondaryButton" onClick={shareEmail}>
+            <Mail size={16} /> Correo
+          </button>
+          <button type="button" className="secondaryButton" onClick={shareWhatsApp}>
+            <MessageCircle size={16} /> WhatsApp
+          </button>
+          <button type="button" className="secondaryButton" onClick={shareSms}>
+            <Smartphone size={16} /> SMS
+          </button>
+          <button type="button" className="secondaryButton" onClick={shareLinkedIn}>
+            <Linkedin size={16} /> LinkedIn
+          </button>
+          <button type="button" className="secondaryButton" onClick={shareTelegram}>
+            <Send size={16} /> Telegram
           </button>
           <button type="button" className="secondaryButton" onClick={copyLink}>
             {copied ? <Check size={16} /> : <Copy size={16} />}
             {copied ? "Copiado" : "Copiar enlace"}
           </button>
-          <button type="button" className="secondaryButton" onClick={shareWhatsApp}>
-            WhatsApp
-          </button>
-          <button type="button" className="secondaryButton" onClick={shareEmail}>
-            <Mail size={16} /> Correo
-          </button>
           {"share" in navigator && (
             <button type="button" className="primaryButton" onClick={shareNative}>
-              <Share2 size={16} /> Compartir
+              <Share2 size={16} /> Más opciones
             </button>
           )}
         </div>
