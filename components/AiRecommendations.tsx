@@ -9,6 +9,7 @@ type Props = {
   result: AiRecommendResponse;
   onCreateRequest: () => void;
   canPublish?: boolean;
+  isLoggedIn?: boolean;
 };
 
 const badgeLabels = {
@@ -17,7 +18,12 @@ const badgeLabels = {
   expert: "Experto",
 } as const;
 
-export function AiRecommendations({ result, onCreateRequest, canPublish = false }: Props) {
+export function AiRecommendations({
+  result,
+  onCreateRequest,
+  canPublish = false,
+  isLoggedIn = false,
+}: Props) {
   const { parsed, professionals } = result;
 
   return (
@@ -93,7 +99,9 @@ export function AiRecommendations({ result, onCreateRequest, canPublish = false 
           <p>
             {canPublish
               ? "Aún no hay un profesional conectado exactamente para este caso, pero puedes publicar la solicitud y el primero disponible te contactará."
-              : "Aún no hay un profesional conectado exactamente para este caso."}
+              : !isLoggedIn
+                ? "Aún no hay un profesional conectado exactamente para este caso. Regístrate con verificación de identidad para publicar tu solicitud."
+                : "Aún no hay un profesional conectado exactamente para este caso."}
           </p>
         </div>
       )}
@@ -103,6 +111,13 @@ export function AiRecommendations({ result, onCreateRequest, canPublish = false 
           <button className="primaryButton" onClick={onCreateRequest}>
             Publicar solicitud con esta especialidad <ArrowRight size={18} />
           </button>
+        ) : !isLoggedIn ? (
+          <Link
+            href={`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`}
+            className="primaryButton"
+          >
+            Regístrate para solicitar <ArrowRight size={18} />
+          </Link>
         ) : (
           <Link href="/trabajos" className="primaryButton">
             Ver trabajos disponibles <ArrowRight size={18} />

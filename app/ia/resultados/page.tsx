@@ -81,7 +81,7 @@ function AiResultsContent() {
           specialty: result.parsed.specialty,
         }),
       );
-      router.push(`/login?next=${encodeURIComponent("/solicitudes/nueva")}`);
+      router.push(`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`);
       return;
     }
 
@@ -144,6 +144,7 @@ function AiResultsContent() {
             result={result}
             onCreateRequest={createRequest}
             canPublish={canPublish}
+            isLoggedIn={Boolean(user)}
           />
         )}
       </section>

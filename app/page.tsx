@@ -2,18 +2,38 @@
 
 import Link from "next/link";
 import { ArrowRight, BriefcaseBusiness } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import { HomeHeroStory } from "@/components/home/HomeHeroStory";
 import { TrustPillars } from "@/components/home/TrustPillars";
 import { ClickableServiceCard } from "@/components/services/ClickableServiceCard";
 import { IntranetFooterAccess } from "@/components/intranet/IntranetFooterAccess";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ScrollReveal } from "@/components/home/ScrollReveal";
+import {
+  canPublishServiceRequest,
+  getBrowseServicesHref,
+  getRequestServiceHref,
+} from "@/lib/auth/roles";
 import { getCategoryLeafCount, getFeaturedCategories } from "@/lib/services/catalog";
 import { getCategoryIcon } from "@/lib/services/icons";
 
 const featuredCategories = getFeaturedCategories(5);
 
 export default function HomePage() {
+  const { user, profile } = useAuth();
+  const isLoggedIn = Boolean(user);
+  const canPublish = canPublishServiceRequest(profile);
+  const requestHref = isLoggedIn
+    ? canPublish
+      ? getBrowseServicesHref(true)
+      : "/panel"
+    : getRequestServiceHref(false);
+  const finalRequestHref = isLoggedIn
+    ? canPublish
+      ? getRequestServiceHref(true)
+      : "/panel"
+    : getRequestServiceHref(false);
+
   return (
     <main className="homeLanding">
       <section className="homeHero" aria-label="Inicio Zovit">
@@ -26,11 +46,20 @@ export default function HomePage() {
             </h1>
             <p className="homeHeroLead">
               Conectamos a quien necesita un servicio con profesionales que pueden hacerlo. El dinero
-              solo se libera cuando tú apruebas el trabajo.
+              solo se libera cuando tú apruebas el trabajo. Cliente y profesional se registran con la
+              misma verificación de identidad.
             </p>
             <div className="homeHeroCtas">
-              <Link href="/categorias" className="primaryButton homeHeroCtaPrimary">
-                Solicitar servicio <ArrowRight size={18} />
+              <Link href={requestHref} className="primaryButton homeHeroCtaPrimary">
+                {isLoggedIn ? (
+                  <>
+                    Solicitar servicio <ArrowRight size={18} />
+                  </>
+                ) : (
+                  <>
+                    Regístrate para solicitar <ArrowRight size={18} />
+                  </>
+                )}
               </Link>
               <Link href="/registro" className="whiteButton homeHeroCtaSecondary">
                 <BriefcaseBusiness size={18} /> Quiero trabajar con Zovit
@@ -53,8 +82,7 @@ export default function HomePage() {
               <p className="kicker">EXPLORAR SERVICIOS</p>
               <h2>¿Qué necesitas hoy?</h2>
               <p className="muted homeCategoriesLead">
-                Elige una categoría, publica tu necesidad y recibe ofertas de profesionales
-                verificados.
+                Explora categorías. Para publicar una solicitud debes crear una cuenta verificada.
               </p>
             </div>
             <Link href="/categorias" className="textLink">
@@ -90,10 +118,22 @@ export default function HomePage() {
           <div className="homeFinalCtaInner">
             <p className="homeFinalCtaBrand">ZOVIT</p>
             <h2>Confianza primero. Pago al final.</h2>
-            <p>Solicita hoy. El profesional cobra solo cuando el trabajo esté aprobado.</p>
+            <p>Regístrate, verifica tu identidad y solicita. El profesional cobra solo cuando apruebas.</p>
             <div className="homeFinalCtaActions">
-              <Link href="/categorias" className="whiteButton">
-                Solicitar servicio <ArrowRight size={18} />
+              <Link href={finalRequestHref} className="whiteButton">
+                {isLoggedIn && canPublish ? (
+                  <>
+                    Solicitar servicio <ArrowRight size={18} />
+                  </>
+                ) : isLoggedIn ? (
+                  <>
+                    Ir al panel <ArrowRight size={18} />
+                  </>
+                ) : (
+                  <>
+                    Crear cuenta para solicitar <ArrowRight size={18} />
+                  </>
+                )}
               </Link>
               <Link href="/registro" className="homeFinalCtaGhost">
                 Quiero trabajar con Zovit

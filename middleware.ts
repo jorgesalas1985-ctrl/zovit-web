@@ -81,7 +81,15 @@ export async function middleware(request: NextRequest) {
     return mergeCookies(supabaseResponse, NextResponse.redirect(panelUrl));
   }
 
-  if (pathname.startsWith("/panel") && needsBiometricOnboarding(identityStatus)) {
+  // Cliente y profesional: misma barrera de identidad antes de operar en la plataforma.
+  const requiresIdentityGate =
+    pathname.startsWith("/panel") ||
+    pathname.startsWith("/solicitudes/nueva") ||
+    pathname.startsWith("/trabajos") ||
+    pathname === "/pagos" ||
+    pathname.startsWith("/pagos/");
+
+  if (requiresIdentityGate && needsBiometricOnboarding(identityStatus)) {
     const biometricUrl = request.nextUrl.clone();
     biometricUrl.pathname = "/registro/biometria";
     biometricUrl.search = "";

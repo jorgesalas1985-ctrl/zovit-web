@@ -20,7 +20,7 @@ import {
   type ManualServiceSelection,
 } from "@/lib/services/manualSelection";
 import { getCategoryIconByKey } from "@/lib/services/icons";
-import { Bell, MapPin, Star } from "lucide-react";
+import { ArrowRight, Bell, MapPin, Star } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -130,7 +130,7 @@ export function SpecialtyBrowsePage({ resolved }: Props) {
     saveManualSelection(selection);
 
     if (!user) {
-      router.push(`/login?next=${encodeURIComponent("/solicitudes/nueva")}`);
+      router.push(`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`);
       return;
     }
 
@@ -194,6 +194,15 @@ export function SpecialtyBrowsePage({ resolved }: Props) {
 
       <div className="browseSectionHeading">
         <h2>Profesionales disponibles</h2>
+        {canPublish ? (
+          <button type="button" className="primaryButton" onClick={() => startRequest()}>
+            Solicitar servicio <ArrowRight size={16} />
+          </button>
+        ) : !user ? (
+          <Link className="primaryButton" href={`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`}>
+            Regístrate para solicitar <ArrowRight size={16} />
+          </Link>
+        ) : null}
       </div>
 
       {loading && <p className="muted">Cargando profesionales…</p>}
@@ -201,10 +210,20 @@ export function SpecialtyBrowsePage({ resolved }: Props) {
 
       {!loading && sortedProfessionals.length === 0 && (
         <div className="categoryEmptyState">
-          <p>No hay profesionales disponibles actualmente en esta especialidad.</p>
-          <button type="button" className="secondaryButton wide" onClick={notifyWhenAvailable}>
-            <Bell size={16} /> Avísame cuando haya profesionales
-          </button>
+          <p>
+            {!user
+              ? "No hay profesionales disponibles ahora. Regístrate con verificación de identidad para publicar tu solicitud."
+              : "No hay profesionales disponibles actualmente en esta especialidad."}
+          </p>
+          {!user ? (
+            <Link className="primaryButton wide" href={`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`}>
+              Regístrate para solicitar <ArrowRight size={16} />
+            </Link>
+          ) : (
+            <button type="button" className="secondaryButton wide" onClick={notifyWhenAvailable}>
+              <Bell size={16} /> Avísame cuando haya profesionales
+            </button>
+          )}
           {notifyMessage && <p className="notice">{notifyMessage}</p>}
         </div>
       )}

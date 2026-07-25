@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { AlertCircle, ArrowRight, BriefcaseBusiness, ScanFace, UserRound } from "lucide-react";
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PendingBiometricForm } from "@/components/verification/PendingBiometricForm";
 import { ProfilePhotoPicker } from "@/components/profile/ProfilePhotoUpload";
 import {
@@ -21,6 +21,11 @@ import { storeRegistrationDocuments } from "@/lib/registration/pendingRegistrati
 import { supabase } from "@/lib/supabase";
 import type { IdentityDocumentType } from "@/lib/verification/types";
 
+function safeNextPath(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/panel";
+  return value;
+}
+
 type RegisterStep = "biometric" | "account" | "success";
 
 function RegisterStepBadge({ step }: { step: 1 | 2 }) {
@@ -31,8 +36,10 @@ function RegisterStepBadge({ step }: { step: 1 | 2 }) {
   );
 }
 
-export default function RegisterPage() {
-  const router = useRouter();
+function RegisterPageContent() {
+  const searchParams = useSearchParams();
+  const nextPath = safeNextPath(searchParams.get("next"));
+  const loginHref = `/login?next=${encodeURIComponent(nextPath)}`;
   const [step, setStep] = useState<RegisterStep>("biometric");
   const [role, setRole] = useState<"client" | "professional">("client");
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", email: "", password: "" });
@@ -77,7 +84,7 @@ export default function RegisterPage() {
       email: normalizeAuthEmail(form.email),
       password: normalizeAuthPassword(form.password),
       options: {
-        emailRedirectTo: getAuthCallbackUrl("/panel"),
+        emailRedirectTo: getAuthCallbackUrl(nextPath),
         data: {
           first_name: form.firstName,
           last_name: form.lastName,
@@ -108,7 +115,7 @@ export default function RegisterPage() {
         return;
       }
 
-      window.location.assign("/panel");
+      window.location.assign(nextPath);
       return;
     }
 
@@ -136,7 +143,7 @@ export default function RegisterPage() {
               ? "Revisa tu correo, confirma tu cuenta e ingresa. Tu verificación biométrica se enviará automáticamente al confirmar."
               : "Tu cuenta y verificación biométrica fueron registradas correctamente."}
           </p>
-          <Link className="primaryButton wide" href="/login">
+          <Link className="primaryButton wide" href={loginHref}>
             Ir a ingresar <ArrowRight size={18} />
           </Link>
         </section>
@@ -151,7 +158,10 @@ export default function RegisterPage() {
           <RegisterStepBadge step={2} />
           <p className="kicker">REGISTRO REAL</p>
           <h1>Crea tu cuenta ZOVIT</h1>
-          <p className="muted">Selecciona cómo utilizarás la plataforma y completa tus datos.</p>
+          <p className="muted">
+            Cliente y profesional completan la misma verificación de identidad. Luego eliges cómo
+            usarás la plataforma.
+          </p>
 
           <div className="roleSelector">
             <button className={role === "client" ? "roleCard active" : "roleCard"} onClick={() => setRole("client")}>
@@ -203,7 +213,7 @@ export default function RegisterPage() {
             </div>
           </form>
 
-          <p className="authFooter">¿Ya tienes cuenta? <Link href="/login">Ingresa aquí</Link></p>
+          <p className="authFooter">¿Ya tienes cuenta? <Link href={loginHref}>Ingresa aquí</Link></p>
         </section>
       </main>
     );
@@ -218,7 +228,8 @@ export default function RegisterPage() {
         </div>
         <h1>Verificación biométrica</h1>
         <p className="muted">
-          Paso 1: valida tu identidad con carnet, selfie y prueba de vida. Luego crearás tu cuenta.
+          Paso 1 (igual para clientes y profesionales): valida tu identidad con carnet, selfie y
+          prueba de vida. Luego crearás tu cuenta.
         </p>
 
         <PendingBiometricForm
@@ -231,8 +242,16 @@ export default function RegisterPage() {
           message={message}
         />
 
-        <p className="authFooter">¿Ya tienes cuenta? <Link href="/login">Ingresa aquí</Link></p>
+        <p className="authFooter">¿Ya tienes cuenta? <Link href={loginHref}>Ingresa aquí</Link></p>
       </section>
     </main>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<main className="authPage"><section className="authCard">Cargando registro…</section></main>}>
+      <RegisterPageContent />
+    </Suspense>
   );
 }

@@ -141,14 +141,32 @@ export function canAccessProfessionalFeatures(profile: ProfileModeFields | null 
   return profile.can_act_as_professional && profile.active_mode === "professional";
 }
 
-/** Guests may start the publish flow; logged-in users need an explicit client mode. */
+/**
+ * Solo clientes autenticados (modo cliente) ven CTAs de publicar.
+ * Invitados deben registrarse antes; no se muestra el flujo de solicitud.
+ */
 export function shouldShowPublishUI(
   profile: ProfileModeFields | null | undefined,
   isLoggedIn: boolean
 ): boolean {
-  if (!isLoggedIn) return true;
-  if (!profile) return false;
+  if (!isLoggedIn || !profile) return false;
   return canPublishServiceRequest(profile);
+}
+
+/** Destino al pedir un servicio: registro obligatorio si no hay sesión. */
+export function getRequestServiceHref(isLoggedIn: boolean): string {
+  if (!isLoggedIn) {
+    return `/registro?next=${encodeURIComponent("/solicitudes/nueva")}`;
+  }
+  return "/solicitudes/nueva";
+}
+
+/** Explorar categorías y luego solicitar (con registro previo si hace falta). */
+export function getBrowseServicesHref(isLoggedIn: boolean): string {
+  if (!isLoggedIn) {
+    return `/registro?next=${encodeURIComponent("/categorias")}`;
+  }
+  return "/categorias";
 }
 
 /** Panel and navigation: never default registered professionals to client UI. */

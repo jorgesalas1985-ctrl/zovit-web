@@ -25,8 +25,18 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
 
   const footerColumns = useMemo(() => {
+    const isLoggedIn = Boolean(user);
     const isProfessional = profile ? canAccessProfessionalFeatures(profile) : false;
-    const showPublishLink = shouldShowPublishUI(profile, Boolean(user));
+    const showPublishLink = shouldShowPublishUI(profile, isLoggedIn);
+
+    const serviceAction = showPublishLink
+      ? { label: "Publicar solicitud", href: "/solicitudes/nueva" }
+      : isProfessional
+        ? { label: "Ver trabajos", href: "/trabajos" }
+        : {
+            label: "Regístrate para solicitar",
+            href: `/registro?next=${encodeURIComponent("/solicitudes/nueva")}`,
+          };
 
     return [
       {
@@ -34,9 +44,7 @@ export function SiteFooter() {
         links: [
           { label: "Buscar con IA", href: "/ia/resultados" },
           { label: "Categorías", href: "/categorias" },
-          ...(showPublishLink
-            ? [{ label: "Publicar solicitud", href: "/solicitudes/nueva" }]
-            : [{ label: "Ver trabajos", href: "/trabajos" }]),
+          serviceAction,
           { label: "Profesionales verificados", href: "/servicios" },
         ],
       },

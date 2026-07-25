@@ -111,7 +111,7 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
     saveManualSelection(selection);
 
     if (!user) {
-      router.push(`/login?next=${encodeURIComponent("/solicitudes/nueva")}`);
+      router.push(`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`);
       return;
     }
 
@@ -173,11 +173,15 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
 
       <div className="browseSectionHeading">
         <h2>Profesionales disponibles</h2>
-        {canPublish && (
+        {canPublish ? (
           <button className="primaryButton" onClick={() => startRequest()}>
             Solicitar sin elegir profesional <ArrowRight size={16} />
           </button>
-        )}
+        ) : !user ? (
+          <Link className="primaryButton" href={`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`}>
+            Regístrate para solicitar <ArrowRight size={16} />
+          </Link>
+        ) : null}
       </div>
 
       {loading && <p className="muted">Cargando profesionales…</p>}
@@ -188,13 +192,19 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
           <p>
             {canPublish
               ? "No hay profesionales conectados exactamente para esta subcategoría ahora, pero puedes publicar la solicitud manualmente y el primero disponible te contactará."
-              : "No hay profesionales conectados exactamente para esta subcategoría ahora."}
+              : !user
+                ? "No hay profesionales conectados ahora. Crea una cuenta verificada para publicar tu solicitud."
+                : "No hay profesionales conectados exactamente para esta subcategoría ahora."}
           </p>
-          {canPublish && (
+          {canPublish ? (
             <button className="primaryButton" onClick={() => startRequest()}>
               Publicar solicitud <ArrowRight size={16} />
             </button>
-          )}
+          ) : !user ? (
+            <Link className="primaryButton" href={`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`}>
+              Regístrate para solicitar <ArrowRight size={16} />
+            </Link>
+          ) : null}
         </div>
       )}
 
