@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SuperAdminAccountFab } from "@/components/superadmin/SuperAdminAccountFab";
 import { SuperAdminViewProvider } from "@/components/superadmin/SuperAdminViewProvider";
+import { SiteSpellcheck } from "@/components/ui/SiteSpellcheck";
 import {
   getSiteUrl,
   SITE_DESCRIPTION,
@@ -78,12 +79,19 @@ const themeInitScript = `(function(){try{var t=localStorage.getItem('zovit-theme
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es-CL" data-theme="dark" suppressHydrationWarning className={`${outfit.variable} ${dmSans.variable}`}>
-      <body>
+    <html
+      lang="es-CL"
+      spellCheck
+      data-theme="dark"
+      suppressHydrationWarning
+      className={`${outfit.variable} ${dmSans.variable}`}
+    >
+      <body spellCheck lang="es-CL">
         <Script id="zovit-theme-init" strategy="beforeInteractive">
           {themeInitScript}
         </Script>
         <JsonLd />
+        <SiteSpellcheck />
         <AuthProvider>
           <SuperAdminViewProvider>
             <Header />
