@@ -56,7 +56,7 @@ export default function VerificationPage() {
     }
   }
 
-  async function useWorkerDocuments() {
+  async function applyWorkerDocuments() {
     setImporting(true);
     setMessage("");
     const response = await fetch("/api/verification/certificates/from-worker", {
@@ -120,7 +120,7 @@ export default function VerificationPage() {
                     type="button"
                     className="primaryButton"
                     disabled={importing}
-                    onClick={() => void useWorkerDocuments()}
+                    onClick={() => void applyWorkerDocuments()}
                   >
                     {importing
                       ? "Aplicando…"
