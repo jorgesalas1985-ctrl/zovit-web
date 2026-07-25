@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AlertCircle, ArrowRight, BriefcaseBusiness, ScanFace, UserRound } from "lucide-react";
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PendingBiometricForm } from "@/components/verification/PendingBiometricForm";
 import { ProfilePhotoPicker } from "@/components/profile/ProfilePhotoUpload";
@@ -18,6 +18,12 @@ import { getAuthCallbackUrl } from "@/lib/auth/redirects";
 import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
 import type { RegistrationDocument } from "@/lib/registration/finishRegistration";
 import { storeRegistrationDocuments } from "@/lib/registration/pendingRegistration";
+import {
+  isRegistrationComplete,
+  isValidChileanRut,
+  normalizeChileanRut,
+  validateRegistrationFields,
+} from "@/lib/registration/validateRegistration";
 import { supabase } from "@/lib/supabase";
 import type { IdentityDocumentType } from "@/lib/verification/types";
 
@@ -42,7 +48,15 @@ function RegisterPageContent() {
   const loginHref = `/login?next=${encodeURIComponent(nextPath)}`;
   const [step, setStep] = useState<RegisterStep>("biometric");
   const [role, setRole] = useState<"client" | "professional">("client");
-  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", email: "", password: "" });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    password: "",
+    address: "",
+    commune: "",
+  });
   const [rut, setRut] = useState("");
   const [documents, setDocuments] = useState<RegistrationDocument[]>([]);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -50,6 +64,24 @@ function RegisterPageContent() {
   const [message, setMessage] = useState("");
   const [needsEmailConfirm, setNeedsEmailConfirm] = useState(true);
   const [busy, setBusy] = useState(false);
+
+  const registrationFields = useMemo(
+    () => ({
+      firstName: form.firstName,
+      lastName: form.lastName,
+      phone: form.phone,
+      email: form.email,
+      password: form.password,
+      address: form.address,
+      commune: form.commune,
+      rut,
+    }),
+    [form, rut]
+  );
+
+  const canCreateAccount =
+    isRegistrationComplete(registrationFields) &&
+    validatePasswordForCreate(form.password) === null;
 
   function addDocument(
     type: IdentityDocumentType,
@@ -65,6 +97,18 @@ function RegisterPageContent() {
   function continueToAccount(event: FormEvent) {
     event.preventDefault();
     setMessage("");
+
+    if (!rut.trim()) {
+      setMessage("Completa el campo RUT para continuar.");
+      return;
+    }
+
+    if (!isValidChileanRut(rut)) {
+      setMessage("Ingresa un RUT chileno válido (ejemplo: 12.345.678-9).");
+      return;
+    }
+
+    setRut(normalizeChileanRut(rut));
     setStep("account");
   }
 
@@ -73,6 +117,13 @@ function RegisterPageContent() {
     setBusy(true);
     setMessage("");
 
+    const fieldsError = validateRegistrationFields(registrationFields);
+    if (fieldsError) {
+      setMessage(fieldsError);
+      setBusy(false);
+      return;
+    }
+
     const passwordError = validatePasswordForCreate(form.password);
     if (passwordError) {
       setMessage(passwordError);
@@ -80,15 +131,27 @@ function RegisterPageContent() {
       return;
     }
 
+    const normalizedRut = normalizeChileanRut(rut);
+    const profileData = {
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      phone: form.phone.trim(),
+      address: form.address.trim(),
+      commune: form.commune.trim(),
+    };
+
     const { data, error } = await supabase.auth.signUp({
       email: normalizeAuthEmail(form.email),
       password: normalizeAuthPassword(form.password),
       options: {
         emailRedirectTo: getAuthCallbackUrl(nextPath),
         data: {
-          first_name: form.firstName,
-          last_name: form.lastName,
-          phone: form.phone,
+          first_name: profileData.firstName,
+          last_name: profileData.lastName,
+          phone: profileData.phone,
+          address: profileData.address,
+          commune: profileData.commune,
+          rut: normalizedRut,
           role,
         },
       },
@@ -108,7 +171,13 @@ function RegisterPageContent() {
     }
 
     if (data.session) {
-      const verificationError = await completeRegistrationVerification(userId, rut, documents, avatarFile);
+      const verificationError = await completeRegistrationVerification(
+        userId,
+        normalizedRut,
+        documents,
+        avatarFile,
+        profileData
+      );
       if (verificationError) {
         setMessage(verificationError);
         setBusy(false);
@@ -120,7 +189,13 @@ function RegisterPageContent() {
     }
 
     try {
-      await storeRegistrationDocuments(form.email, rut, documents, avatarFile);
+      await storeRegistrationDocuments(
+        form.email,
+        normalizedRut,
+        documents,
+        avatarFile,
+        profileData
+      );
     } catch {
       setMessage("No se pudieron guardar tus documentos. Intenta nuevamente.");
       setBusy(false);
@@ -159,8 +234,7 @@ function RegisterPageContent() {
           <p className="kicker">REGISTRO REAL</p>
           <h1>Crea tu cuenta ZOVIT</h1>
           <p className="muted">
-            Cliente y profesional completan la misma verificación de identidad. Luego eliges cómo
-            usarás la plataforma.
+            Todos los campos son obligatorios. Si falta alguno, no podrás crear tu cuenta.
           </p>
 
           <div className="roleSelector">
@@ -183,11 +257,72 @@ function RegisterPageContent() {
             }}
           />
 
-          <form onSubmit={createAccount} className="formGrid">
-            <label>Nombres<input required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} /></label>
-            <label>Apellidos<input required value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} /></label>
-            <label>Teléfono<input required value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
-            <label>Correo electrónico<input type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></label>
+          <form onSubmit={createAccount} className="formGrid" noValidate>
+            <label>
+              Nombres
+              <input
+                required
+                autoComplete="given-name"
+                value={form.firstName}
+                onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+              />
+            </label>
+            <label>
+              Apellidos
+              <input
+                required
+                autoComplete="family-name"
+                value={form.lastName}
+                onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+              />
+            </label>
+            <label>
+              RUT
+              <input required value={rut} readOnly aria-readonly="true" />
+              <small className="fieldHint">Definido en el paso de verificación biométrica.</small>
+            </label>
+            <label>
+              Teléfono
+              <input
+                required
+                type="tel"
+                autoComplete="tel"
+                inputMode="tel"
+                placeholder="+56 9 1234 5678"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </label>
+            <label className="full">
+              Dirección
+              <input
+                required
+                autoComplete="street-address"
+                placeholder="Calle, número, depto/casa"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </label>
+            <label>
+              Comuna
+              <input
+                required
+                autoComplete="address-level2"
+                placeholder="Ej: Santiago, Maipú, Providencia"
+                value={form.commune}
+                onChange={(e) => setForm({ ...form, commune: e.target.value })}
+              />
+            </label>
+            <label>
+              Correo electrónico
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </label>
             <label className="full">
               Contraseña
               <input
@@ -195,13 +330,18 @@ function RegisterPageContent() {
                 required
                 minLength={PASSWORD_MIN_LENGTH}
                 maxLength={PASSWORD_MAX_LENGTH}
+                autoComplete="new-password"
                 value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
               />
               <small className="fieldHint">{PASSWORD_HINT}</small>
             </label>
 
-            {message && <div className="formMessage full"><AlertCircle size={17} /> {message}</div>}
+            {message && (
+              <div className="formMessage full">
+                <AlertCircle size={17} /> {message}
+              </div>
+            )}
 
             <p className="authLegalNote full">
               Al crear tu cuenta aceptas los{" "}
@@ -213,7 +353,7 @@ function RegisterPageContent() {
               <button type="button" className="secondaryButton" disabled={busy} onClick={() => setStep("biometric")}>
                 Volver
               </button>
-              <button className="primaryButton wide" disabled={busy}>
+              <button className="primaryButton wide" disabled={busy || !canCreateAccount}>
                 {busy ? "Creando cuenta…" : <>Crear cuenta <ArrowRight size={18} /></>}
               </button>
             </div>
@@ -235,7 +375,7 @@ function RegisterPageContent() {
         <h1>Verificación biométrica</h1>
         <p className="muted">
           Paso 1 (igual para clientes y profesionales): valida tu identidad con carnet, selfie y
-          prueba de vida. Luego crearás tu cuenta.
+          prueba de vida. Luego crearás tu cuenta con todos tus datos personales.
         </p>
 
         <PendingBiometricForm

@@ -15,6 +15,11 @@ export type StoredRegistrationDocument = {
 export type PendingRegistration = {
   email: string;
   rut: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  address?: string;
+  commune?: string;
   documents: StoredRegistrationDocument[];
   avatar: StoredRegistrationDocument | null;
   createdAt: string;
@@ -70,6 +75,14 @@ export async function clearPendingRegistration(email: string): Promise<void> {
   await runTransaction("readwrite", (store) => store.delete(normalized));
 }
 
+export type PendingProfileFields = {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  address?: string;
+  commune?: string;
+};
+
 export async function storeRegistrationDocuments(
   email: string,
   rut: string,
@@ -78,7 +91,8 @@ export async function storeRegistrationDocuments(
     file: File;
     metadata?: Record<string, unknown> | null;
   }>,
-  avatarFile?: File | null
+  avatarFile?: File | null,
+  profile?: PendingProfileFields
 ): Promise<void> {
   const avatar = avatarFile
     ? {
@@ -93,6 +107,11 @@ export async function storeRegistrationDocuments(
   await savePendingRegistration({
     email: email.trim().toLowerCase(),
     rut,
+    firstName: profile?.firstName,
+    lastName: profile?.lastName,
+    phone: profile?.phone,
+    address: profile?.address,
+    commune: profile?.commune,
     documents: await Promise.all(
       documents.map(async (doc) => ({
         document_type: doc.document_type,
@@ -127,7 +146,8 @@ export async function flushPendingRegistration(
     userId: string,
     rut: string,
     documents: ReturnType<typeof pendingToRegistrationDocuments>,
-    avatarFile?: File | null
+    avatarFile?: File | null,
+    profile?: PendingProfileFields
   ) => Promise<string | null>
 ): Promise<boolean> {
   const pending = await loadPendingRegistration(email);
@@ -137,7 +157,14 @@ export async function flushPendingRegistration(
     userId,
     pending.rut,
     pendingToRegistrationDocuments(pending),
-    pendingToAvatarFile(pending)
+    pendingToAvatarFile(pending),
+    {
+      firstName: pending.firstName,
+      lastName: pending.lastName,
+      phone: pending.phone,
+      address: pending.address,
+      commune: pending.commune,
+    }
   );
   if (error) {
     throw new Error(error);

@@ -8,12 +8,35 @@ export type RegistrationDocument = {
   metadata?: Record<string, unknown> | null;
 };
 
-export async function saveProfileRut(userId: string, rut: string): Promise<string | null> {
-  const { error } = await supabase
-    .from("profiles")
-    .update({ rut: rut.trim(), updated_at: new Date().toISOString() })
-    .eq("id", userId);
+export type RegistrationProfileUpdate = {
+  rut: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  address?: string;
+  commune?: string;
+};
 
+export async function saveProfileRut(userId: string, rut: string): Promise<string | null> {
+  return saveRegistrationProfile(userId, { rut });
+}
+
+export async function saveRegistrationProfile(
+  userId: string,
+  profile: RegistrationProfileUpdate
+): Promise<string | null> {
+  const payload: Record<string, string | null> = {
+    rut: profile.rut.trim(),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (profile.firstName !== undefined) payload.first_name = profile.firstName.trim() || null;
+  if (profile.lastName !== undefined) payload.last_name = profile.lastName.trim() || null;
+  if (profile.phone !== undefined) payload.phone = profile.phone.trim() || null;
+  if (profile.address !== undefined) payload.address = profile.address.trim() || null;
+  if (profile.commune !== undefined) payload.commune = profile.commune.trim() || null;
+
+  const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
   return error?.message ?? null;
 }
 
@@ -60,9 +83,17 @@ export async function completeRegistrationVerification(
   userId: string,
   rut: string,
   documents: RegistrationDocument[],
-  avatarFile?: File | null
+  avatarFile?: File | null,
+  profile?: Omit<RegistrationProfileUpdate, "rut">
 ): Promise<string | null> {
-  const rutError = await saveProfileRut(userId, rut);
+  const rutError = await saveRegistrationProfile(userId, {
+    rut,
+    firstName: profile?.firstName,
+    lastName: profile?.lastName,
+    phone: profile?.phone,
+    address: profile?.address,
+    commune: profile?.commune,
+  });
   if (rutError) return rutError;
 
   const uploadError = await uploadRegistrationDocuments(userId, documents);

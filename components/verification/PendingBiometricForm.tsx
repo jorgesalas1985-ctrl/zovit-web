@@ -4,6 +4,7 @@ import { AlertCircle, ArrowRight, FileUp, ScanFace, Upload } from "lucide-react"
 import { FormEvent, useRef } from "react";
 import { BiometricWizard } from "@/components/verification/BiometricWizard";
 import type { RegistrationDocument } from "@/lib/registration/finishRegistration";
+import { isValidChileanRut } from "@/lib/registration/validateRegistration";
 import {
   getCarnetDocuments,
   hasAllBiometricDocuments,
@@ -48,7 +49,7 @@ export function PendingBiometricForm({
   const hasSelfie = documents.some((doc) => doc.document_type === "selfie");
   const hasLiveness = documents.some((doc) => doc.document_type === "liveness_proof");
   const biometricDone = hasBiometricDocuments(localState);
-  const canContinue = rut.trim().length > 0 && hasAllBiometricDocuments(localState);
+  const canContinue = isValidChileanRut(rut) && hasAllBiometricDocuments(localState);
 
   return (
     <>
