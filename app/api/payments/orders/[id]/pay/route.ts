@@ -1,5 +1,5 @@
 import { confirmPaymentReceived } from "@/lib/payments/confirmPayment";
-import { getPaymentProvider } from "@/lib/payments/providers";
+import { getPaymentProvider, isMockPaymentsAllowed } from "@/lib/payments/providers";
 import { validateMercadoPagoPublicUrl } from "@/lib/payments/providers/mercadopago";
 import { mapPaymentRow } from "@/lib/payments/mappers";
 import type { PaymentProviderName } from "@/lib/payments/types";
@@ -14,8 +14,11 @@ export async function POST(request: Request, { params }: Params) {
     const body = (await request.json().catch(() => ({}))) as { provider?: PaymentProviderName };
     const providerName = body.provider ?? "mock";
 
-    if (providerName === "mock" && process.env.NODE_ENV === "production") {
-      return NextResponse.json({ error: "El proveedor mock no está disponible en producción." }, { status: 400 });
+    if (providerName === "mock" && !isMockPaymentsAllowed()) {
+      return NextResponse.json(
+        { error: "El pago de prueba no está habilitado. Usa Mercado Pago o activa ZOVIT_ALLOW_MOCK_PAYMENTS." },
+        { status: 400 }
+      );
     }
 
     if (providerName === "mercadopago") {

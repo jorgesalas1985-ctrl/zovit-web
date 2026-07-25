@@ -84,11 +84,23 @@ export default function JobsPage() {
                   </div>
                   <div className="jobCardActions">
                     {job.status === "publicada" && !job.professional_id ? (
-                      <button className="primaryButton" disabled={!!acceptingId} onClick={() => void accept(job.id)}>
-                        {acceptingId === job.id ? "Aceptando…" : "Aceptar trabajo"}
-                      </button>
+                      <>
+                        <Link className="primaryButton" href={`/solicitudes/${job.id}`}>
+                          Enviar propuesta / cotizar
+                        </Link>
+                        <button
+                          className="secondaryButton"
+                          disabled={!!acceptingId}
+                          onClick={() => void accept(job.id)}
+                          title="Asigna el trabajo sin generar orden de pago"
+                        >
+                          {acceptingId === job.id ? "Aceptando…" : "Aceptar sin pago"}
+                        </button>
+                      </>
                     ) : null}
-                    <Link className="secondaryButton" href={`/solicitudes/${job.id}`}>Ver detalle</Link>
+                    {!(job.status === "publicada" && !job.professional_id) && (
+                      <Link className="secondaryButton" href={`/solicitudes/${job.id}`}>Ver detalle</Link>
+                    )}
                   </div>
                 </article>
               ))}

@@ -29,8 +29,16 @@ const providers: Record<PaymentProviderName, PaymentProviderAdapter> = {
   bank_transfer: notImplemented("bank_transfer"),
 };
 
+export function isMockPaymentsAllowed(): boolean {
+  if (process.env.NODE_ENV !== "production") return true;
+  return (
+    process.env.ZOVIT_ALLOW_MOCK_PAYMENTS === "true" ||
+    process.env.NEXT_PUBLIC_ALLOW_MOCK_PAYMENTS === "true"
+  );
+}
+
 export function getPaymentProvider(name: PaymentProviderName): PaymentProviderAdapter {
-  if (name === "mock" && process.env.NODE_ENV === "production") {
+  if (name === "mock" && !isMockPaymentsAllowed()) {
     throw new Error("El proveedor mock no está disponible en producción.");
   }
   return providers[name] ?? providers.mock;

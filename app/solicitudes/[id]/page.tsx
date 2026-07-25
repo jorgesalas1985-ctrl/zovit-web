@@ -5,6 +5,7 @@ import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { ProposalSection } from "@/components/payments/ProposalSection";
 import { ServiceRatingForm } from "@/components/ServiceRatingForm";
 import { useAuth } from "@/components/AuthProvider";
+import { getActiveMode, isProfessionalMode } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle, ArrowLeft, Camera, CheckCircle2, MapPin, MessageCircle, Send, Upload } from "lucide-react";
 import Link from "next/link";
@@ -88,9 +89,17 @@ export default function RequestDetailPage() {
   useEffect(() => { chatEnd.current?.scrollIntoView({ behavior:"smooth" }); }, [messages]);
 
   const isClient = !!user && request?.client_id === user.id;
-  const isProfessional = !!user && request?.professional_id === user.id;
-  const isParticipant = isClient || isProfessional;
+  const isAssignedProfessional = !!user && request?.professional_id === user.id;
   const isAdmin = profileRole === "admin";
+  const canProposeAsProfessional =
+    !!user &&
+    !!profile &&
+    isProfessionalMode(profile) &&
+    request?.status === "publicada" &&
+    (!isClient || isAdmin);
+  const isProfessional = isAssignedProfessional || canProposeAsProfessional;
+  const isParticipant = isClient || isAssignedProfessional;
+  const activeMode = getActiveMode(profile);
   const isCancelled = request?.status === "cancelada";
   const isFinalized = request?.status === "finalizada";
   const canCollaborate = !!request && !isCancelled && request.status !== "publicada" && (isParticipant || isAdmin);
@@ -210,14 +219,19 @@ export default function RequestDetailPage() {
                     />
                   )}
                   <section className="moduleCard actionCard"><p className="kicker">GESTIÓN</p><h2>Acciones</h2>
-                    {isProfessional && nextStatus[request.status] && <button className="primaryButton fullButton" disabled={busy} onClick={()=>void updateStatus(nextStatus[request.status])}>{request.status === "aceptada" ? "Marcar en camino" : request.status === "en_camino" ? "Iniciar trabajo" : "Finalizar trabajo"}</button>}
+                    {isAssignedProfessional && nextStatus[request.status] && <button className="primaryButton fullButton" disabled={busy} onClick={()=>void updateStatus(nextStatus[request.status])}>{request.status === "aceptada" ? "Marcar en camino" : request.status === "en_camino" ? "Iniciar trabajo" : "Finalizar trabajo"}</button>}
                     {isClient && ["publicada","aceptada"].includes(request.status) && <button className="dangerButton fullButton" disabled={busy} onClick={()=>void updateStatus("cancelada")}>Cancelar solicitud</button>}
                     {request.status === "finalizada" && <div className="completionBox"><CheckCircle2/><strong>Trabajo finalizado</strong><span>La solicitud quedó completada.</span></div>}
                     {request.professional_id && (
                       <Link className="secondaryButton fullButton" href={`/profesional/${request.professional_id}`}>Ver perfil del profesional</Link>
                     )}
-                    {request.status === "publicada" && isClient && <p className="muted">Esperando que un profesional acepte tu solicitud.</p>}
-                    {!isParticipant && !isAdmin && <p className="muted">Solo los participantes pueden administrar esta solicitud.</p>}
+                    {request.status === "publicada" && isClient && <p className="muted">Esperando propuesta o aceptación de un profesional.</p>}
+                    {canProposeAsProfessional && (
+                      <p className="muted">Modo {activeMode}: envía una cotización con precio para que el cliente pague por ZOVIT.</p>
+                    )}
+                    {!isParticipant && !isAdmin && !canProposeAsProfessional && (
+                      <p className="muted">Solo los participantes pueden administrar esta solicitud.</p>
+                    )}
                   </section>
                   {isClient && request.status === "finalizada" && !existingRating && (
                     <section className="moduleCard">
