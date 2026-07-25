@@ -356,13 +356,21 @@ html[data-theme="light"] .authSelectMenu button {
 .roleModeBanner--page {
   padding: 12px 5vw;
 }
+.roleModeDual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .roleModeBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 188px;
+  min-width: 168px;
   padding: 11px 28px;
   border-radius: 999px;
+  font-family: inherit;
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.24em;
@@ -372,6 +380,12 @@ html[data-theme="light"] .authSelectMenu button {
   border: 2px solid rgba(255, 255, 255, 0.92);
   background: rgba(5, 8, 22, 0.88);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
+  transition: opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+  cursor: default;
+}
+button.roleModeBadge {
+  appearance: none;
+  -webkit-appearance: none;
 }
 .roleModeBadge--client {
   border-color: #67e8f9;
@@ -383,31 +397,32 @@ html[data-theme="light"] .authSelectMenu button {
   background: linear-gradient(135deg, rgba(76, 29, 149, 0.96) 0%, rgba(109, 40, 217, 0.96) 100%);
   box-shadow: 0 0 0 1px rgba(221, 214, 254, 0.35), 0 12px 32px rgba(0, 0, 0, 0.34);
 }
-.roleModeSwitcher {
-  display: inline-flex;
-  gap: 8px;
-  padding: 6px;
-  border-radius: 999px;
-  background: rgba(5, 8, 22, 0.88);
-  border: 2px solid rgba(255, 255, 255, 0.18);
+.roleModeBadge--active {
+  opacity: 1;
+  filter: none;
+  transform: scale(1.02);
+  z-index: 1;
 }
-.roleModeSwitchBtn {
-  border: none;
-  border-radius: 999px;
-  padding: 10px 22px;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
-  background: transparent;
+.roleModeBadge--idle {
+  opacity: 0.34;
+  filter: saturate(0.55);
+  box-shadow: none;
   cursor: pointer;
 }
-.roleModeSwitchBtn--active,
-.roleModeSwitchBtn:disabled {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.12);
+.roleModeBadge--idle:hover:not(:disabled) {
+  opacity: 0.55;
+  filter: saturate(0.75);
+}
+.roleModeBadge--idle:disabled {
   cursor: default;
+}
+@media (max-width: 520px) {
+  .roleModeBadge {
+    min-width: 140px;
+    padding: 10px 18px;
+    letter-spacing: 0.16em;
+    font-size: 12px;
+  }
 }
 .accountModeSection {
   display: grid;

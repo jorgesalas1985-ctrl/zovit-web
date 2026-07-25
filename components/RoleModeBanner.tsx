@@ -25,7 +25,7 @@ export function RoleModeBanner({ role, variant = "dashboard", showSwitcher = tru
   const dual = profile ? hasDualMode(profile) : false;
 
   async function switchMode(nextMode: RoleMode) {
-    if (!profile || busy || nextMode === activeMode) return;
+    if (!profile || busy || nextMode === activeMode || !showSwitcher) return;
     setBusy(true);
     try {
       const response = await fetch("/api/profile/activate-mode", {
@@ -49,27 +49,34 @@ export function RoleModeBanner({ role, variant = "dashboard", showSwitcher = tru
 
   return (
     <div className={`roleModeBanner roleModeBanner--${variant}`} aria-label={`Modo ${LABELS[activeMode]}`}>
-      {dual && showSwitcher ? (
-        <div className="roleModeSwitcher">
-          <button
-            type="button"
-            className={`roleModeSwitchBtn ${activeMode === "client" ? "roleModeSwitchBtn--active" : ""}`}
-            disabled={busy || activeMode === "client"}
-            onClick={() => void switchMode("client")}
-          >
-            Cliente
-          </button>
-          <button
-            type="button"
-            className={`roleModeSwitchBtn ${activeMode === "professional" ? "roleModeSwitchBtn--active" : ""}`}
-            disabled={busy || activeMode === "professional"}
-            onClick={() => void switchMode("professional")}
-          >
-            Profesional
-          </button>
+      {dual ? (
+        <div className="roleModeDual" role="group" aria-label="Modo de cuenta dual">
+          {(["client", "professional"] as const).map((mode) => {
+            const isActive = activeMode === mode;
+            const canSwitch = showSwitcher && !busy && !isActive;
+            return (
+              <button
+                key={mode}
+                type="button"
+                className={`roleModeBadge roleModeBadge--${mode} ${
+                  isActive ? "roleModeBadge--active" : "roleModeBadge--idle"
+                }`}
+                aria-current={isActive ? "true" : undefined}
+                aria-pressed={isActive}
+                disabled={busy || !showSwitcher}
+                onClick={() => {
+                  if (canSwitch) void switchMode(mode);
+                }}
+              >
+                {LABELS[mode]}
+              </button>
+            );
+          })}
         </div>
       ) : (
-        <span className={`roleModeBadge roleModeBadge--${activeMode}`}>{LABELS[activeMode]}</span>
+        <span className={`roleModeBadge roleModeBadge--${activeMode} roleModeBadge--active`}>
+          {LABELS[activeMode]}
+        </span>
       )}
     </div>
   );
