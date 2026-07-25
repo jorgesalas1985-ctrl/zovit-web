@@ -241,21 +241,6 @@ function PanelContent() {
           </Link>
         )}
 
-        <Link href="/registro/biometria" className="dashboardCard">
-          <div className="dashboardIcon"><ShieldCheck /></div>
-          <div>
-            <h3>Verificación biométrica</h3>
-            <p>
-              {profile?.identity_verified
-                ? "Identidad y biometría verificadas en ZOVIT."
-                : profile?.identity_status === "pending"
-                  ? "Tu verificación biométrica está en revisión."
-                  : "Completa carnet, selfie y prueba de vida."}
-            </p>
-          </div>
-          <ArrowRight />
-        </Link>
-
         {isProfessionalView && (
           <Link href="/verificacion" className="dashboardCard">
             <div className="dashboardIcon"><ShieldCheck /></div>
