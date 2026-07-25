@@ -136,7 +136,17 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     saveLocalWorkerDraft(draft);
   }, [draft]);
 
-  async function persistDraft(next: WorkerRegistrationDraft = draft) {
+  function isMigrationError(error?: string, code?: string) {
+    return (
+      code === "MIGRATION_REQUIRED" ||
+      /worker_registrations|schema cache|does not exist/i.test(error ?? "")
+    );
+  }
+
+  async function persistDraft(
+    next: WorkerRegistrationDraft = draft,
+    options?: { quiet?: boolean }
+  ) {
     saveLocalWorkerDraft(next);
     if (!user) {
       setSaveState("saved");
@@ -156,16 +166,18 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     if (!response.ok) {
       // El borrador ya quedó en este dispositivo; no bloqueamos el flujo.
       setSaveState("error");
-      if (data.code === "MIGRATION_REQUIRED") {
-        setMessage(
-          "Tu avance quedó guardado en este dispositivo. Para sincronizar con el servidor hay que aplicar la migración SQL de trabajadores en Supabase (SPRINT_11_WORKER_PROFILES.sql)."
-        );
-      } else {
-        setMessage(data.error ?? "No se pudo sincronizar con el servidor. Quedó guardado aquí.");
+      if (!options?.quiet) {
+        if (isMigrationError(data.error, data.code)) {
+          setMessage(
+            "Tu avance quedó guardado en este dispositivo. Para sincronizar con el servidor hay que aplicar en Supabase el SQL SPRINT_11_WORKER_PROFILES.sql."
+          );
+        } else {
+          setMessage(data.error ?? "No se pudo sincronizar con el servidor. Quedó guardado aquí.");
+        }
       }
       return false;
     }
-    setMessage("");
+    if (!options?.quiet) setMessage("");
     setSaveState("saved");
     return true;
   }
@@ -209,7 +221,9 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       setMessage(error);
       return;
     }
-    await persistDraft();
+    // Avanzamos aunque el servidor aún no tenga la migración; el borrador queda local.
+    await persistDraft(draft, { quiet: true });
+    setMessage("");
     setStep((current) => Math.min(7, current + 1));
   }
 
@@ -308,7 +322,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
           {saveState === "saved"
             ? "Borrador guardado"
             : saveState === "error"
-              ? "No se pudo sincronizar; quedó guardado en este dispositivo"
+              ? "Guardado en este dispositivo (pendiente sincronizar con Supabase)"
               : "Autosave activo"}
         </span>
       </div>
