@@ -4,8 +4,8 @@ import { chileanDateToIso, isoToChileanDate, isValidChileanDate } from "./chilea
 
 describe("chilean date format", () => {
   it("parses day/month/year", () => {
-    assert.equal(chileanDateToIso("02/05/1985"), "1985-05-02");
-    assert.equal(chileanDateToIso("2-5-1985"), "1985-05-02");
+    assert.equal(chileanDateToIso("15/03/1990"), "1990-03-15");
+    assert.equal(chileanDateToIso("15-3-1990"), "1990-03-15");
     assert.equal(isValidChileanDate("31/12/2000"), true);
   });
 
@@ -15,6 +15,6 @@ describe("chilean date format", () => {
   });
 
   it("formats ISO to Chilean display", () => {
-    assert.equal(isoToChileanDate("1985-05-02"), "02/05/1985");
+    assert.equal(isoToChileanDate("1990-03-15"), "15/03/1990");
   });
 });

@@ -67,12 +67,12 @@ export function validateRegistrationFields(
   }
 
   if (!isValidChileanRut(fields.rut)) {
-    return "Ingresa un RUT válido. Formatos: 16032189k · 16.032.189-k · 16032189-k";
+    return "Ingresa un RUT válido. Formatos: 123456785 · 12.345.678-5 · 12345678-5";
   }
 
   const phoneDigits = fields.phone.replace(/\D/g, "");
   if (phoneDigits.length < 8) {
-    return "Ingresa un teléfono válido. Ejemplo: +56 9 1234 5678";
+    return "Ingresa un teléfono válido. Ejemplo: +56 9 8765 4321";
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.trim())) {

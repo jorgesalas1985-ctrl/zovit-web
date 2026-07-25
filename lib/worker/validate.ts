@@ -16,9 +16,9 @@ export function validatePersonalStep(draft: WorkerRegistrationDraft): string | n
   if (!isValidChileanRut(p.rut)) return RUT_FORMAT_ERROR;
   if (!filled(p.birthDate)) return "Ingresa tu fecha de nacimiento (dd/mm/aaaa).";
   if (!isValidChileanDate(p.birthDate)) {
-    return "Fecha de nacimiento inválida. Usa día/mes/año, ej: 02/05/1985.";
+    return "Fecha de nacimiento inválida. Usa día/mes/año, ej: 15/03/1990.";
   }
-  if (!filled(p.phone)) return "Ingresa tu teléfono. Ejemplo: +56 9 1234 5678";
+  if (!filled(p.phone)) return "Ingresa tu teléfono. Ejemplo: +56 9 8765 4321";
   if (!filled(p.email)) return "Ingresa tu correo. Ejemplo: nombre@correo.com";
   if (!filled(p.address) && !filled(p.commune)) {
     return "Ingresa tu dirección o comuna. Ejemplo: Santiago, Maipú";

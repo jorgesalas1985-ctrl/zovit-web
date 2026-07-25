@@ -3,17 +3,17 @@
  * Usar en placeholder y, cuando ayude, en fieldHint debajo del campo.
  */
 export const FIELD_PLACEHOLDERS = {
-  firstName: "Ej: Jorge Andrés",
-  lastName: "Ej: Salas Guzmán",
-  rut: "16.032.189-K",
-  rutHint: "Formatos válidos: 16032189k · 16.032.189-k · 16032189-k",
-  phone: "+56 9 1234 5678",
+  firstName: "Ej: Camila",
+  lastName: "Ej: Rojas Muñoz",
+  rut: "12.345.678-5",
+  rutHint: "Formatos válidos: 123456785 · 12.345.678-5 · 12345678-5",
+  phone: "+56 9 8765 4321",
   email: "nombre@correo.com",
   password: "Mínimo 8 caracteres",
   address: "Calle, número, depto/casa",
   commune: "Ej: Santiago, Maipú, Providencia",
   birthDate: "dd/mm/aaaa",
-  birthDateHint: "Formato: día/mes/año — ej: 02/05/1985",
+  birthDateHint: "Formato: día/mes/año — ej: 15/03/1990",
   category: "Ej: Hogar, Construcción",
   description: "Describe el trabajo con el mayor detalle posible",
   serviceAddress: "Dirección o comuna del servicio",
@@ -40,4 +40,4 @@ export const FIELD_PLACEHOLDERS = {
 } as const;
 
 export const RUT_FORMAT_ERROR =
-  "Ingresa un RUT válido. Formatos: 16032189k · 16.032.189-k · 16032189-k";
+  "Ingresa un RUT válido. Formatos: 123456785 · 12.345.678-5 · 12345678-5";
