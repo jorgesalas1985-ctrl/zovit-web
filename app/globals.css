@@ -2899,8 +2899,29 @@ html[data-theme="dark"] .homeStoryWallPeel {
   width: fit-content;
 }
 
+.whySplitGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.whyBulletList {
+  margin: 0 0 14px;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.whyBulletList li::marker {
+  color: var(--blue-bright);
+}
+
 @media (max-width: 900px) {
-  .securityProtectGrid {
+  .securityProtectGrid,
+  .whySplitGrid {
     grid-template-columns: 1fr;
   }
 

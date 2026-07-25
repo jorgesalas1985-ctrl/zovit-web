@@ -60,7 +60,7 @@ export function SiteFooter() {
       {
         title: "ZOVIT",
         links: [
-          { label: "¿Por qué ZOVIT?", href: "/#confianza" },
+          { label: "¿Por qué ZOVIT?", href: "/por-que-zovit" },
           { label: "Seguridad", href: "/seguridad" },
           { label: "Profesionales", href: "/registro" },
         ],

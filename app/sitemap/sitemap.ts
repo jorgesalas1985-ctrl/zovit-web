@@ -23,6 +23,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${siteUrl}/categorias`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     { url: `${siteUrl}/registro`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${siteUrl}/seguridad`, lastModified: now, changeFrequency: "monthly", priority: 0.75 },
+    { url: `${siteUrl}/por-que-zovit`, lastModified: now, changeFrequency: "monthly", priority: 0.75 },
     {
       url: `${siteUrl}/profesionales-verificados`,
       lastModified: now,
