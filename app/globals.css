@@ -2357,56 +2357,32 @@ html[data-theme="dark"] .homeStoryWallPeel {
   transform: translateY(0);
 }
 
+/*
+  Reduced motion: keep the hero story loop (opacity/narrative), but drop
+  large spatial motion that can feel vestibular. Scroll reveals still skip.
+  Note: Windows "Animation effects" OFF maps to prefers-reduced-motion.
+*/
 @media (prefers-reduced-motion: reduce) {
   .homeStoryGlow,
   .homeStoryWallStage,
-  .homeStoryWall--damaged,
-  .homeStoryWall--work,
-  .homeStoryWall--done,
-  .homeStoryDoneSheen,
-  .homeStoryPaintStroke,
   .homeStoryBrush,
   .homeStoryClient,
-  .homeStoryPhoneBtn,
-  .homeStoryPhoneApprove,
-  .homeStoryConnector,
   .homeStoryConnectorPath,
   .homeStoryConnectorDot,
-  .homeStoryPros,
-  .homeStoryProCard--highlight,
-  .homeStoryProBadge,
-  .homeStoryLock--closed,
-  .homeStoryLock--open,
-  .homeStoryPayoutCoin,
-  .homeStoryCaptionText,
-  .homeStoryProgressBar {
+  .homeStoryPayoutCoin {
     animation: none !important;
   }
 
-  .homeStoryWall--damaged,
+  .homeStoryWallStage,
   .homeStoryClient,
-  .homeStoryPhoneBtn,
   .homeStoryPros,
-  .homeStoryLock--closed,
-  .homeStoryCaptionText--1 {
-    opacity: 1 !important;
+  .homeStoryBrush {
     transform: none !important;
-    visibility: visible !important;
   }
 
-  .homeStoryWall--work,
-  .homeStoryWall--done,
-  .homeStoryPhoneApprove,
-  .homeStoryConnector,
-  .homeStoryLock--open,
-  .homeStoryCaptionText--2,
-  .homeStoryCaptionText--3,
-  .homeStoryCaptionText--4,
-  .homeStoryPayout {
-    display: none;
+  .homeStoryPayoutCoin {
+    opacity: 0 !important;
   }
-
-  .homeStoryProgressBar { transform: scaleX(0.35); }
 
   .scrollReveal {
     opacity: 1;
