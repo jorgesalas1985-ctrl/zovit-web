@@ -57,9 +57,7 @@ import {
 } from "@/lib/worker/validate";
 import { chileanDateToIso, isoToChileanDate } from "@/lib/ui/chileanDate";
 import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
-import { createClient } from "@/lib/supabase/client";
 
-const WORKER_DOC_BUCKET = "worker-credentials";
 const WORKER_DOC_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
 const STEPS = [
@@ -277,24 +275,28 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       return null;
     }
 
-    const supabase = createClient();
-    const extension = file.name.split(".").pop()?.toLowerCase() || "bin";
-    const path = `${user.id}/${folder}/${crypto.randomUUID()}.${extension}`;
-    const { error } = await supabase.storage
-      .from(WORKER_DOC_BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false });
+    const body = new FormData();
+    body.append("file", file);
+    body.append("folder", folder);
 
-    if (error) {
-      showToast(
-        /bucket|not found|row-level/i.test(error.message)
-          ? "Falta crear el bucket worker-credentials (SPRINT_12_WORKER_AI_VALIDATION.sql)."
-          : error.message,
-        "error"
-      );
+    const response = await fetch("/api/worker/documents", {
+      method: "POST",
+      body,
+    });
+    const data = (await response.json()) as {
+      error?: string;
+      hint?: string;
+      path?: string;
+      mime?: string;
+      name?: string;
+    };
+
+    if (!response.ok || !data.path) {
+      showToast(data.error ?? data.hint ?? "No se pudo subir el documento.", "error");
       return null;
     }
 
-    return { path, mime: file.type, name: file.name };
+    return { path: data.path, mime: data.mime ?? file.type, name: data.name ?? file.name };
   }
 
   function validateCurrent(): string | null {
