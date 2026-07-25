@@ -52,6 +52,10 @@ import {
   validateServicesStep,
 } from "@/lib/worker/validate";
 import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
+import { createClient } from "@/lib/supabase/client";
+
+const WORKER_DOC_BUCKET = "worker-credentials";
+const WORKER_DOC_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
 const STEPS = [
   "Datos personales",
@@ -228,6 +232,42 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       suggestedProfiles: suggested,
       primaryProfile: pickPrimaryProfile(suggested),
     }));
+  }
+
+  async function uploadWorkerDocument(
+    file: File,
+    folder: string
+  ): Promise<{ path: string; mime: string; name: string } | null> {
+    if (!user) {
+      setMessage("Inicia sesión para subir documentos.");
+      return null;
+    }
+    if (!WORKER_DOC_TYPES.includes(file.type)) {
+      setMessage("Formato no permitido. Usa JPG, PNG, WEBP o PDF.");
+      return null;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage("El archivo no puede superar 10 MB.");
+      return null;
+    }
+
+    const supabase = createClient();
+    const extension = file.name.split(".").pop()?.toLowerCase() || "bin";
+    const path = `${user.id}/${folder}/${crypto.randomUUID()}.${extension}`;
+    const { error } = await supabase.storage
+      .from(WORKER_DOC_BUCKET)
+      .upload(path, file, { contentType: file.type, upsert: false });
+
+    if (error) {
+      setMessage(
+        /bucket|not found|row-level/i.test(error.message)
+          ? "Falta crear el bucket worker-credentials (SPRINT_12_WORKER_AI_VALIDATION.sql)."
+          : error.message
+      );
+      return null;
+    }
+
+    return { path, mime: file.type, name: file.name };
   }
 
   function validateCurrent(): string | null {
@@ -662,16 +702,35 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                     />
                   </label>
                   <label className="full">
-                    Documento de respaldo (nombre / referencia)
+                    Documento de respaldo (imagen o PDF)
                     <input
-                      value={cred.documentName ?? ""}
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
                       onChange={(e) => {
-                        const credentials = [...draft.credentials];
-                        credentials[index] = { ...cred, documentName: e.target.value };
-                        setDraft({ ...draft, credentials });
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        void (async () => {
+                          setBusy(true);
+                          const uploaded = await uploadWorkerDocument(file, `cred-${cred.id}`);
+                          setBusy(false);
+                          if (!uploaded) return;
+                          const credentials = [...draft.credentials];
+                          credentials[index] = {
+                            ...cred,
+                            documentName: uploaded.name,
+                            storagePath: uploaded.path,
+                            documentMime: uploaded.mime,
+                          };
+                          setDraft({ ...draft, credentials });
+                          setMessage("Documento subido.");
+                        })();
                       }}
-                      placeholder="Ej: Certificado SEC 2024.pdf (se adjuntará en verificación)"
                     />
+                    {cred.storagePath ? (
+                      <small className="muted">Archivo listo: {cred.documentName}</small>
+                    ) : (
+                      <small className="muted">Obligatorio para validación automática.</small>
+                    )}
                   </label>
                   <button
                     type="button"
@@ -867,16 +926,38 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                 />
               </label>
               <label className="full">
-                Certificado de alumno regular / matrícula (referencia)
+                Certificado de alumno regular / matrícula (imagen o PDF)
                 <input
-                  value={draft.training.enrollmentDocName ?? ""}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      training: { ...draft.training, enrollmentDocName: e.target.value },
-                    })
-                  }
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    void (async () => {
+                      setBusy(true);
+                      const uploaded = await uploadWorkerDocument(file, "enrollment");
+                      setBusy(false);
+                      if (!uploaded) return;
+                      setDraft({
+                        ...draft,
+                        training: {
+                          ...draft.training,
+                          enrollmentDocName: uploaded.name,
+                          enrollmentStoragePath: uploaded.path,
+                          enrollmentMime: uploaded.mime,
+                        },
+                      });
+                      setMessage("Certificado de matrícula subido.");
+                    })();
+                  }}
                 />
+                {draft.training.enrollmentStoragePath ? (
+                  <small className="muted">
+                    Archivo listo: {draft.training.enrollmentDocName}
+                  </small>
+                ) : (
+                  <small className="muted">Obligatorio para validación automática.</small>
+                )}
               </label>
               <label className="full">
                 Competencias declaradas

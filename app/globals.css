@@ -3632,6 +3632,25 @@ html[data-theme="dark"] .homeStoryWallPeel {
   background: rgba(37, 99, 235, 0.1);
   border: 1px solid rgba(37, 99, 235, 0.22);
 }
+.workerAdminAiBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, rgb(124, 58, 237) 35%, var(--line-blue));
+  background: color-mix(in srgb, var(--surface) 88%, rgba(124, 58, 237, 0.12));
+}
+.workerAdminAiBar p { margin: 6px 0 0; }
+.workerAdminAiActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
 .workerAdminFilters {
   display: flex;
   flex-wrap: wrap;

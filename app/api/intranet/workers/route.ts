@@ -32,17 +32,35 @@ export async function GET(request: Request) {
     const status = searchParams.get("status");
     const profileType = searchParams.get("profile");
 
+    const selectWithAi =
+      "profile_id,status,suggested_profiles,submitted_at,reviewed_at,review_message,updated_at,draft,ai_review_status,ai_confidence,ai_forgery_risk,ai_review_summary, profiles!inner(id,first_name,last_name,rut,commune,primary_service_profile,worker_registration_status)";
+    const selectBase =
+      "profile_id,status,suggested_profiles,submitted_at,reviewed_at,review_message,updated_at,draft, profiles!inner(id,first_name,last_name,rut,commune,primary_service_profile,worker_registration_status)";
+
     let query = auth.supabase
       .from("worker_registrations")
-      .select(
-        "profile_id,status,suggested_profiles,submitted_at,reviewed_at,review_message,updated_at,draft, profiles!inner(id,first_name,last_name,rut,commune,primary_service_profile,worker_registration_status)"
-      )
+      .select(selectWithAi)
       .order("updated_at", { ascending: false });
 
     if (status) query = query.eq("status", status);
     if (profileType) query = query.contains("suggested_profiles", [profileType]);
 
-    const { data, error } = await query.limit(100);
+    let data: unknown[] | null = null;
+    let { data: primaryData, error } = await query.limit(100);
+    data = primaryData as unknown[] | null;
+
+    if (error && /ai_review_|schema cache|column/i.test(error.message)) {
+      let fallback = auth.supabase
+        .from("worker_registrations")
+        .select(selectBase)
+        .order("updated_at", { ascending: false });
+      if (status) fallback = fallback.eq("status", status);
+      if (profileType) fallback = fallback.contains("suggested_profiles", [profileType]);
+      const second = await fallback.limit(100);
+      data = second.data as unknown[] | null;
+      error = second.error;
+    }
+
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }

@@ -50,6 +50,9 @@ export function validateAntecedentsStep(draft: WorkerRegistrationDraft): string 
       if (!filled(cred.profession) || !filled(cred.credentialName) || !filled(cred.institution)) {
         return "Completa profesión, institución y nombre del título/certificación.";
       }
+      if (!filled(cred.storagePath ?? "")) {
+        return "Sube el archivo del título, licencia o certificación (JPG, PNG, WEBP o PDF).";
+      }
     }
   }
 
@@ -64,6 +67,9 @@ export function validateAntecedentsStep(draft: WorkerRegistrationDraft): string 
     const t = draft.training;
     if (!filled(t.institution) || !filled(t.career)) {
       return "Completa institución y carrera/especialidad.";
+    }
+    if (!filled(t.enrollmentStoragePath ?? "")) {
+      return "Sube el certificado de alumno regular o matrícula (JPG, PNG, WEBP o PDF).";
     }
   }
 

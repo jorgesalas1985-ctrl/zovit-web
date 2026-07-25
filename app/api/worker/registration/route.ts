@@ -164,17 +164,37 @@ export async function POST(request: Request) {
     const { supabase, user } = auth;
     const now = new Date().toISOString();
 
-    const { error } = await supabase.from("worker_registrations").upsert(
-      {
-        profile_id: user.id,
-        draft,
-        suggested_profiles: draft.suggestedProfiles,
-        status: "submitted",
-        submitted_at: now,
-        updated_at: now,
-      },
-      { onConflict: "profile_id" }
-    );
+    const registrationPayload = {
+      profile_id: user.id,
+      draft,
+      suggested_profiles: draft.suggestedProfiles,
+      status: "submitted" as const,
+      submitted_at: now,
+      updated_at: now,
+      ai_review_status: "pending",
+      ai_review_at: null,
+      ai_review_summary: null,
+      ai_confidence: null,
+      ai_forgery_risk: null,
+    };
+
+    let { error } = await supabase
+      .from("worker_registrations")
+      .upsert(registrationPayload, { onConflict: "profile_id" });
+
+    // Si aún no está SPRINT_12, reintentar sin columnas IA.
+    if (error && /ai_review_|document_mime|schema cache|column/i.test(error.message)) {
+      const { ai_review_status, ai_review_at, ai_review_summary, ai_confidence, ai_forgery_risk, ...base } =
+        registrationPayload;
+      void ai_review_status;
+      void ai_review_at;
+      void ai_review_summary;
+      void ai_confidence;
+      void ai_forgery_risk;
+      ({ error } = await supabase
+        .from("worker_registrations")
+        .upsert(base, { onConflict: "profile_id" }));
+    }
 
     if (error) {
       const missingTable = /worker_registrations|schema cache|does not exist/i.test(
@@ -186,7 +206,7 @@ export async function POST(request: Request) {
             ? "Falta aplicar la migración de trabajadores en Supabase antes de enviar a revisión."
             : error.message,
           code: missingTable ? "MIGRATION_REQUIRED" : "QUERY_ERROR",
-          hint: "Ejecuta supabase/SPRINT_11_WORKER_PROFILES.sql en el SQL Editor de Supabase.",
+          hint: "Ejecuta supabase/SPRINT_11_WORKER_PROFILES.sql y SPRINT_12_WORKER_AI_VALIDATION.sql en Supabase.",
         },
         { status: 400 }
       );
@@ -204,6 +224,8 @@ export async function POST(request: Request) {
           year_obtained: cred.yearObtained ? Number(cred.yearObtained) || null : null,
           registry_number: cred.registryNumber || null,
           expires_at: cred.expiresAt || null,
+          storage_path: cred.storagePath || null,
+          document_mime: cred.documentMime || null,
           status: "pending",
         }))
       );

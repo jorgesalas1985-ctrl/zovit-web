@@ -36,6 +36,9 @@ export type WorkerCredentialDraft = {
   registryNumber: string;
   expiresAt: string;
   documentName?: string;
+  /** Ruta en bucket worker-credentials */
+  storagePath?: string;
+  documentMime?: string;
 };
 
 export type WorkerExperienceDraft = {
@@ -57,6 +60,8 @@ export type WorkerTrainingDraft = {
   allowedWorks: string;
   tutorReference: string;
   enrollmentDocName?: string;
+  enrollmentStoragePath?: string;
+  enrollmentMime?: string;
 };
 
 export type WorkerCommunityDraft = {
