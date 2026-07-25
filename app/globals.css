@@ -459,12 +459,16 @@ html[data-theme="light"] .authSelectMenu button {
   .dashboardGrid { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
-  .header { height: 65px; padding: 0 16px; }
-  .brand { font-size: 20px; }
-  .brandMark { width: 36px; height: 36px; }
-  .headerActions .navButton:not(.danger) { font-size: 0; }
+  .header { height: 60px; padding: 0 12px; gap: 8px; }
+  .brand { font-size: 18px; gap: 7px; min-width: 0; }
+  .brandMark { width: 34px; height: 34px; border-radius: 12px; flex-shrink: 0; }
+  .brand small { display: none; }
+  .headerActions { gap: 4px; flex-shrink: 0; }
+  .headerActions .navButton:not(.danger) { font-size: 0; gap: 0; padding: 10px; }
   .headerActions .navButton:not(.danger) svg { display: block; }
   .headerActions .danger { display: none; }
+  .headerActions .primaryButton.small { padding: 10px 12px; font-size: 13px; white-space: nowrap; }
+  .homeNavButton { display: none; }
   .hero { padding: 54px 18px; min-height: auto; }
   .hero h1 { font-size: 48px; letter-spacing: -2.7px; }
   .heroText { font-size: 16px; }
@@ -1478,6 +1482,8 @@ html[data-theme="light"] .siteFooterAppBadge {
 
 .homeLanding {
   overflow-x: clip;
+  width: 100%;
+  max-width: 100vw;
   font-family: var(--font-body), "DM Sans", ui-sans-serif, sans-serif;
 }
 
@@ -1491,7 +1497,7 @@ html[data-theme="light"] .siteFooterAppBadge {
 
 .homeHero {
   min-height: calc(100svh - 74px);
-  padding: clamp(40px, 6vw, 80px) 5vw clamp(48px, 6vw, 72px);
+  padding: clamp(28px, 5vw, 80px) clamp(16px, 5vw, 64px) clamp(36px, 5vw, 72px);
   background:
     radial-gradient(ellipse 70% 55% at 8% 0%, rgba(124, 58, 237, 0.16), transparent 55%),
     radial-gradient(ellipse 55% 45% at 92% 18%, rgba(14, 165, 233, 0.12), transparent 50%),
@@ -1500,6 +1506,7 @@ html[data-theme="light"] .siteFooterAppBadge {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .homeHeroGrid {
@@ -1508,15 +1515,18 @@ html[data-theme="light"] .siteFooterAppBadge {
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-  gap: clamp(36px, 5vw, 72px);
+  gap: clamp(24px, 5vw, 72px);
   align-items: center;
 }
 
-.homeHeroCopy { max-width: 560px; }
+.homeHeroCopy {
+  max-width: 560px;
+  min-width: 0;
+}
 
 .homeHeroBrand {
   margin: 0;
-  font-size: clamp(28px, 3.4vw, 40px);
+  font-size: clamp(24px, 3.4vw, 40px);
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1;
@@ -1527,17 +1537,19 @@ html[data-theme="light"] .siteFooterAppBadge {
 }
 
 .homeHero h1 {
-  margin: 20px 0 18px;
-  font-size: clamp(28px, 3.6vw, 44px);
-  line-height: 1.12;
+  margin: 16px 0 14px;
+  font-size: clamp(24px, 3.4vw, 44px);
+  line-height: 1.15;
   letter-spacing: -0.035em;
   font-weight: 700;
   max-width: 22ch;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .homeHeroLead {
-  margin: 0 0 32px;
-  font-size: clamp(16px, 1.3vw, 18px);
+  margin: 0 0 28px;
+  font-size: clamp(15px, 1.3vw, 18px);
   line-height: 1.65;
   color: var(--muted);
   max-width: 40ch;
@@ -1558,7 +1570,9 @@ html[data-theme="light"] .siteFooterAppBadge {
 
 .homeHeroVisual {
   position: relative;
-  min-height: clamp(380px, 48vw, 520px);
+  min-height: clamp(340px, 42vw, 520px);
+  width: 100%;
+  min-width: 0;
 }
 
 .homeStory {
@@ -2074,7 +2088,7 @@ html[data-theme="dark"] .homeStoryWallPeel {
   position: absolute;
   left: 0;
   bottom: 0;
-  white-space: nowrap;
+  max-width: min(100%, 280px);
 }
 
 .homeStoryLock--closed {
@@ -2401,61 +2415,269 @@ html[data-theme="dark"] .homeStoryWallPeel {
   }
 }
 
-@media (max-width: 1024px) {
+/* Tablet / laptop estrecho: una columna, mensaje primero */
+@media (max-width: 1100px) {
   .homeHero {
     min-height: auto;
     align-items: stretch;
+    padding-top: clamp(24px, 4vw, 40px);
   }
 
   .homeHeroGrid {
     grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .homeHeroCopy {
+    order: 1;
+    max-width: none;
   }
 
   .homeHeroVisual {
-    order: -1;
-    min-height: 400px;
+    order: 2;
+    min-height: 380px;
   }
 
-  .homeHero h1 { max-width: none; }
-  .homeHeroCopy { max-width: none; }
-}
+  .homeHero h1 {
+    max-width: 28ch;
+  }
 
-@media (max-width: 768px) {
-  .homeTrustInner { grid-template-columns: 1fr; }
-  .homeHeroCtas { flex-direction: column; }
-  .homeHeroCtaPrimary,
-  .homeHeroCtaSecondary { width: 100%; }
-  .homeFinalCtaActions { flex-direction: column; width: 100%; }
-  .homeFinalCtaActions a { width: 100%; justify-content: center; }
+  .homeHeroLead {
+    max-width: 48ch;
+  }
 
   .homeStoryWallStage {
+    animation: none;
+    width: 52%;
+    height: 48%;
+  }
+}
+
+/* Tablet vertical / móvil grande */
+@media (max-width: 768px) {
+  .homeTrustInner {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .homeTrust {
+    padding: 36px clamp(16px, 5vw, 28px);
+  }
+
+  .homeTrustCard {
+    padding: 22px 20px;
+  }
+
+  .homeHeroCtas {
+    flex-direction: column;
+  }
+
+  .homeHeroCtaPrimary,
+  .homeHeroCtaSecondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .homeFinalCta {
+    padding: 48px clamp(16px, 5vw, 28px);
+  }
+
+  .homeFinalCtaActions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .homeFinalCtaActions a {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .homeCategories {
+    padding-left: clamp(16px, 5vw, 28px);
+    padding-right: clamp(16px, 5vw, 28px);
+  }
+
+  .homeHeroVisual {
+    min-height: 0;
+  }
+
+  .homeStory {
+    border-radius: 22px;
+    min-height: 0;
+  }
+
+  .homeStoryFrame {
+    padding: 16px 14px 48px;
+    min-height: 0;
+  }
+
+  .homeStoryStage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "wall wall"
+      "client pros"
+      "escrow escrow";
+    gap: 12px;
+    min-height: 0;
+    height: auto;
+  }
+
+  .homeStoryWallStage {
+    position: relative;
+    grid-area: wall;
     width: 100% !important;
-    height: 42% !important;
+    height: 112px !important;
+    animation: none !important;
   }
 
   .homeStoryClient {
-    left: 3%;
-    bottom: 28%;
+    position: relative;
+    grid-area: client;
+    left: auto;
+    bottom: auto;
+    align-self: end;
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
+
+  .homeStoryPerson { display: none; }
 
   .homeStoryConnector { display: none; }
 
   .homeStoryPros {
+    position: relative;
+    grid-area: pros;
     top: auto;
-    bottom: 22%;
-    right: 0;
-    width: min(56%, 190px);
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    transform: none !important;
+    animation: homeStoryProsInMobile var(--story-duration) ease-in-out infinite;
   }
 
-  .homeStoryPayout { left: 200px; }
+  @keyframes homeStoryProsInMobile {
+    0%, 18% { opacity: 0.35; }
+    24%, 58% { opacity: 1; }
+    66%, 100% { opacity: 0.45; }
+  }
+
+  .homeStoryEscrow {
+    position: relative;
+    grid-area: escrow;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    min-height: 40px;
+  }
+
+  .homeStoryLock {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    max-width: 100%;
+  }
+
+  .homeStoryPayout {
+    display: none;
+  }
+
+  .homeStoryPhone {
+    width: 100%;
+    max-width: 150px;
+  }
 }
 
+/* Celular */
 @media (max-width: 480px) {
-  .homeStoryFrame { padding: 16px 12px 50px; }
-  .homeStoryPhone { width: 108px; }
-  .homeHeroVisual { min-height: 440px; }
-  .homeStoryCaption { font-size: 10px; }
-  .homeStoryLock { font-size: 10px; padding: 8px 12px; }
-  .homeStoryPayout { display: none; }
+  .homeHero {
+    padding: 20px 16px 28px;
+  }
+
+  .homeHeroBrand {
+    font-size: 22px;
+  }
+
+  .homeHero h1 {
+    font-size: 23px;
+    margin: 12px 0 12px;
+    max-width: none;
+  }
+
+  .homeHeroLead {
+    font-size: 15px;
+    margin-bottom: 20px;
+    max-width: none;
+  }
+
+  .homeHeroCtaPrimary,
+  .homeHeroCtaSecondary {
+    min-height: 50px;
+    font-size: 15px;
+  }
+
+  .homeStoryFrame {
+    padding: 14px 12px 46px;
+  }
+
+  .homeStoryStage {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "wall"
+      "client"
+      "pros"
+      "escrow";
+    gap: 10px;
+  }
+
+  .homeStoryWallStage {
+    height: 100px !important;
+  }
+
+  .homeStoryPhone {
+    max-width: none;
+  }
+
+  .homeStoryProCard {
+    padding: 9px 10px;
+  }
+
+  .homeStoryCaption {
+    font-size: 10px;
+    left: 12px;
+    right: 12px;
+    bottom: 20px;
+  }
+
+  .homeStoryProgress {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .homeStoryLock {
+    font-size: 10px;
+    padding: 8px 12px;
+  }
+
+  .homeTrustCard h3 {
+    font-size: 17px;
+  }
+
+  .homeFinalCtaInner h2 {
+    font-size: 26px;
+  }
+}
+
+/* Evitar hover “saltando” en touch */
+@media (hover: none) {
+  .homeTrustCard:hover,
+  .homeHeroCtaPrimary:hover,
+  .homeHeroCtaSecondary:hover,
+  .primaryButton:hover,
+  .whiteButton:hover {
+    transform: none;
+  }
 }
 
