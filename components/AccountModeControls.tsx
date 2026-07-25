@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/AuthProvider";
+import { useSuperAdminView } from "@/components/superadmin/SuperAdminViewProvider";
 import {
   getActiveMode,
   hasDualMode,
@@ -36,10 +37,12 @@ type Props = {
 export function AccountModeControls({ variant = "panel" }: Props) {
   const router = useRouter();
   const { profile, refreshProfile } = useAuth();
+  const { isRealSuperAdmin } = useSuperAdminView();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  if (!profile) return null;
+  // Superadmin usa el botón flotante; no mostrar conmutadores duplicados.
+  if (!profile || isRealSuperAdmin) return null;
 
   const dual = hasDualMode(profile);
   const activeMode = getActiveMode(profile);

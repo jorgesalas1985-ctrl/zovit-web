@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/AuthProvider";
+import { useSuperAdminView } from "@/components/superadmin/SuperAdminViewProvider";
 import { getActiveMode, hasDualMode, type RoleMode } from "@/lib/auth/roles";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -19,7 +20,11 @@ type RoleModeBannerProps = {
 export function RoleModeBanner({ role, variant = "dashboard", showSwitcher = true }: RoleModeBannerProps) {
   const router = useRouter();
   const { profile, refreshProfile } = useAuth();
+  const { isRealSuperAdmin } = useSuperAdminView();
   const [busy, setBusy] = useState(false);
+
+  // Superadmin cambia de cuenta solo con el botón flotante.
+  if (isRealSuperAdmin) return null;
 
   const activeMode = role ?? (profile ? getActiveMode(profile) : "client");
   const dual = profile ? hasDualMode(profile) : false;
