@@ -1,4 +1,4 @@
-const DEFAULT_SITE_URL = "https://www.zovit.cl";
+const DEFAULT_SITE_URL = "https://zovit.cl";
 
 export function getSiteUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim();

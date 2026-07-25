@@ -7,9 +7,9 @@ if (!token) {
 }
 
 const payload = {
-  site_url: "https://www.zovit.cl",
+  site_url: "https://zovit.cl",
   uri_allow_list:
-    "http://localhost:3000/**,http://localhost:3001/**,http://localhost:3002/**,http://localhost:3003/**,http://localhost:3004/**,https://www.zovit.cl/**,https://zovit.cl/**,https://*.vercel.app/**",
+    "http://localhost:3000/**,http://localhost:3001/**,http://localhost:3002/**,http://localhost:3003/**,http://localhost:3004/**,https://zovit.cl/**,https://www.zovit.cl/**,https://*.vercel.app/**",
 };
 
 const response = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/config/auth`, {

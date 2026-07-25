@@ -50,7 +50,7 @@ export default function OpenGraphImage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", fontSize: 22, color: "#94a3b8" }}>www.zovit.cl</div>
+        <div style={{ display: "flex", fontSize: 22, color: "#94a3b8" }}>zovit.cl</div>
       </div>
     ),
     { ...size }
