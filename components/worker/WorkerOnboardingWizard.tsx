@@ -49,7 +49,6 @@ import type {
 } from "@/lib/worker/types";
 import {
   getStepValidationIssue,
-  validateReviewStep,
   type WorkerFieldId,
 } from "@/lib/worker/validate";
 import { chileanDateToIso, isoToChileanDate } from "@/lib/ui/chileanDate";
