@@ -70,6 +70,7 @@ export function SiteFooter() {
         links: [
           { label: "Términos y condiciones", href: "/legal/terminos" },
           { label: "Política de privacidad", href: "/legal/privacidad" },
+          { label: "Política de seguridad", href: "/legal/seguridad" },
           { label: "Política de cookies", href: "/legal/cookies" },
           { label: "Ayuda", href: "/login" },
         ],

@@ -22,10 +22,19 @@ export default function PrivacyPage() {
             Usamos tus datos para operar la cuenta, validar identidad, gestionar solicitudes y
             mejorar la seguridad de la plataforma.
           </p>
+          <p>
+            Las medidas técnicas y operativas de protección se detallan en la{" "}
+            <Link href="/legal/seguridad">Política de seguridad</Link>.
+          </p>
         </div>
-        <Link href="/" className="secondaryButton wide">
-          Volver al inicio
-        </Link>
+        <div className="legalActions">
+          <Link href="/legal/seguridad" className="secondaryButton wide">
+            Ver política de seguridad
+          </Link>
+          <Link href="/" className="secondaryButton wide">
+            Volver al inicio
+          </Link>
+        </div>
       </section>
     </main>
   );

@@ -189,11 +189,12 @@ export default function TermsPage() {
             legales aplicables.
           </p>
 
-          <h2>14. Datos personales</h2>
+          <h2>14. Datos personales y seguridad</h2>
           <p>
             El tratamiento de datos personales, documentos y datos de verificación se rige por la{" "}
-            <Link href="/legal/privacidad">Política de Privacidad</Link> y la normativa vigente en
-            Chile.
+            <Link href="/legal/privacidad">Política de Privacidad</Link> y la{" "}
+            <Link href="/legal/seguridad">Política de Seguridad</Link>, además de la normativa
+            vigente en Chile.
           </p>
 
           <h2>15. Ley aplicable y jurisdicción</h2>

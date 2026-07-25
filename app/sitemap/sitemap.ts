@@ -34,6 +34,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${siteUrl}/login`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${siteUrl}/legal/terminos`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${siteUrl}/legal/privacidad`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${siteUrl}/legal/seguridad`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${siteUrl}/legal/cookies`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
 
