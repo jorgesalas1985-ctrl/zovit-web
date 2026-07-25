@@ -216,6 +216,12 @@ function LoginForm() {
 
           {message && <div className="formMessage"><AlertCircle size={17} /> {message}</div>}
 
+          <p className="authLegalNote">
+            Al ingresar aceptas los{" "}
+            <Link href="/legal/terminos">Términos y condiciones</Link> y la{" "}
+            <Link href="/legal/privacidad">Política de privacidad</Link>.
+          </p>
+
           <button className="primaryButton wide" disabled={busy}>
             {busy ? "Ingresando…" : <>Ingresar <ArrowRight size={18} /></>}
           </button>

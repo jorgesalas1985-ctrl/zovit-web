@@ -314,6 +314,16 @@ html[data-theme="light"] .authSelectMenu button {
 .linkButton { border: 0; background: transparent; color: var(--blue-bright); font-weight: 850; cursor: pointer; }
 .authFooter { text-align: center; color: var(--muted); margin-top: 23px; }
 .authFooter a { color: var(--blue-bright); font-weight: 850; }
+.authLegalNote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.authLegalNote a {
+  color: var(--blue-bright);
+  font-weight: 800;
+}
 .registerStepBadge {
   display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 8px 12px;
   border-radius: 999px; border: 1px solid var(--line-blue); background: rgba(124, 58, 237, 0.08);
@@ -1232,8 +1242,32 @@ html[data-theme="light"] .siteFooterAppBadge {
   background: rgba(255,255,255,.72);
   border-color: var(--line-blue);
 }
+.legalPageCard { width: min(860px, 100%); }
+.legalIntro { margin: 0 0 8px; max-width: 62ch; }
+.legalMeta { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--blue-bright); }
 .legalContent { display: grid; gap: 14px; color: var(--muted); line-height: 1.7; }
-.legalContent p { margin: 0; }
+.legalContent p,
+.legalContent ul { margin: 0; }
+.legalContent h2 {
+  margin: 18px 0 0;
+  color: var(--ink);
+  font-size: clamp(18px, 2vw, 22px);
+  letter-spacing: -0.02em;
+}
+.legalContent ul {
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 8px;
+}
+.legalContent a {
+  color: var(--blue-bright);
+  font-weight: 800;
+}
+.legalActions {
+  margin-top: 22px;
+  display: grid;
+  gap: 10px;
+}
 
 .profilePhotoUpload {
   display: flex;

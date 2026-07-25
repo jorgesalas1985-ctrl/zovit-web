@@ -203,6 +203,12 @@ function RegisterPageContent() {
 
             {message && <div className="formMessage full"><AlertCircle size={17} /> {message}</div>}
 
+            <p className="authLegalNote full">
+              Al crear tu cuenta aceptas los{" "}
+              <Link href="/legal/terminos">Términos y condiciones</Link> y la{" "}
+              <Link href="/legal/privacidad">Política de privacidad</Link> de ZOVIT.
+            </p>
+
             <div className="verificationActionsRow full">
               <button type="button" className="secondaryButton" disabled={busy} onClick={() => setStep("biometric")}>
                 Volver
