@@ -45,7 +45,7 @@ export function SiteFooter() {
           { label: "Buscar con IA", href: "/ia" },
           { label: "Categorías", href: "/categorias" },
           serviceAction,
-          { label: "Profesionales verificados", href: "/servicios" },
+          { label: "Profesionales verificados", href: "/profesionales-verificados" },
         ],
       },
       {
