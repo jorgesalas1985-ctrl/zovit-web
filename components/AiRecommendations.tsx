@@ -113,7 +113,7 @@ export function AiRecommendations({
           </button>
         ) : !isLoggedIn ? (
           <Link
-            href={`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`}
+            href="/seguridad"
             className="primaryButton"
           >
             Regístrate para solicitar <ArrowRight size={18} />

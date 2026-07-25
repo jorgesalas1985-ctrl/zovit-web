@@ -130,7 +130,7 @@ export function SpecialtyBrowsePage({ resolved }: Props) {
     saveManualSelection(selection);
 
     if (!user) {
-      router.push(`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`);
+      router.push("/seguridad");
       return;
     }
 
@@ -199,7 +199,7 @@ export function SpecialtyBrowsePage({ resolved }: Props) {
             Solicitar servicio <ArrowRight size={16} />
           </button>
         ) : !user ? (
-          <Link className="primaryButton" href={`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`}>
+          <Link className="primaryButton" href="/seguridad">
             Regístrate para solicitar <ArrowRight size={16} />
           </Link>
         ) : null}
@@ -216,7 +216,7 @@ export function SpecialtyBrowsePage({ resolved }: Props) {
               : "No hay profesionales disponibles actualmente en esta especialidad."}
           </p>
           {!user ? (
-            <Link className="primaryButton wide" href={`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`}>
+            <Link className="primaryButton wide" href="/seguridad">
               Regístrate para solicitar <ArrowRight size={16} />
             </Link>
           ) : (

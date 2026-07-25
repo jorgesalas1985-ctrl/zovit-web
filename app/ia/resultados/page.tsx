@@ -83,7 +83,7 @@ function AiResultsContent() {
           specialty: result.parsed.specialty,
         }),
       );
-      router.push(`/registro?next=${encodeURIComponent("/solicitudes/nueva")}`);
+      router.push("/seguridad");
       return;
     }
 

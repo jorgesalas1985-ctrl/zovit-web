@@ -153,10 +153,10 @@ export function shouldShowPublishUI(
   return canPublishServiceRequest(profile);
 }
 
-/** Destino al pedir un servicio: registro obligatorio si no hay sesión. */
+/** Destino al pedir un servicio: explicación de seguridad + registro si no hay sesión. */
 export function getRequestServiceHref(isLoggedIn: boolean): string {
   if (!isLoggedIn) {
-    return `/registro?next=${encodeURIComponent("/solicitudes/nueva")}`;
+    return "/seguridad";
   }
   return "/solicitudes/nueva";
 }

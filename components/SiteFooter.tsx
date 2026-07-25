@@ -35,7 +35,7 @@ export function SiteFooter() {
         ? { label: "Ver trabajos", href: "/trabajos" }
         : {
             label: "Regístrate para solicitar",
-            href: `/registro?next=${encodeURIComponent("/solicitudes/nueva")}`,
+            href: "/seguridad",
           };
 
     return [
@@ -62,7 +62,7 @@ export function SiteFooter() {
         title: "ZOVIT",
         links: [
           { label: "¿Por qué ZOVIT?", href: "/#confianza" },
-          { label: "Seguridad", href: "/verificacion" },
+          { label: "Seguridad", href: "/seguridad" },
           { label: "Profesionales", href: "/registro" },
           { label: "Ingreso intranet", href: "/intranet/acceso" },
         ],
