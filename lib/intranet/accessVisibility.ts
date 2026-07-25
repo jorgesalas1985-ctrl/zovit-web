@@ -1,27 +1,28 @@
 import type { IntranetRole } from "@/lib/auth/intranetRoles";
 
-/** Cuentas internas visibles solo para super administrador. */
-export const SUPER_ADMIN_ONLY_INTRANET_ROLES: IntranetRole[] = ["super_admin", "hr_admin"];
-
-export function isSuperAdminOnlyIntranetRole(role: IntranetRole): boolean {
-  return SUPER_ADMIN_ONLY_INTRANET_ROLES.includes(role);
+/** El super admin nunca es visible ni gestionable por RR.HH. u otros roles. */
+export function isHiddenFromNonSuperAdmins(role: IntranetRole | null | undefined): boolean {
+  return role === "super_admin";
 }
 
+/**
+ * RR.HH. y demás roles ven todos los perfiles internos excepto el del super admin.
+ * Solo el super admin se ve a sí mismo y al resto.
+ */
 export function canViewerSeeIntranetAccount(
   viewerRole: IntranetRole,
-  targetRole: IntranetRole
+  targetRole: IntranetRole,
 ): boolean {
   if (viewerRole === "super_admin") return true;
-  return !isSuperAdminOnlyIntranetRole(targetRole);
+  return !isHiddenFromNonSuperAdmins(targetRole);
 }
 
 export function canViewerSeePlatformAccount(
   viewerRole: IntranetRole,
-  target: { intranetRole: IntranetRole | null }
+  target: { intranetRole: IntranetRole | null },
 ): boolean {
   if (viewerRole === "super_admin") return true;
-  if (!target.intranetRole) return true;
-  return !isSuperAdminOnlyIntranetRole(target.intranetRole);
+  return !isHiddenFromNonSuperAdmins(target.intranetRole);
 }
 
 export function hiddenAccountResponse() {

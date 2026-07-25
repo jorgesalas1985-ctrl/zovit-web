@@ -38,6 +38,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Usuario intranet no encontrado." }, { status: 404 });
     }
 
+    // RR.HH. no puede ver ni tocar al super admin.
+    if (currentRole === "super_admin" && auth.manager.intranetRole !== "super_admin") {
+      const hidden = hiddenAccountResponse();
+      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
+    }
+
     if (!canViewerSeeIntranetAccount(auth.manager.intranetRole, currentRole)) {
       const hidden = hiddenAccountResponse();
       return NextResponse.json({ error: hidden.error }, { status: hidden.status });
@@ -45,6 +51,10 @@ export async function PATCH(
 
     if (!canManageTargetRole(auth.manager.intranetRole, currentRole)) {
       return NextResponse.json({ error: "No puedes modificar ese usuario." }, { status: 403 });
+    }
+
+    if (intranetRole === "super_admin" && auth.manager.intranetRole !== "super_admin") {
+      return NextResponse.json({ error: "No puedes asignar super administrador." }, { status: 403 });
     }
 
     if (!canManageTargetRole(auth.manager.intranetRole, intranetRole)) {
@@ -82,6 +92,11 @@ export async function DELETE(
     const currentRole = await getIntranetRoleForUser(id);
     if (!currentRole) {
       return NextResponse.json({ error: "Usuario intranet no encontrado." }, { status: 404 });
+    }
+
+    if (currentRole === "super_admin" && auth.manager.intranetRole !== "super_admin") {
+      const hidden = hiddenAccountResponse();
+      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
     }
 
     if (!canViewerSeeIntranetAccount(auth.manager.intranetRole, currentRole)) {

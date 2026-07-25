@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/AuthProvider";
+import { useEffectiveIntranetRole } from "@/components/superadmin/SuperAdminViewProvider";
 import {
   assignableIntranetRoles,
   INTRANET_LOGIN_PROFILE_LABELS,
@@ -12,9 +13,7 @@ import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
 } from "@/lib/auth/passwordPolicy";
-import {
-  canViewerSeeIntranetAccount,
-} from "@/lib/intranet/accessVisibility";
+import { canViewerSeeIntranetAccount } from "@/lib/intranet/accessVisibility";
 import {
   composeCorporateEmail,
   CORPORATE_EMAIL_DOMAIN,
@@ -36,10 +35,12 @@ type IntranetUserRecord = {
 
 export function IntranetUsersManager() {
   const { profile } = useAuth();
-  const callerRole = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
+  const realRole = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
+  // En paseo de super admin, filtrar como el rol simulado (RR.HH. no ve al super admin).
+  const effectiveRole = useEffectiveIntranetRole() ?? realRole;
   const assignableRoles = useMemo(
-    () => (callerRole ? assignableIntranetRoles(callerRole) : []),
-    [callerRole],
+    () => (effectiveRole ? assignableIntranetRoles(effectiveRole) : []),
+    [effectiveRole],
   );
 
   const [users, setUsers] = useState<IntranetUserRecord[]>([]);
@@ -70,12 +71,12 @@ export function IntranetUsersManager() {
     }
 
     const visibleUsers = ((data.users ?? []) as IntranetUserRecord[]).filter((user) =>
-      callerRole ? canViewerSeeIntranetAccount(callerRole, user.intranetRole) : false
+      effectiveRole ? canViewerSeeIntranetAccount(effectiveRole, user.intranetRole) : false,
     );
 
     setUsers(visibleUsers);
     setLoading(false);
-  }, [callerRole]);
+  }, [effectiveRole]);
 
   useEffect(() => {
     void loadUsers();
@@ -185,7 +186,8 @@ export function IntranetUsersManager() {
   }
 
   function canManageUser(role: IntranetRole) {
-    return callerRole ? assignableIntranetRoles(callerRole).includes(role) : false;
+    if (!effectiveRole || role === "super_admin") return false;
+    return assignableIntranetRoles(effectiveRole).includes(role);
   }
 
   return (
