@@ -13,12 +13,13 @@ export async function POST(request: Request, { params }: Params) {
   try {
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as { provider?: PaymentProviderName };
-    const providerName = body.provider ?? "mock";
+    const providerName: PaymentProviderName =
+      body.provider === "mock" && isMockPaymentsAllowed() ? "mock" : "mercadopago";
 
     if (providerName === "mock" && !isMockPaymentsAllowed()) {
       return NextResponse.json(
-        { error: "El pago de prueba no está habilitado. Usa Mercado Pago o activa ZOVIT_ALLOW_MOCK_PAYMENTS." },
-        { status: 400 }
+        { error: "En producción solo se acepta Mercado Pago con cobro real." },
+        { status: 400 },
       );
     }
 
@@ -35,60 +36,22 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "No autenticado." }, { status: 401 });
     }
 
-    // Preferimos RPC/security definer porque en prod pueden faltar GRANT de tabla.
-    const bodyExtra = body as {
-      provider?: PaymentProviderName;
-      publicId?: string;
-      amountGross?: number;
-      currency?: string;
-      requestId?: string;
-    };
+    const admin = createAdminClient();
+    const { data: paymentRow, error: paymentError } = await admin
+      .from("payments")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
 
-    let payment = null as ReturnType<typeof mapPaymentRow> | null;
-    try {
-      const admin = createAdminClient();
-      const { data: paymentRow } = await admin.from("payments").select("*").eq("id", id).maybeSingle();
-      if (paymentRow) payment = mapPaymentRow(paymentRow as never);
-    } catch {
-      payment = null;
-    }
-
-    if (!payment && bodyExtra.publicId && bodyExtra.amountGross) {
-      payment = {
-        id,
-        publicId: bodyExtra.publicId,
-        clientId: authData.user.id,
-        professionalId: "",
-        requestId: bodyExtra.requestId ?? "",
-        workOrderId: "",
-        amountGross: Number(bodyExtra.amountGross),
-        platformFee: 0,
-        taxAmount: 0,
-        amountNet: 0,
-        currency: bodyExtra.currency ?? "CLP",
-        status: "esperando_pago",
-        provider: "mock",
-        providerReference: null,
-        providerSessionId: null,
-        paymentMethod: null,
-        paidAt: null,
-        releasedAt: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      } as ReturnType<typeof mapPaymentRow>;
-    }
-
-    if (!payment) {
+    if (paymentError || !paymentRow) {
       return NextResponse.json(
-        {
-          error:
-            "Pago no legible aún. Aplica supabase/FIX_PAYMENT_TABLE_GRANTS.sql en Supabase SQL Editor.",
-        },
-        { status: 404 },
+        { error: paymentError?.message ?? "Pago no encontrado." },
+        { status: paymentError ? 400 : 404 },
       );
     }
 
-    if (payment.clientId && payment.clientId !== authData.user.id) {
+    const payment = mapPaymentRow(paymentRow as never);
+    if (payment.clientId !== authData.user.id) {
       return NextResponse.json({ error: "Sin permiso." }, { status: 403 });
     }
 
@@ -107,33 +70,27 @@ export async function POST(request: Request, { params }: Params) {
       metadata: { requestId: payment.requestId },
     });
 
+    await admin
+      .from("payments")
+      .update({
+        provider: providerName,
+        provider_session_id: session.sessionId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", payment.id);
+
     if (providerName === "mock") {
-      const { error: mockError } = await supabase.rpc("register_payment_received", {
-        p_payment_id: payment.id,
-        p_provider: providerName,
-        p_provider_reference: session.reference,
-        p_provider_session_id: session.sessionId,
-        p_payment_method: providerName,
-        p_external_reference: payment.publicId,
-        p_amount_gross: Number(payment.amountGross),
+      // Solo desarrollo: confirma vía service_role (nunca authenticated).
+      await confirmPaymentReceived({
+        paymentId: payment.id,
+        provider: providerName,
+        providerReference: session.reference,
+        providerSessionId: session.sessionId,
+        paymentMethod: providerName,
+        externalReference: payment.publicId,
+        amountGross: payment.amountGross,
+        currency: payment.currency,
       });
-      if (mockError) {
-        // Fallback service-role RPC si authenticated no puede.
-        try {
-          await confirmPaymentReceived({
-            paymentId: payment.id,
-            provider: providerName,
-            providerReference: session.reference,
-            providerSessionId: session.sessionId,
-            paymentMethod: providerName,
-            externalReference: payment.publicId,
-            amountGross: payment.amountGross,
-            currency: payment.currency,
-          });
-        } catch {
-          return NextResponse.json({ error: mockError.message }, { status: 400 });
-        }
-      }
 
       return NextResponse.json({
         session,

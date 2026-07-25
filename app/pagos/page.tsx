@@ -92,14 +92,13 @@ export default function ClientPaymentsPage() {
                         <button className="primaryButton" disabled={busyId === payment.id} onClick={() => void payOrder(payment.id, "mercadopago")}>
                           Pagar con Mercado Pago <ArrowRight size={16} />
                         </button>
-                        {(process.env.NODE_ENV !== "production" ||
-                          process.env.NEXT_PUBLIC_ALLOW_MOCK_PAYMENTS === "true") && (
+                        {process.env.NODE_ENV !== "production" && (
                           <button
                             className="secondaryButton"
                             disabled={busyId === payment.id}
                             onClick={() => void payOrder(payment.id, "mock")}
                           >
-                            Pago de prueba (sin cobro real)
+                            Pago de prueba (solo desarrollo)
                           </button>
                         )}
                       </div>

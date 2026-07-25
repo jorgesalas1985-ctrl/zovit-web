@@ -32,7 +32,10 @@ grant execute on function public.change_service_request_status(uuid, text) to au
 grant execute on function public.search_professionals(text, text, text, int) to anon, authenticated;
 grant execute on function public.create_service_proposal(uuid, numeric, text, numeric) to authenticated;
 grant execute on function public.accept_service_proposal(uuid) to authenticated;
-grant execute on function public.register_payment_received(uuid, text, text, text, text) to authenticated;
+-- register_payment_received solo service_role (ver SPRINT_5_PAGOS_SECURITY.sql)
+drop function if exists public.register_payment_received(uuid, text, text, text, text);
+revoke execute on function public.register_payment_received(uuid, text, text, text, text, text, numeric) from authenticated, anon, public;
+grant execute on function public.register_payment_received(uuid, text, text, text, text, text, numeric) to service_role;
 grant execute on function public.start_paid_work(uuid) to authenticated;
 grant execute on function public.complete_paid_work(uuid) to authenticated;
 grant execute on function public.approve_and_release_payment(uuid) to authenticated;

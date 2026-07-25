@@ -91,7 +91,7 @@ end;
 $$;
 
 -- Only service_role may confirm payments (webhooks / server sync)
-revoke execute on function public.register_payment_received(uuid, text, text, text, text) from authenticated;
+drop function if exists public.register_payment_received(uuid, text, text, text, text);
 revoke execute on function public.register_payment_received(uuid, text, text, text, text, text, numeric) from authenticated;
 revoke execute on function public.register_payment_received(uuid, text, text, text, text, text, numeric) from anon;
 revoke execute on function public.register_payment_received(uuid, text, text, text, text, text, numeric) from public;

@@ -13,7 +13,10 @@ grant select, insert, update on public.payment_disputes to authenticated, servic
 
 grant execute on function public.create_service_proposal(uuid, numeric, text, numeric) to authenticated;
 grant execute on function public.accept_service_proposal(uuid) to authenticated;
-grant execute on function public.register_payment_received(uuid, text, text, text, text) to authenticated, service_role;
+-- NUNCA grant register_payment_received a authenticated/anon (solo service_role / webhooks).
+drop function if exists public.register_payment_received(uuid, text, text, text, text);
+revoke execute on function public.register_payment_received(uuid, text, text, text, text, text, numeric) from authenticated, anon, public;
+grant execute on function public.register_payment_received(uuid, text, text, text, text, text, numeric) to service_role;
 grant execute on function public.start_paid_work(uuid) to authenticated;
 grant execute on function public.complete_paid_work(uuid) to authenticated;
 grant execute on function public.approve_and_release_payment(uuid) to authenticated;

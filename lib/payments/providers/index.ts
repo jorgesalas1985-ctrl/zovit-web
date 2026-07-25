@@ -30,11 +30,9 @@ const providers: Record<PaymentProviderName, PaymentProviderAdapter> = {
 };
 
 export function isMockPaymentsAllowed(): boolean {
-  if (process.env.NODE_ENV !== "production") return true;
-  return (
-    process.env.ZOVIT_ALLOW_MOCK_PAYMENTS === "true" ||
-    process.env.NEXT_PUBLIC_ALLOW_MOCK_PAYMENTS === "true"
-  );
+  // En producción nunca se simula cobro: el dinero real solo entra por Mercado Pago.
+  if (process.env.NODE_ENV === "production") return false;
+  return true;
 }
 
 export function getPaymentProvider(name: PaymentProviderName): PaymentProviderAdapter {
