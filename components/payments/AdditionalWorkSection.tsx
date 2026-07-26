@@ -63,8 +63,9 @@ export function AdditionalWorkSection({ requestId, enabled }: Props) {
         <PlusCircle />
       </div>
       <p className="muted">
-        ¿Surgió algo más en el lugar? Agrégalo aquí, paga en ZOVIT y queda protegido. No acuerden
-        montos por WhatsApp: eso puede bloquear cuentas.
+        ¿Surgió algo más en el lugar? Agrégalo aquí con el monto real, paga en ZOVIT y queda
+        protegido. No acuerden precios menores en la app para bajar la comisión ni cobren el resto
+        fuera: eso puede bloquear cuentas.
       </p>
 
       <form className="formStack" onSubmit={(e) => void submit(e)}>

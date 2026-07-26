@@ -48,7 +48,7 @@ async function syncProfileBasics(
     worker_registration_status: status,
     primary_service_profile: primary,
     worker_consent_at: status === "submitted" ? now : undefined,
-    worker_consent_version: status === "submitted" ? "worker-v2" : undefined,
+    worker_consent_version: status === "submitted" ? "worker-v3" : undefined,
     service_categories: categories.length ? categories : undefined,
     specialties: specialties.length ? specialties : undefined,
     updated_at: now,

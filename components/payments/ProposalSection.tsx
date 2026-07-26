@@ -104,6 +104,11 @@ export function ProposalSection({ requestId, requestStatus, isClient, isProfessi
         <HandCoins />
       </div>
 
+      <p className="muted">
+        Declara el precio real. Registrar un monto menor para bajar la comisión ZOVIT está prohibido
+        y puede bloquear cuentas.
+      </p>
+
       {message && (
         <div className="formMessage">
           <AlertCircle size={17} /> {message}

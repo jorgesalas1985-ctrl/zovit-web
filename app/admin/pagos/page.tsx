@@ -17,6 +17,24 @@ type AdminStats = {
   releasedCount: number;
   disputedCount: number;
   pendingPayouts?: number;
+  openCommissionFlags?: number;
+};
+
+type CommissionFlag = {
+  id: string;
+  request_id: string;
+  flag_type: string;
+  chat_amount: number | null;
+  official_amount: number | null;
+  body_snippet: string;
+  status: string;
+  created_at: string;
+};
+
+const FLAG_LABELS: Record<string, string> = {
+  chat_amount_mismatch: "Monto en chat > pago registrado",
+  commission_evasion_phrase: "Frase de elusión de comisión",
+  proposal_under_chat: "Propuesta menor al monto hablado",
 };
 
 type WalletRow = {
@@ -54,6 +72,7 @@ export default function AdminPaymentsPage() {
   const [wallets, setWallets] = useState<WalletRow[]>([]);
   const [disputes, setDisputes] = useState<DisputeRow[]>([]);
   const [payouts, setPayouts] = useState<PayoutRow[]>([]);
+  const [commissionFlags, setCommissionFlags] = useState<CommissionFlag[]>([]);
   const [events, setEvents] = useState<Array<{ id: string; event_type: string; created_at: string }>>(
     [],
   );
@@ -73,6 +92,7 @@ export default function AdminPaymentsPage() {
     setDisputes(data.disputes ?? []);
     setPayouts(data.payouts ?? []);
     setEvents(data.events ?? []);
+    setCommissionFlags(data.commissionFlags ?? []);
   }, []);
 
   useEffect(() => {
@@ -99,6 +119,27 @@ export default function AdminPaymentsPage() {
         ? "Disputa resuelta: reembolso al cliente."
         : "Disputa resuelta: pago liberado al profesional.",
     );
+    await load();
+  }
+
+  async function resolveCommissionFlag(
+    flagId: string,
+    status: "revisada" | "descartada" | "sancionada",
+  ) {
+    const note = window.prompt("Nota administrativa (opcional):") ?? "";
+    setBusyId(flagId);
+    const response = await fetch(`/api/payments/commission-flags/${flagId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, note }),
+    });
+    const data = await response.json();
+    setBusyId("");
+    if (!response.ok) {
+      setMessage(data.error ?? "No se pudo resolver la alerta de comisión.");
+      return;
+    }
+    setMessage(`Alerta de comisión marcada como ${status}.`);
     await load();
   }
 
@@ -145,6 +186,7 @@ export default function AdminPaymentsPage() {
 
   const openDisputes = disputes.filter((d) => ["abierta", "en_revision"].includes(d.status));
   const openPayouts = payouts.filter((p) => ["pendiente", "aprobado"].includes(p.status));
+  const openFlags = commissionFlags.filter((f) => f.status === "abierta");
 
   return (
     <Protected>
@@ -155,8 +197,8 @@ export default function AdminPaymentsPage() {
           </div>
           <h1>Estados de cuenta, disputas y retiros</h1>
           <p className="muted">
-            Escrow contable ZOVIT + reembolsos Mercado Pago. Marketplace MP (split a sellers) es Fase
-            B.
+            Escrow, disputas, retiros y supervisión de elusión de comisión (montos en chat vs pago
+            oficial).
           </p>
           {message && <p className="aiError">{message}</p>}
 
@@ -182,8 +224,58 @@ export default function AdminPaymentsPage() {
                 <strong>{stats.pendingPayouts ?? openPayouts.length}</strong>
                 <span>Retiros pendientes</span>
               </article>
+              <article className="walletCard">
+                <strong>{stats.openCommissionFlags ?? openFlags.length}</strong>
+                <span>Alertas comisión</span>
+              </article>
             </div>
           )}
+
+          <section className="paymentsSection">
+            <h2>Alertas de elusión de comisión</h2>
+            {openFlags.length === 0 ? (
+              <p className="muted">Sin alertas abiertas.</p>
+            ) : (
+              openFlags.map((flag) => (
+                <article className="paymentHistoryItem" key={flag.id}>
+                  <strong>{FLAG_LABELS[flag.flag_type] ?? flag.flag_type}</strong>
+                  <p>{flag.body_snippet}</p>
+                  <p className="muted">
+                    Chat {flag.chat_amount != null ? formatCLP(Number(flag.chat_amount)) : "—"} ·
+                    Oficial{" "}
+                    {flag.official_amount != null ? formatCLP(Number(flag.official_amount)) : "—"} ·
+                    Solicitud {flag.request_id.slice(0, 8)}…
+                  </p>
+                  <div className="browseProfessionalActions">
+                    <Link className="secondaryButton" href={`/solicitudes/${flag.request_id}`}>
+                      Ver solicitud
+                    </Link>
+                    <button
+                      className="secondaryButton"
+                      disabled={busyId === flag.id}
+                      onClick={() => void resolveCommissionFlag(flag.id, "descartada")}
+                    >
+                      Descartar
+                    </button>
+                    <button
+                      className="secondaryButton"
+                      disabled={busyId === flag.id}
+                      onClick={() => void resolveCommissionFlag(flag.id, "revisada")}
+                    >
+                      Revisada
+                    </button>
+                    <button
+                      className="primaryButton"
+                      disabled={busyId === flag.id}
+                      onClick={() => void resolveCommissionFlag(flag.id, "sancionada")}
+                    >
+                      Marcar sanción
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </section>
 
           <section className="paymentsSection">
             <h2>Disputas abiertas</h2>

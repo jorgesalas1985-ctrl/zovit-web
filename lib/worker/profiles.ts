@@ -157,7 +157,7 @@ export const WORKER_COPY = {
   submitted:
     "Recibimos tus antecedentes. Nuestro equipo está revisando la información para asignarte el perfil de servicio adecuado.",
   consent:
-    "Autorizo a ZOVIT a tratar mis datos personales y documentos únicamente para verificar antecedentes y autorizar servicios. Acepto coordinar trabajos y cobros solo dentro de ZOVIT (sin WhatsApp/teléfono para eludir el pago protegido) y entiendo que incumplir puede bloquear mi cuenta. ZOVIT podrá solicitar información adicional cuando sea necesario.",
+    "Autorizo a ZOVIT a tratar mis datos personales y documentos únicamente para verificar antecedentes y autorizar servicios. Acepto coordinar trabajos y cobros solo dentro de ZOVIT, declarar el precio real (sin bajar el monto en la app para reducir la comisión) y entiendo que incumplir puede bloquear mi cuenta. ZOVIT podrá solicitar información adicional cuando sea necesario.",
 } as const;
 
 export const PUBLIC_BADGE_LABELS: Record<

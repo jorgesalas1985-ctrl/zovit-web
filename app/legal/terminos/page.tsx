@@ -118,6 +118,11 @@ export default function TermsPage() {
               No eludir de mala fe los mecanismos de pago protegido, calificaciones o verificación,
               ni acordar cobros fuera de ZOVIT para evitar comisiones o controles de seguridad.
             </li>
+            <li>
+              Declarar en ZOVIT el precio real del servicio. Está prohibido registrar un monto menor
+              al acordado para reducir la comisión de ZOVIT y cobrar la diferencia fuera de la
+              plataforma (efectivo, transferencia u otro medio).
+            </li>
           </ul>
 
           <h2>7. Solicitudes, ofertas y ejecución del servicio</h2>
@@ -140,10 +145,12 @@ export default function TermsPage() {
           </p>
           <p>
             Todo cobro del servicio —incluido trabajo adicional que surja en el lugar— debe crearse y
-            pagarse dentro de ZOVIT. El Cliente puede agregar trabajo adicional fácilmente desde la
-            solicitud; el Profesional solo debe ejecutarlo cuando el pago correspondiente quede
-            protegido en la plataforma. Acuerdos o pagos fuera de ZOVIT no están protegidos y pueden
-            constituir incumplimiento de estos términos.
+            pagarse dentro de ZOVIT por el monto real. El Cliente puede agregar trabajo adicional
+            fácilmente desde la solicitud; el Profesional solo debe ejecutarlo cuando el pago
+            correspondiente quede protegido en la plataforma. Acuerdos o pagos fuera de ZOVIT, o
+            subdeclarar el precio para pagar menos comisión, no están protegidos y constituyen
+            incumplimiento. ZOVIT puede supervisar señales de elusión (por ejemplo, montos
+            mencionados en el chat distintos al pago registrado) y aplicar sanciones.
           </p>
           <p>
             ZOVIT no es un banco. Los tiempos de acreditación, comisiones, reversas o disputas pueden
@@ -187,8 +194,9 @@ export default function TermsPage() {
             <li>Se detecta fraude, abuso, riesgo a terceros o falsedad en la verificación.</li>
             <li>
               Se detecta elusión del pago protegido: compartir teléfono/WhatsApp para cerrar el
-              trato fuera de la app, cobrar en efectivo o transferencia directa eludiendo ZOVIT, u
-              omitir registrar trabajo adicional en la plataforma.
+              trato fuera de la app, cobrar en efectivo o transferencia directa eludiendo ZOVIT,
+              omitir registrar trabajo adicional, o declarar un monto menor al real para reducir la
+              comisión de ZOVIT.
             </li>
             <li>Existe inactividad prolongada o requerimiento de autoridad competente.</li>
           </ul>

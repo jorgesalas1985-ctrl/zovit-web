@@ -7,6 +7,12 @@ import { ProposalSection } from "@/components/payments/ProposalSection";
 import { ServiceRatingForm } from "@/components/ServiceRatingForm";
 import { useAuth } from "@/components/AuthProvider";
 import { getActiveMode, isProfessionalMode } from "@/lib/auth/roles";
+import {
+  COMMISSION_SAFETY_NOTICE,
+  commissionMismatch,
+  detectCommissionEvasionPhrase,
+  extractMaxMoneyAmount,
+} from "@/lib/messaging/commissionRisk";
 import { CHAT_SAFETY_NOTICE, filterContactLeaks } from "@/lib/messaging/contactFilter";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle, ArrowLeft, Camera, CheckCircle2, MapPin, MessageCircle, Send, Upload } from "lucide-react";
@@ -74,6 +80,7 @@ export default function RequestDetailPage() {
   const [history, setHistory] = useState<StatusHistory[]>([]);
   const [existingRating, setExistingRating] = useState<ExistingRating | null>(null);
   const [hasProtectedPayment, setHasProtectedPayment] = useState(false);
+  const [officialAmount, setOfficialAmount] = useState<number | null>(null);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -85,28 +92,40 @@ export default function RequestDetailPage() {
     if (!user || !id) return;
     setLoading(true);
     setError("");
-    const [requestResult, messageResult, photoResult, historyResult, ratingResult, paymentResult] =
-      await Promise.all([
-        supabase.from("solicitudes_de_servicio").select("*").eq("id", id).single(),
-        supabase
-          .from("request_messages")
-          .select("id,sender_id,body,created_at")
-          .eq("request_id", id)
-          .order("created_at"),
-        supabase
-          .from("request_photos")
-          .select("id,uploaded_by,photo_type,storage_path,created_at")
-          .eq("request_id", id)
-          .order("created_at"),
-        supabase
-          .from("request_status_history")
-          .select("id,old_status,new_status,created_at")
-          .eq("request_id", id)
-          .order("created_at", { ascending: false })
-          .limit(8),
-        supabase.from("service_ratings").select("id,rating,comment").eq("request_id", id).maybeSingle(),
-        supabase.from("payments").select("status").eq("request_id", id),
-      ]);
+    const [
+      requestResult,
+      messageResult,
+      photoResult,
+      historyResult,
+      ratingResult,
+      paymentResult,
+      proposalResult,
+    ] = await Promise.all([
+      supabase.from("solicitudes_de_servicio").select("*").eq("id", id).single(),
+      supabase
+        .from("request_messages")
+        .select("id,sender_id,body,created_at")
+        .eq("request_id", id)
+        .order("created_at"),
+      supabase
+        .from("request_photos")
+        .select("id,uploaded_by,photo_type,storage_path,created_at")
+        .eq("request_id", id)
+        .order("created_at"),
+      supabase
+        .from("request_status_history")
+        .select("id,old_status,new_status,created_at")
+        .eq("request_id", id)
+        .order("created_at", { ascending: false })
+        .limit(8),
+      supabase.from("service_ratings").select("id,rating,comment").eq("request_id", id).maybeSingle(),
+      supabase.from("payments").select("status,amount_gross").eq("request_id", id),
+      supabase
+        .from("service_proposals")
+        .select("amount,status")
+        .eq("request_id", id)
+        .in("status", ["pendiente", "aceptada"]),
+    ]);
     if (requestResult.error || !requestResult.data) {
       setError("No existe la solicitud o no tienes permiso para verla.");
     } else {
@@ -115,9 +134,15 @@ export default function RequestDetailPage() {
     setMessages((messageResult.data ?? []) as Message[]);
     setHistory((historyResult.data ?? []) as StatusHistory[]);
     setExistingRating((ratingResult.data as ExistingRating | null) ?? null);
-    setHasProtectedPayment(
-      ((paymentResult.data ?? []) as { status: string }[]).some((p) => PAID_STATUSES.has(p.status)),
+    const paymentRows = (paymentResult.data ?? []) as { status: string; amount_gross: number }[];
+    setHasProtectedPayment(paymentRows.some((p) => PAID_STATUSES.has(p.status)));
+    const proposalMax = Math.max(
+      0,
+      ...((proposalResult.data ?? []) as { amount: number }[]).map((p) => Number(p.amount) || 0),
     );
+    const paymentMax = Math.max(0, ...paymentRows.map((p) => Number(p.amount_gross) || 0));
+    const maxOfficial = Math.max(proposalMax, paymentMax);
+    setOfficialAmount(maxOfficial > 0 ? maxOfficial : null);
 
     const photoRows = (photoResult.data ?? []) as Photo[];
     const withUrls = await Promise.all(
@@ -206,13 +231,17 @@ export default function RequestDetailPage() {
       setError("El mensaje no puede quedar vacío tras el filtro de seguridad.");
       return;
     }
+    const hints: string[] = [];
     if (filtered.blocked) {
-      setChatHint(
+      hints.push(
         `Se ocultaron datos de contacto (${filtered.reasons.join(", ")}). Coordina y paga solo en ZOVIT.`,
       );
-    } else {
-      setChatHint("");
     }
+    const chatAmount = extractMaxMoneyAmount(filtered.sanitized);
+    if (detectCommissionEvasionPhrase(filtered.sanitized) || commissionMismatch(chatAmount, officialAmount)) {
+      hints.push(COMMISSION_SAFETY_NOTICE);
+    }
+    setChatHint(hints.join(" "));
     const body = filtered.sanitized;
     setText("");
     const { error: sendError } = await supabase
@@ -405,7 +434,12 @@ export default function RequestDetailPage() {
                       </div>
                       <MessageCircle />
                     </div>
-                    {canCollaborate && <p className="muted">{CHAT_SAFETY_NOTICE}</p>}
+                    {canCollaborate && (
+                      <>
+                        <p className="muted">{CHAT_SAFETY_NOTICE}</p>
+                        <p className="muted">{COMMISSION_SAFETY_NOTICE}</p>
+                      </>
+                    )}
                     <div className="chatMessages">
                       {messages.length === 0 && <p className="chatEmpty">{chatPlaceholder}</p>}
                       {messages.map((message) => (

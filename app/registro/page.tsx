@@ -376,8 +376,8 @@ function RegisterPageContent() {
               Al crear tu cuenta aceptas los{" "}
               <Link href="/legal/terminos">Términos y condiciones</Link> y la{" "}
               <Link href="/legal/privacidad">Política de privacidad</Link> de ZOVIT. Debes coordinar
-              y pagar servicios solo en la app; eludir el pago protegido (WhatsApp, cobros externos)
-              puede bloquear tu cuenta.
+              y pagar el precio real solo en la app; eludir el pago o declarar un monto menor para
+              bajar la comisión puede bloquear tu cuenta.
             </p>
 
             <div className="verificationActionsRow full">

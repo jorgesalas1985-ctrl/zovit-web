@@ -129,6 +129,9 @@ export default function SecurityPolicyPage() {
             <li>
               Compartir teléfono, WhatsApp u otros contactos para acordar o cobrar fuera de ZOVIT.
             </li>
+            <li>
+              Declarar montos menores en la app para reducir la comisión y cobrar el resto fuera.
+            </li>
             <li>Acoso, amenazas o uso de la plataforma para delitos.</li>
           </ul>
           <p>

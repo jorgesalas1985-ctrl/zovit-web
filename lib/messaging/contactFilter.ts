@@ -45,4 +45,4 @@ export function filterContactLeaks(raw: string): ContactFilterResult {
 }
 
 export const CHAT_SAFETY_NOTICE =
-  "Por tu seguridad y para proteger el pago, coordina solo en ZOVIT. No compartas teléfono, WhatsApp ni correo hasta que el cliente pague. Si se detecta elusión, la cuenta puede ser bloqueada.";
+  "Por tu seguridad y para proteger el pago, coordina solo en ZOVIT. No compartas teléfono, WhatsApp ni correo hasta que el cliente pague. El precio real debe pagarse en la app: no declares un monto menor para bajar la comisión. Si se detecta elusión, la cuenta puede ser bloqueada.";

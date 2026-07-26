@@ -12,16 +12,28 @@ export async function GET() {
 
     // service_role solo tras verificar super_admin (RR.HH. no entra aquí).
     const admin = createAdminClient();
-    const [paymentsResult, disputesResult, walletsResult, eventsResult, payoutsResult] =
-      await Promise.all([
-        admin.from("payments").select("*").order("created_at", { ascending: false }).limit(50),
-        admin.from("payment_disputes").select("*").order("created_at", { ascending: false }).limit(40),
-        admin.from("wallets").select("*").order("updated_at", { ascending: false }).limit(50),
-        admin.from("payment_events").select("*").order("created_at", { ascending: false }).limit(40),
-        admin.from("payout_requests").select("*").order("created_at", { ascending: false }).limit(50),
-      ]);
+    const [
+      paymentsResult,
+      disputesResult,
+      walletsResult,
+      eventsResult,
+      payoutsResult,
+      commissionFlagsResult,
+    ] = await Promise.all([
+      admin.from("payments").select("*").order("created_at", { ascending: false }).limit(50),
+      admin.from("payment_disputes").select("*").order("created_at", { ascending: false }).limit(40),
+      admin.from("wallets").select("*").order("updated_at", { ascending: false }).limit(50),
+      admin.from("payment_events").select("*").order("created_at", { ascending: false }).limit(40),
+      admin.from("payout_requests").select("*").order("created_at", { ascending: false }).limit(50),
+      admin
+        .from("commission_risk_flags")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(60),
+    ]);
 
     const payments = (paymentsResult.data ?? []).map((row) => mapPaymentRow(row as never));
+    const commissionFlags = commissionFlagsResult.data ?? [];
     const stats = {
       totalVolume: payments.reduce((sum, p) => sum + p.amountGross, 0),
       totalFees: payments.reduce((sum, p) => sum + p.platformFee + p.taxAmount, 0),
@@ -35,6 +47,7 @@ export async function GET() {
       pendingPayouts: (payoutsResult.data ?? []).filter((p) =>
         ["pendiente", "aprobado"].includes(p.status),
       ).length,
+      openCommissionFlags: commissionFlags.filter((f) => f.status === "abierta").length,
     };
 
     return NextResponse.json({
@@ -44,6 +57,7 @@ export async function GET() {
       wallets: walletsResult.data ?? [],
       events: eventsResult.data ?? [],
       payouts: payoutsResult.data ?? [],
+      commissionFlags,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";
