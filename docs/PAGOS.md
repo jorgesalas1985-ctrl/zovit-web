@@ -34,6 +34,16 @@ Fuentes: [Point](https://www.mercadopago.cl/herramientas-para-vender/lectores-po
 
 Código: `lib/payments/mercadopagoFees.ts` · aviso UI: `MercadoPagoFeeNotice`.
 
+### Cuotas al cliente (ZOVIT)
+
+Al pagar en `/pagos`, el cliente elige contado/débito o crédito 3/6/9/12.
+
+- **Débito/contado:** cobra solo el monto del servicio (`amount_gross`).
+- **Crédito en cuotas:** suma al cliente la comisión publicada (base crédito + extra de cuotas + IVA) en `client_charged_amount` / `provider_financing_fee`. El neto del profesional no cambia.
+- Preferencia MP: `payment_methods.installments = 12`.
+
+SQL: `supabase/SPRINT_17_INSTALLMENT_CLIENT_FEES.sql`.
+
 ## Flujo del dinero
 
 ```

@@ -8,6 +8,8 @@ export type CreatePaymentSessionInput = {
   clientEmail?: string;
   returnUrl: string;
   metadata?: Record<string, string>;
+  /** Máx. / cuotas preferidas en Checkout Pro (1–12). */
+  installments?: number;
 };
 
 export type PaymentSession = {

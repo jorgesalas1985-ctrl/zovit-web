@@ -57,7 +57,9 @@ export async function confirmPaymentReceived(
 
   const { data: paymentRow, error: fetchError } = await admin
     .from("payments")
-    .select("id,status,public_id,amount_gross,currency,client_id")
+    .select(
+      "id,status,public_id,amount_gross,currency,client_id,client_charged_amount,provider_financing_fee,installment_count",
+    )
     .eq("id", input.paymentId)
     .maybeSingle();
 
@@ -69,8 +71,16 @@ export async function confirmPaymentReceived(
     throw new PaymentConfirmationError("external_reference no coincide con el pago ZOVIT.");
   }
 
-  if (Number(input.amountGross) !== Number(paymentRow.amount_gross)) {
-    throw new PaymentConfirmationError("El monto indicado no coincide con amount_gross.");
+  const expectedCharge =
+    paymentRow.client_charged_amount != null
+      ? Number(paymentRow.client_charged_amount)
+      : Number(paymentRow.amount_gross);
+
+  // El cliente puede pagar servicio + financiamiento de cuotas (client_charged_amount).
+  if (Number(input.amountGross) !== expectedCharge) {
+    throw new PaymentConfirmationError(
+      "El monto indicado no coincide con el cobro al cliente (servicio + cuotas).",
+    );
   }
 
   if (input.currency !== paymentRow.currency) {
@@ -85,7 +95,7 @@ export async function confirmPaymentReceived(
     validateMercadoPagoPayment(
       {
         publicId: paymentRow.public_id,
-        amountGross: Number(paymentRow.amount_gross),
+        amountGross: expectedCharge,
         currency: paymentRow.currency,
       },
       input.mercadoPagoPayment
@@ -99,6 +109,7 @@ export async function confirmPaymentReceived(
     p_provider_session_id: input.providerSessionId ?? null,
     p_payment_method: input.paymentMethod ?? input.provider,
     p_external_reference: input.externalReference,
+    // Escrow interno sigue siendo el monto del servicio (sin financiamiento MP).
     p_amount_gross: Number(paymentRow.amount_gross),
   });
 

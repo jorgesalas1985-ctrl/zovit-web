@@ -56,4 +56,64 @@ export function creditInstallmentTotalPct(installments: number): number | null {
 }
 
 export const MP_FEES_BUYER_NOTICE =
-  "En Mercado Pago, el pago con débito no agrega financiamiento. Con tarjeta de crédito, si eliges cuotas, Mercado Pago puede aplicar las comisiones/financiamiento vigentes (las publicadas en su sitio, p. ej. 3× 1,99%, 6× 3,49%, 9× 4,99%, 12× 6,99% adicionales sobre la comisión de crédito).";
+  "Débito o contado: pagas el monto del servicio. Si eliges crédito en cuotas (3/6/9/12), ZOVIT suma al total las comisiones de financiamiento publicadas por Mercado Pago (p. ej. 12× +6,99% sobre la base de crédito) + IVA, para que ese costo lo pague el cliente y no el profesional.";
+
+export type InstallmentOption = 1 | 3 | 6 | 9 | 12;
+
+export type ClientChargeBreakdown = {
+  serviceAmount: number;
+  installments: InstallmentOption;
+  financingFee: number;
+  financingIva: number;
+  providerFinancingFee: number;
+  clientChargedAmount: number;
+  ratePct: number;
+  label: string;
+};
+
+export function parseInstallmentOption(value: unknown): InstallmentOption {
+  const n = Number(value);
+  if (n === 3 || n === 6 || n === 9 || n === 12) return n;
+  return 1;
+}
+
+/** Calcula lo que paga el cliente: servicio + financiamiento de cuotas (si aplica). */
+export function calculateClientCharge(
+  serviceAmount: number,
+  installments: InstallmentOption,
+): ClientChargeBreakdown {
+  const amount = Math.max(0, Math.round(serviceAmount));
+
+  if (installments <= 1) {
+    return {
+      serviceAmount: amount,
+      installments: 1,
+      financingFee: 0,
+      financingIva: 0,
+      providerFinancingFee: 0,
+      clientChargedAmount: amount,
+      ratePct: 0,
+      label: "Débito / contado (sin financiamiento extra)",
+    };
+  }
+
+  const row = MP_CREDIT_INSTALLMENT_SURCHARGE.find((r) => r.installments === installments);
+  const creditBase = MP_POINT_SMART_BASE.creditImmediatePct;
+  const extra = row?.extraPct ?? 0;
+  // Base crédito + extra de cuotas (tarifas publicadas MP/ML).
+  const ratePct = creditBase + extra;
+  const financingFee = Math.round(amount * (ratePct / 100));
+  const financingIva = Math.round(financingFee * (MP_CHECKOUT_PROCESSING.ivaPct / 100));
+  const providerFinancingFee = financingFee + financingIva;
+
+  return {
+    serviceAmount: amount,
+    installments,
+    financingFee,
+    financingIva,
+    providerFinancingFee,
+    clientChargedAmount: amount + providerFinancingFee,
+    ratePct,
+    label: `Crédito ${installments}× (+${formatPct(ratePct)} + IVA)`,
+  };
+}

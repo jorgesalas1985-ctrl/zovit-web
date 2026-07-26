@@ -5,11 +5,17 @@ import { Protected } from "@/components/Protected";
 import { RoleGuard } from "@/components/RoleGuard";
 import { MercadoPagoFeeNotice } from "@/components/payments/MercadoPagoFeeNotice";
 import { CANCELLATION_FEE_REASON_LABELS } from "@/lib/payments/cancellationFee";
+import {
+  calculateClientCharge,
+  type InstallmentOption,
+} from "@/lib/payments/mercadopagoFees";
 import type { PaymentEvent, PaymentRecord } from "@/lib/payments/types";
 import { formatCLP } from "@/lib/payments/types";
 import { ArrowRight, CreditCard, ReceiptText } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
+const INSTALLMENT_CHOICES: InstallmentOption[] = [1, 3, 6, 9, 12];
 
 type CancellationFeeRow = {
   id: string;
@@ -29,6 +35,9 @@ export default function ClientPaymentsPage() {
   const [cancellationFees, setCancellationFees] = useState<CancellationFeeRow[]>([]);
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [installmentsByPayment, setInstallmentsByPayment] = useState<
+    Record<string, InstallmentOption>
+  >({});
 
   async function loadDashboard() {
     const response = await fetch("/api/payments/dashboard/client");
@@ -49,11 +58,12 @@ export default function ClientPaymentsPage() {
   }, []);
 
   async function payOrder(paymentId: string, provider: "mock" | "mercadopago" = "mock") {
+    const installments = installmentsByPayment[paymentId] ?? 1;
     setBusyId(paymentId);
     const response = await fetch(`/api/payments/orders/${paymentId}/pay`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider }),
+      body: JSON.stringify({ provider, installments }),
     });
     const data = await response.json();
     setBusyId("");
@@ -179,28 +189,68 @@ export default function ClientPaymentsPage() {
               {pending.length === 0 ? (
                 <p className="muted">No tienes pagos pendientes.</p>
               ) : (
-                pending.map((payment) => (
-                  <PaymentCard
-                    key={payment.id}
-                    payment={payment}
-                    actions={
-                      <div className="browseProfessionalActions">
-                        <button className="primaryButton" disabled={busyId === payment.id} onClick={() => void payOrder(payment.id, "mercadopago")}>
-                          Pagar con Mercado Pago <ArrowRight size={16} />
-                        </button>
-                        {process.env.NODE_ENV !== "production" && (
-                          <button
-                            className="secondaryButton"
-                            disabled={busyId === payment.id}
-                            onClick={() => void payOrder(payment.id, "mock")}
-                          >
-                            Pago de prueba (solo desarrollo)
-                          </button>
-                        )}
-                      </div>
-                    }
-                  />
-                ))
+                pending.map((payment) => {
+                  const selected = installmentsByPayment[payment.id] ?? 1;
+                  const charge = calculateClientCharge(payment.amountGross, selected);
+                  return (
+                    <PaymentCard
+                      key={payment.id}
+                      payment={payment}
+                      actions={
+                        <div className="formStack">
+                          <label>
+                            ¿Cómo quieres pagar?
+                            <select
+                              value={selected}
+                              onChange={(e) =>
+                                setInstallmentsByPayment((prev) => ({
+                                  ...prev,
+                                  [payment.id]: Number(e.target.value) as InstallmentOption,
+                                }))
+                              }
+                            >
+                              {INSTALLMENT_CHOICES.map((n) => {
+                                const option = calculateClientCharge(payment.amountGross, n);
+                                return (
+                                  <option key={n} value={n}>
+                                    {n === 1
+                                      ? `Débito / contado · ${formatCLP(option.clientChargedAmount)}`
+                                      : `${n} cuotas crédito · ${formatCLP(option.clientChargedAmount)} (incl. financiamiento)`}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </label>
+                          {charge.providerFinancingFee > 0 && (
+                            <p className="muted">
+                              Servicio {formatCLP(charge.serviceAmount)} + financiamiento cuotas{" "}
+                              {formatCLP(charge.providerFinancingFee)} ={" "}
+                              {formatCLP(charge.clientChargedAmount)}. Ese extra lo paga el cliente.
+                            </p>
+                          )}
+                          <div className="browseProfessionalActions">
+                            <button
+                              className="primaryButton"
+                              disabled={busyId === payment.id}
+                              onClick={() => void payOrder(payment.id, "mercadopago")}
+                            >
+                              Pagar con Mercado Pago <ArrowRight size={16} />
+                            </button>
+                            {process.env.NODE_ENV !== "production" && (
+                              <button
+                                className="secondaryButton"
+                                disabled={busyId === payment.id}
+                                onClick={() => void payOrder(payment.id, "mock")}
+                              >
+                                Pago de prueba (solo desarrollo)
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      }
+                    />
+                  );
+                })
               )}
             </section>
 

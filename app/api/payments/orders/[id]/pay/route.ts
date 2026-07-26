@@ -1,8 +1,13 @@
 import { confirmPaymentReceived } from "@/lib/payments/confirmPayment";
+import {
+  calculateClientCharge,
+  parseInstallmentOption,
+} from "@/lib/payments/mercadopagoFees";
 import { getPaymentProvider, isMockPaymentsAllowed } from "@/lib/payments/providers";
 import { validateMercadoPagoPublicUrl } from "@/lib/payments/providers/mercadopago";
 import { mapPaymentRow } from "@/lib/payments/mappers";
 import type { PaymentProviderName } from "@/lib/payments/types";
+import { assertSameOrigin, csrfDeniedResponse } from "@/lib/security/csrf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
@@ -11,10 +16,17 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (!csrf.ok) return csrfDeniedResponse(csrf.error);
+
     const { id } = await params;
-    const body = (await request.json().catch(() => ({}))) as { provider?: PaymentProviderName };
+    const body = (await request.json().catch(() => ({}))) as {
+      provider?: PaymentProviderName;
+      installments?: number;
+    };
     const providerName: PaymentProviderName =
       body.provider === "mock" && isMockPaymentsAllowed() ? "mock" : "mercadopago";
+    const installments = parseInstallmentOption(body.installments);
 
     if (providerName === "mock" && !isMockPaymentsAllowed()) {
       return NextResponse.json(
@@ -59,15 +71,32 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "El pago no está pendiente." }, { status: 400 });
     }
 
+    const charge = calculateClientCharge(payment.amountGross, installments);
+
+    await admin
+      .from("payments")
+      .update({
+        client_charged_amount: charge.clientChargedAmount,
+        installment_count: charge.installments,
+        provider_financing_fee: charge.providerFinancingFee,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", payment.id);
+
     const provider = getPaymentProvider(providerName);
     const session = await provider.createSession({
       paymentId: payment.id,
       publicId: payment.publicId,
-      amount: payment.amountGross,
+      amount: charge.clientChargedAmount,
       currency: payment.currency,
       clientEmail: authData.user.email ?? undefined,
       returnUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/pagos?payment=${payment.publicId}`,
-      metadata: { requestId: payment.requestId },
+      installments: charge.installments,
+      metadata: {
+        requestId: payment.requestId,
+        installments: String(charge.installments),
+        financingFee: String(charge.providerFinancingFee),
+      },
     });
 
     await admin
@@ -80,7 +109,6 @@ export async function POST(request: Request, { params }: Params) {
       .eq("id", payment.id);
 
     if (providerName === "mock") {
-      // Solo desarrollo: confirma vía service_role (nunca authenticated).
       await confirmPaymentReceived({
         paymentId: payment.id,
         provider: providerName,
@@ -88,7 +116,7 @@ export async function POST(request: Request, { params }: Params) {
         providerSessionId: session.sessionId,
         paymentMethod: providerName,
         externalReference: payment.publicId,
-        amountGross: payment.amountGross,
+        amountGross: charge.clientChargedAmount,
         currency: payment.currency,
       });
 
@@ -96,6 +124,7 @@ export async function POST(request: Request, { params }: Params) {
         session,
         paymentPublicId: payment.publicId,
         status: "pago_retenido",
+        charge,
       });
     }
 
@@ -103,6 +132,7 @@ export async function POST(request: Request, { params }: Params) {
       session,
       paymentPublicId: payment.publicId,
       status: "esperando_pago",
+      charge,
       message: "Redirigiendo a Mercado Pago…",
     });
   } catch (error) {

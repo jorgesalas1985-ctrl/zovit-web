@@ -35,11 +35,15 @@ export async function POST(request: Request, { params }: Params) {
       const admin = createAdminClient();
       const { data: paymentRow } = await admin
         .from("payments")
-        .select("id,status,public_id,amount_gross,currency")
+        .select("id,status,public_id,amount_gross,currency,client_charged_amount")
         .eq("public_id", result.externalReference)
         .maybeSingle();
 
       if (paymentRow && (paymentRow.status === "esperando_pago" || paymentRow.status === "pendiente")) {
+        const charged =
+          paymentRow.client_charged_amount != null
+            ? Number(paymentRow.client_charged_amount)
+            : Number(paymentRow.amount_gross);
         await confirmPaymentReceived({
           paymentId: paymentRow.id,
           provider: providerName,
@@ -47,7 +51,7 @@ export async function POST(request: Request, { params }: Params) {
           providerSessionId: result.reference,
           paymentMethod: result.paymentMethod ?? providerName,
           externalReference: result.externalReference,
-          amountGross: Number(paymentRow.amount_gross),
+          amountGross: charged,
           currency: paymentRow.currency,
           mercadoPagoPayment:
             providerName === "mercadopago" ? result.mercadoPagoPayment : undefined,

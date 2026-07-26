@@ -88,9 +88,17 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
         back_urls: backUrls,
         auto_return: "approved",
         notification_url: getMercadoPagoWebhookUrl(),
+        // Hasta 12 cuotas. El financiamiento se cobra al cliente vía unit_price
+        // (ZOVIT suma la comisión de cuotas antes de crear la preferencia).
+        payment_methods: {
+          installments: Math.min(Math.max(input.installments ?? 12, 1), 12),
+          default_installments: Math.min(Math.max(input.installments ?? 1, 1), 12),
+        },
         metadata: {
           payment_id: input.paymentId,
           request_id: input.metadata?.requestId ?? "",
+          installments: String(input.installments ?? 1),
+          kind: input.metadata?.kind ?? "service",
         },
       }),
     });

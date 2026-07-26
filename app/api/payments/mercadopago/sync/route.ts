@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     const { data: paymentRow } = await supabase
       .from("payments")
-      .select("id,status,public_id,amount_gross,currency,client_id")
+      .select("id,status,public_id,amount_gross,currency,client_id,client_charged_amount")
       .eq("public_id", externalReference)
       .maybeSingle();
 
@@ -63,6 +63,11 @@ export async function POST(request: Request) {
       });
     }
 
+    const charged =
+      paymentRow.client_charged_amount != null
+        ? Number(paymentRow.client_charged_amount)
+        : Number(paymentRow.amount_gross);
+
     const result = await confirmPaymentReceived({
       paymentId: paymentRow.id,
       provider: "mercadopago",
@@ -70,7 +75,7 @@ export async function POST(request: Request) {
       providerSessionId: body.paymentId,
       paymentMethod: sync.paymentMethod,
       externalReference: paymentRow.public_id,
-      amountGross: Number(paymentRow.amount_gross),
+      amountGross: charged,
       currency: paymentRow.currency,
       mercadoPagoPayment: sync.mercadoPagoPayment,
     });

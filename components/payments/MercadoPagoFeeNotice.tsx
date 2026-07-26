@@ -43,7 +43,7 @@ export function MercadoPagoFeeNotice({ compact = false }: Props) {
           </dd>
         </div>
         <div>
-          <dt>Cuotas crédito (extra publicado)</dt>
+          <dt>Cuotas crédito (se cobran al cliente)</dt>
           <dd>
             {MP_CREDIT_INSTALLMENT_SURCHARGE.map((row) => (
               <span key={row.installments}>
@@ -51,6 +51,7 @@ export function MercadoPagoFeeNotice({ compact = false }: Props) {
                 {row.installments < 12 ? " · " : ""}
               </span>
             ))}
+            . En ZOVIT, si eliges cuotas, ese % (+ IVA) se suma a tu total.
           </dd>
         </div>
       </dl>
