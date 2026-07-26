@@ -12,7 +12,7 @@ export async function GET() {
 
     // Lectura con service role: en prod faltan GRANT de tabla a authenticated.
     const admin = createAdminClient();
-    const [paymentsResult, eventsResult] = await Promise.all([
+    const [paymentsResult, eventsResult, cancellationFeesResult] = await Promise.all([
       admin
         .from("payments")
         .select("*")
@@ -23,6 +23,12 @@ export async function GET() {
         .select("id,payment_id,event_type,old_status,new_status,amount,platform_fee,tax_amount,payment_method,created_at")
         .order("created_at", { ascending: false })
         .limit(30),
+      admin
+        .from("cancellation_fees")
+        .select("*")
+        .eq("client_id", authData.user.id)
+        .order("created_at", { ascending: false })
+        .limit(40),
     ]);
 
     if (paymentsResult.error) {
@@ -51,7 +57,14 @@ export async function GET() {
         createdAt: event.created_at,
       }));
 
-    return NextResponse.json({ pending, completed, active, payments, events });
+    return NextResponse.json({
+      pending,
+      completed,
+      active,
+      payments,
+      events,
+      cancellationFees: cancellationFeesResult.data ?? [],
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";
     return NextResponse.json({ error: message }, { status: 500 });

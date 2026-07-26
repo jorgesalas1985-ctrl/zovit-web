@@ -266,6 +266,65 @@ export default function RequestDetailPage() {
     setBusy(false);
   }
 
+  async function cancelRequest() {
+    if (!request) return;
+    setBusy(true);
+    setError("");
+
+    const previewRes = await fetch(`/api/requests/${request.id}/cancel`);
+    const preview = (await previewRes.json()) as {
+      error?: string;
+      feeAmount?: number;
+      feeApplies?: boolean;
+      reasonLabel?: string;
+      hasHeldPayment?: boolean;
+    };
+    if (!previewRes.ok) {
+      setError(preview.error ?? "No se pudo calcular el cargo de cancelación.");
+      setBusy(false);
+      return;
+    }
+
+    const feeText = preview.feeApplies
+      ? preview.hasHeldPayment
+        ? `Se retendrá ${new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(preview.feeAmount ?? 0)} del pago protegido (${preview.reasonLabel}).`
+        : `Se cobrará un mínimo de ${new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(preview.feeAmount ?? 0)} (${preview.reasonLabel}). No podrás publicar otra solicitud hasta pagarlo en /pagos.`
+      : "Esta cancelación no tiene cargo.";
+
+    const accepted = window.confirm(
+      `¿Cancelar esta solicitud?\n\n${feeText}\n\nAcepto el cargo/condiciones de cancelación de ZOVIT.`,
+    );
+    if (!accepted) {
+      setBusy(false);
+      return;
+    }
+
+    const response = await fetch(`/api/requests/${request.id}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ acceptFee: true }),
+    });
+    const data = (await response.json()) as {
+      error?: string;
+      feeStatus?: string;
+      feeAmount?: number;
+    };
+    if (!response.ok) {
+      setError(data.error ?? "No se pudo cancelar.");
+      setBusy(false);
+      return;
+    }
+
+    if (data.feeStatus === "pendiente") {
+      setError("");
+      await load();
+      window.location.href = "/pagos";
+      return;
+    }
+    await load();
+    setBusy(false);
+  }
+
   async function uploadPhoto(file: File, type: "before" | "after") {
     if (!user || !request || !canCollaborate) return;
     setBusy(true);
@@ -510,10 +569,16 @@ export default function RequestDetailPage() {
                       <button
                         className="dangerButton fullButton"
                         disabled={busy}
-                        onClick={() => void updateStatus("cancelada")}
+                        onClick={() => void cancelRequest()}
                       >
                         Cancelar solicitud
                       </button>
+                    )}
+                    {isClient && ["publicada", "aceptada"].includes(request.status) && (
+                      <p className="muted">
+                        Cancelar puede tener un cargo mínimo de $3.000 si ya hay propuestas, profesional
+                        asignado, pago, o cancelaciones repetidas.
+                      </p>
                     )}
                     {request.status === "finalizada" && (
                       <div className="completionBox">

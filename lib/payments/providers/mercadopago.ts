@@ -61,9 +61,12 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
   async createSession(input: CreatePaymentSessionInput): Promise<PaymentSession> {
     const token = this.getAccessToken();
     const backUrls = getMercadoPagoBackUrls(input.publicId);
-    const title = input.metadata?.requestId
-      ? `Servicio ZOVIT ${input.publicId}`
-      : `Pago ZOVIT ${input.publicId}`;
+    const title =
+      input.metadata?.kind === "cancellation_fee"
+        ? `Cargo por cancelación ZOVIT ${input.publicId}`
+        : input.metadata?.requestId
+          ? `Servicio ZOVIT ${input.publicId}`
+          : `Pago ZOVIT ${input.publicId}`;
 
     const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",

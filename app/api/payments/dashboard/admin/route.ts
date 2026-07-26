@@ -19,6 +19,7 @@ export async function GET() {
       eventsResult,
       payoutsResult,
       commissionFlagsResult,
+      cancellationFeesResult,
     ] = await Promise.all([
       admin.from("payments").select("*").order("created_at", { ascending: false }).limit(50),
       admin.from("payment_disputes").select("*").order("created_at", { ascending: false }).limit(40),
@@ -27,6 +28,11 @@ export async function GET() {
       admin.from("payout_requests").select("*").order("created_at", { ascending: false }).limit(50),
       admin
         .from("commission_risk_flags")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(60),
+      admin
+        .from("cancellation_fees")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(60),
@@ -48,6 +54,9 @@ export async function GET() {
         ["pendiente", "aprobado"].includes(p.status),
       ).length,
       openCommissionFlags: commissionFlags.filter((f) => f.status === "abierta").length,
+      pendingCancellationFees: (cancellationFeesResult.data ?? []).filter(
+        (f) => f.status === "pendiente",
+      ).length,
     };
 
     return NextResponse.json({
@@ -58,6 +67,7 @@ export async function GET() {
       events: eventsResult.data ?? [],
       payouts: payoutsResult.data ?? [],
       commissionFlags,
+      cancellationFees: cancellationFeesResult.data ?? [],
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";

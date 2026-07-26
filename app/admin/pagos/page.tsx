@@ -18,6 +18,7 @@ type AdminStats = {
   disputedCount: number;
   pendingPayouts?: number;
   openCommissionFlags?: number;
+  pendingCancellationFees?: number;
 };
 
 type CommissionFlag = {
@@ -27,6 +28,17 @@ type CommissionFlag = {
   chat_amount: number | null;
   official_amount: number | null;
   body_snippet: string;
+  status: string;
+  created_at: string;
+};
+
+type CancellationFeeRow = {
+  id: string;
+  public_id: string;
+  request_id: string;
+  client_id: string;
+  amount: number;
+  reason: string;
   status: string;
   created_at: string;
 };
@@ -73,6 +85,7 @@ export default function AdminPaymentsPage() {
   const [disputes, setDisputes] = useState<DisputeRow[]>([]);
   const [payouts, setPayouts] = useState<PayoutRow[]>([]);
   const [commissionFlags, setCommissionFlags] = useState<CommissionFlag[]>([]);
+  const [cancellationFees, setCancellationFees] = useState<CancellationFeeRow[]>([]);
   const [events, setEvents] = useState<Array<{ id: string; event_type: string; created_at: string }>>(
     [],
   );
@@ -93,6 +106,7 @@ export default function AdminPaymentsPage() {
     setPayouts(data.payouts ?? []);
     setEvents(data.events ?? []);
     setCommissionFlags(data.commissionFlags ?? []);
+    setCancellationFees(data.cancellationFees ?? []);
   }, []);
 
   useEffect(() => {
@@ -119,6 +133,24 @@ export default function AdminPaymentsPage() {
         ? "Disputa resuelta: reembolso al cliente."
         : "Disputa resuelta: pago liberado al profesional.",
     );
+    await load();
+  }
+
+  async function waiveCancellationFee(feeId: string) {
+    const note = window.prompt("Motivo de condonación (opcional):") ?? "";
+    setBusyId(feeId);
+    const response = await fetch(`/api/payments/cancellation-fees/${feeId}/waive`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
+    });
+    const data = await response.json();
+    setBusyId("");
+    if (!response.ok) {
+      setMessage(data.error ?? "No se pudo condonar el cargo.");
+      return;
+    }
+    setMessage("Cargo por cancelación condonado.");
     await load();
   }
 
@@ -187,6 +219,7 @@ export default function AdminPaymentsPage() {
   const openDisputes = disputes.filter((d) => ["abierta", "en_revision"].includes(d.status));
   const openPayouts = payouts.filter((p) => ["pendiente", "aprobado"].includes(p.status));
   const openFlags = commissionFlags.filter((f) => f.status === "abierta");
+  const pendingCancelFees = cancellationFees.filter((f) => f.status === "pendiente");
 
   return (
     <Protected>
@@ -228,8 +261,42 @@ export default function AdminPaymentsPage() {
                 <strong>{stats.openCommissionFlags ?? openFlags.length}</strong>
                 <span>Alertas comisión</span>
               </article>
+              <article className="walletCard">
+                <strong>{stats.pendingCancellationFees ?? pendingCancelFees.length}</strong>
+                <span>Cargos cancelación</span>
+              </article>
             </div>
           )}
+
+          <section className="paymentsSection">
+            <h2>Cargos por cancelación pendientes</h2>
+            {pendingCancelFees.length === 0 ? (
+              <p className="muted">Sin cargos pendientes.</p>
+            ) : (
+              pendingCancelFees.map((fee) => (
+                <article className="paymentHistoryItem" key={fee.id}>
+                  <strong>
+                    {fee.public_id} · {formatCLP(Number(fee.amount))} · {fee.reason}
+                  </strong>
+                  <p className="muted">
+                    Cliente {fee.client_id.slice(0, 8)}… · Solicitud {fee.request_id.slice(0, 8)}…
+                  </p>
+                  <div className="browseProfessionalActions">
+                    <Link className="secondaryButton" href={`/solicitudes/${fee.request_id}`}>
+                      Ver solicitud
+                    </Link>
+                    <button
+                      className="secondaryButton"
+                      disabled={busyId === fee.id}
+                      onClick={() => void waiveCancellationFee(fee.id)}
+                    >
+                      Condonar
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </section>
 
           <section className="paymentsSection">
             <h2>Alertas de elusión de comisión</h2>

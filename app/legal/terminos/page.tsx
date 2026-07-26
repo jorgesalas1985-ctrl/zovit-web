@@ -125,7 +125,7 @@ export default function TermsPage() {
             </li>
           </ul>
 
-          <h2>7. Solicitudes, ofertas y ejecución del servicio</h2>
+          <h2>7. Solicitudes, ofertas, cancelación y ejecución del servicio</h2>
           <p>
             El Cliente es responsable de describir con claridad el servicio requerido. El Profesional
             es responsable de declarar con veracidad su capacidad, disponibilidad y alcance del
@@ -135,6 +135,14 @@ export default function TermsPage() {
             El contrato de prestación del servicio se celebra entre Cliente y Profesional. ZOVIT
             actúa como intermediario tecnológico y puede establecer reglas operativas, estados del
             trabajo y condiciones para liberar pagos.
+          </p>
+          <p>
+            Cancelar una solicitud puede generar un cargo mínimo (actualmente $3.000 CLP) cuando ya
+            existan propuestas, profesional asignado, pago iniciado/retenido, o cancelaciones
+            repetidas. La primera cancelación de una solicitud aún publicada sin propuestas puede
+            estar exenta. Si el cargo queda pendiente, ZOVIT puede impedir publicar nuevas
+            solicitudes hasta que se pague en la plataforma. Si ya había pago protegido, el cargo
+            puede retenerse del escrow y el saldo restante reembolsarse según revisión.
           </p>
 
           <h2>8. Pagos protegidos y trabajos adicionales</h2>

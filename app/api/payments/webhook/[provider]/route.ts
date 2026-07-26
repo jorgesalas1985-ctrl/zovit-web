@@ -52,6 +52,29 @@ export async function POST(request: Request, { params }: Params) {
           mercadoPagoPayment:
             providerName === "mercadopago" ? result.mercadoPagoPayment : undefined,
         });
+      } else if (String(result.externalReference).startsWith("ZVT-CFEE-")) {
+        const { data: feeRow } = await admin
+          .from("cancellation_fees")
+          .select("id,status,amount,public_id")
+          .eq("public_id", result.externalReference)
+          .maybeSingle();
+
+        if (feeRow && feeRow.status === "pendiente") {
+          const mpAmount = result.mercadoPagoPayment?.transaction_amount;
+          if (
+            providerName === "mercadopago" &&
+            mpAmount !== undefined &&
+            Number(mpAmount) !== Number(feeRow.amount)
+          ) {
+            return NextResponse.json({ error: "Monto de cargo no coincide." }, { status: 400 });
+          }
+          await admin.rpc("mark_cancellation_fee_paid", {
+            p_fee_id: feeRow.id,
+            p_provider: providerName,
+            p_provider_reference: result.reference,
+            p_provider_session_id: result.reference,
+          });
+        }
       }
     }
 

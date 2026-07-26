@@ -29,6 +29,20 @@ export default function NewRequestPage() {
   const [busy, setBusy] = useState(false);
   const [aiSpecialty, setAiSpecialty] = useState("");
   const [manualSelection, setManualSelection] = useState<ManualServiceSelection | null>(null);
+  const [blockedByCancelFee, setBlockedByCancelFee] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    void (async () => {
+      const { data } = await supabase
+        .from("cancellation_fees")
+        .select("id")
+        .eq("client_id", user.id)
+        .eq("status", "pendiente")
+        .limit(1);
+      setBlockedByCancelFee((data ?? []).length > 0);
+    })();
+  }, [user]);
 
   useEffect(() => {
     const manual = loadManualSelection();
@@ -113,7 +127,18 @@ export default function NewRequestPage() {
           <section className="formPageCard">
             <div className="eyebrow"><Sparkles size={16} /> Solicitud real</div>
             <h1>¿Qué necesitas resolver?</h1>
-            <p className="muted">La solicitud quedará vinculada a tu cuenta y almacenada en Supabase.</p>
+            <p className="muted">
+              Publica solo si realmente necesitas el servicio. Cancelar después puede tener un cargo
+              mínimo de $3.000.
+            </p>
+
+            {blockedByCancelFee && (
+              <div className="formMessage">
+                <AlertCircle size={17} />
+                Tienes un cargo por cancelación pendiente. Págalo en{" "}
+                <Link href="/pagos">Pagos</Link> antes de publicar otra solicitud.
+              </div>
+            )}
 
             {manualSelection && (
               <div className="manualPrefillNote">
@@ -175,7 +200,7 @@ export default function NewRequestPage() {
                 </div>
               )}
 
-              <button className="primaryButton wide" disabled={busy}>
+              <button className="primaryButton wide" disabled={busy || blockedByCancelFee}>
                 {busy ? "Publicando…" : <>Publicar solicitud <ArrowRight size={18} /></>}
               </button>
             </form>
