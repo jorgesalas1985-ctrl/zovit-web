@@ -126,10 +126,13 @@ export default function SecurityPolicyPage() {
             <li>Múltiples cuentas creadas para evadir suspensiones.</li>
             <li>Solicitudes o ofertas engañosas.</li>
             <li>Intentos de eludir el pago protegido o las calificaciones.</li>
+            <li>
+              Compartir teléfono, WhatsApp u otros contactos para acordar o cobrar fuera de ZOVIT.
+            </li>
             <li>Acoso, amenazas o uso de la plataforma para delitos.</li>
           </ul>
           <p>
-            Las medidas pueden incluir advertencias, suspensión, cierre de cuenta, retención de
+            Las medidas pueden incluir advertencias, suspensión, bloqueo de cuenta, retención de
             operaciones en revisión y colaboración con autoridades cuando la ley lo exija.
           </p>
 
@@ -140,7 +143,10 @@ export default function SecurityPolicyPage() {
           </p>
           <ul>
             <li>Verificar la credencial o perfil del profesional dentro de ZOVIT.</li>
-            <li>Mantener la comunicación y acuerdos relevantes dentro de la plataforma.</li>
+            <li>
+              Mantener la comunicación, precios y trabajos adicionales dentro de la app; si surge
+              trabajo extra, agrégalo y págalo en ZOVIT.
+            </li>
             <li>No compartir códigos, claves o datos bancarios fuera de los canales seguros.</li>
             <li>
               Reportar comportamientos sospechosos al soporte de ZOVIT de inmediato.

@@ -109,7 +109,14 @@ export default function TermsPage() {
               ZOVIT.
             </li>
             <li>
-              No eludir de mala fe los mecanismos de pago protegido, calificaciones o verificación.
+              Coordinar el servicio, precios, trabajos adicionales y detalles operativos a través de
+              los canales de ZOVIT (chat y funciones de la app), no por WhatsApp, teléfono, correo u
+              otras vías externas, hasta que el pago correspondiente esté registrado y protegido en
+              la plataforma.
+            </li>
+            <li>
+              No eludir de mala fe los mecanismos de pago protegido, calificaciones o verificación,
+              ni acordar cobros fuera de ZOVIT para evitar comisiones o controles de seguridad.
             </li>
           </ul>
 
@@ -125,11 +132,18 @@ export default function TermsPage() {
             trabajo y condiciones para liberar pagos.
           </p>
 
-          <h2>8. Pagos protegidos</h2>
+          <h2>8. Pagos protegidos y trabajos adicionales</h2>
           <p>
             Cuando el flujo de pago protegido esté disponible, los fondos asociados a un servicio
             pueden quedar resguardados hasta que el Cliente apruebe el trabajo, conforme a las
             reglas y plazos publicados en la plataforma y a los proveedores de pago utilizados.
+          </p>
+          <p>
+            Todo cobro del servicio —incluido trabajo adicional que surja en el lugar— debe crearse y
+            pagarse dentro de ZOVIT. El Cliente puede agregar trabajo adicional fácilmente desde la
+            solicitud; el Profesional solo debe ejecutarlo cuando el pago correspondiente quede
+            protegido en la plataforma. Acuerdos o pagos fuera de ZOVIT no están protegidos y pueden
+            constituir incumplimiento de estos términos.
           </p>
           <p>
             ZOVIT no es un banco. Los tiempos de acreditación, comisiones, reversas o disputas pueden
@@ -167,15 +181,21 @@ export default function TermsPage() {
           </p>
 
           <h2>12. Suspensión y cierre de cuenta</h2>
-          <p>ZOVIT puede suspender o terminar el acceso si:</p>
+          <p>ZOVIT puede suspender, bloquear o terminar el acceso si:</p>
           <ul>
             <li>Incumplen estos términos o la ley.</li>
             <li>Se detecta fraude, abuso, riesgo a terceros o falsedad en la verificación.</li>
+            <li>
+              Se detecta elusión del pago protegido: compartir teléfono/WhatsApp para cerrar el
+              trato fuera de la app, cobrar en efectivo o transferencia directa eludiendo ZOVIT, u
+              omitir registrar trabajo adicional en la plataforma.
+            </li>
             <li>Existe inactividad prolongada o requerimiento de autoridad competente.</li>
           </ul>
           <p>
-            También puedes solicitar el cierre de tu cuenta, sin perjuicio de obligaciones pendientes
-            (pagos, disputas o deberes legales de conservación de información).
+            Las cuentas pueden ser bloqueadas de forma temporal o definitiva según la gravedad del
+            caso. También puedes solicitar el cierre de tu cuenta, sin perjuicio de obligaciones
+            pendientes (pagos, disputas o deberes legales de conservación de información).
           </p>
 
           <h2>13. Limitación de responsabilidad</h2>

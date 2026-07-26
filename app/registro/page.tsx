@@ -375,7 +375,9 @@ function RegisterPageContent() {
             <p className="authLegalNote full">
               Al crear tu cuenta aceptas los{" "}
               <Link href="/legal/terminos">Términos y condiciones</Link> y la{" "}
-              <Link href="/legal/privacidad">Política de privacidad</Link> de ZOVIT.
+              <Link href="/legal/privacidad">Política de privacidad</Link> de ZOVIT. Debes coordinar
+              y pagar servicios solo en la app; eludir el pago protegido (WhatsApp, cobros externos)
+              puede bloquear tu cuenta.
             </p>
 
             <div className="verificationActionsRow full">

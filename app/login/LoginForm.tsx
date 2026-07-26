@@ -236,7 +236,8 @@ function LoginForm() {
 
           <p className="authLegalNote">
             Al ingresar aceptas los{" "}
-            <Link href="/legal/terminos">Términos y condiciones</Link> y la{" "}
+            <Link href="/legal/terminos">Términos y condiciones</Link> (incluye coordinar y pagar
+            solo en ZOVIT; eludir el pago puede bloquear cuentas) y la{" "}
             <Link href="/legal/privacidad">Política de privacidad</Link>.
           </p>
 
