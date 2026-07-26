@@ -14,6 +14,26 @@ Arquitectura escalable, segura y preparada para Chile. Ejecutar **después** de 
 | `wallet_transactions` | Libro mayor auditado |
 | `payment_disputes` | Disputas y resoluciones |
 
+## Comisiones Mercado Pago (Chile, referencial)
+
+Además de la comisión ZOVIT (10% + IVA sobre esa comisión), Mercado Pago cobra su propia tarifa al comercio.
+
+| Medio | Qué aplica |
+|-------|------------|
+| **Débito** | Comisión de procesamiento; **sin** financiamiento por cuotas |
+| **Crédito** | Comisión de procesamiento **+** eventual financiamiento si hay cuotas |
+
+Referencia publicada (Point Smart / página de costos MP):
+
+- Débito al instante: **2,19%**
+- Crédito al instante: **2,69%**
+- Extra cuotas crédito (se suma): 3× **1,99%** · 6× **3,49%** · 9× **4,99%** · 12× **6,99%**
+- Checkout / link (referencial): **3,19%** + IVA (inmediato) o **2,89%** + IVA (10 días)
+
+Fuentes: [Point](https://www.mercadopago.cl/herramientas-para-vender/lectores-point), [Checkout](https://www.mercadopago.cl/ayuda/33399). La tasa exacta la define la cuenta MP.
+
+Código: `lib/payments/mercadopagoFees.ts` · aviso UI: `MercadoPagoFeeNotice`.
+
 ## Flujo del dinero
 
 ```

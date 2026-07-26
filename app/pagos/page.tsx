@@ -3,6 +3,7 @@
 import { PaymentCard, PaymentHistoryList } from "@/components/payments/PaymentHistoryList";
 import { Protected } from "@/components/Protected";
 import { RoleGuard } from "@/components/RoleGuard";
+import { MercadoPagoFeeNotice } from "@/components/payments/MercadoPagoFeeNotice";
 import { CANCELLATION_FEE_REASON_LABELS } from "@/lib/payments/cancellationFee";
 import type { PaymentEvent, PaymentRecord } from "@/lib/payments/types";
 import { formatCLP } from "@/lib/payments/types";
@@ -138,6 +139,7 @@ export default function ClientPaymentsPage() {
               cancelación aquí.
             </p>
             {message && <p className="aiError">{message}</p>}
+            <MercadoPagoFeeNotice />
 
             {cancellationFees.some((f) => f.status === "pendiente") && (
               <section className="paymentsSection">

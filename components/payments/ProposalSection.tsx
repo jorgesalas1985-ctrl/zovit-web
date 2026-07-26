@@ -1,5 +1,6 @@
 "use client";
 
+import { MercadoPagoFeeNotice } from "@/components/payments/MercadoPagoFeeNotice";
 import { calculateBreakdown, formatCLP, type ServiceProposal } from "@/lib/payments/types";
 import { AlertCircle, ArrowRight, HandCoins } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
@@ -122,8 +123,10 @@ export function ProposalSection({ requestId, requestStatus, isClient, isProfessi
             <input type="number" min={5000} step={1000} required value={amount} onChange={(e) => setAmount(e.target.value)} />
           </label>
           <p className="muted">
-            Comisión estimada ZOVIT: {formatCLP(breakdown.platformFee)} + IVA {formatCLP(breakdown.taxAmount)} · Neto profesional {formatCLP(breakdown.amountNet)}
+            Comisión estimada ZOVIT: {formatCLP(breakdown.platformFee)} + IVA{" "}
+            {formatCLP(breakdown.taxAmount)} · Neto profesional {formatCLP(breakdown.amountNet)}
           </p>
+          <MercadoPagoFeeNotice compact />
           <label>
             Detalle de la propuesta
             <textarea required minLength={10} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Qué incluye tu servicio, plazos y condiciones…" />
