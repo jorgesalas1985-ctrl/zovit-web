@@ -24,6 +24,7 @@ import type { ProfessionalStats } from "@/lib/experience/types";
 import { isSuperAdminRole } from "@/lib/auth/intranetRoles";
 import {
   getActiveMode,
+  hasDualMode,
   resolvePanelViewMode,
   roleErrorMessage,
 } from "@/lib/auth/roles";
@@ -57,6 +58,8 @@ function PanelContent() {
   const isClientView = panelView === "client";
   const isAdmin = role === "admin";
   const isSuperAdmin = isSuperAdminRole(profile?.intranet_role);
+  // Certificado solo para dual cliente-profesional o vista profesional (no clientes puros).
+  const canShowCertificate = Boolean(user && (hasDualMode(profile) || isProfessionalView));
 
   useEffect(() => {
     const accessError = searchParams.get("error");
@@ -230,8 +233,8 @@ function PanelContent() {
           <ArrowRight />
         </Link>
 
-        {user && (
-          <Link href={`/credencial/${user.id}`} className="dashboardCard">
+        {canShowCertificate && (
+          <Link href={`/credencial/${user!.id}`} className="dashboardCard">
             <div className="dashboardIcon"><IdCard /></div>
             <div>
               <h3>Mi certificado ZOVIT</h3>
