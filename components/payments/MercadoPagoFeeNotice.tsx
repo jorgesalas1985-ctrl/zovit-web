@@ -51,7 +51,8 @@ export function MercadoPagoFeeNotice({ compact = false }: Props) {
                 {row.installments < 12 ? " · " : ""}
               </span>
             ))}
-            . En ZOVIT, si eliges cuotas, ese % (+ IVA) se suma a tu total.
+            . En ZOVIT, si eliges cuotas, ese % (+ IVA) se suma a tu total y en la boleta/factura
+            se informa como cobro de la entidad financiera de tu tarjeta, no como venta de ZOVIT.
           </dd>
         </div>
       </dl>

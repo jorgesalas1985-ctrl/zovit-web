@@ -44,6 +44,13 @@ Al pagar en `/pagos`, el cliente elige contado/débito o crédito 3/6/9/12.
 
 SQL: `supabase/SPRINT_17_INSTALLMENT_CLIENT_FEES.sql`.
 
+### Boleta / factura (desglose)
+
+- **Ítem servicio (ZOVIT):** `amount_gross` — va en boleta/factura del servicio.
+- **Financiamiento cuotas:** `provider_financing_fee` — **no** es venta ZOVIT; leyenda: lo cobra la entidad financiera / tarjeta de crédito vía Mercado Pago.
+- Comprobante cliente: `/pagos/comprobante/[id]` · textos en `lib/payments/receiptCopy.ts`.
+- Emisión SII electrónica: pendiente; usará el mismo desglose.
+
 ## Flujo del dinero
 
 ```

@@ -172,6 +172,13 @@ export default function TermsPage() {
             depender de pasarelas de pago, normativa aplicable y revisión de casos. El mal uso del
             sistema de aprobación o rechazo puede derivar en suspensión de cuenta.
           </p>
+          <p>
+            Cuando el Cliente pague con tarjeta de crédito en cuotas, el financiamiento o comisión
+            asociada a esas cuotas es un cobro de la entidad financiera emisora de la tarjeta (a
+            través de Mercado Pago u otro procesador). En la boleta o factura del servicio, el
+            documento de ZOVIT corresponde al precio del servicio; el cargo de cuotas se informa
+            como cobro de la entidad financiera y no como ítem de venta de ZOVIT ni del Profesional.
+          </p>
 
           <h2>9. Experiencia, calificaciones y certificado</h2>
           <p>

@@ -19,6 +19,9 @@ type PaymentRow = {
   paid_at: string | null;
   released_at: string | null;
   created_at: string;
+  client_charged_amount?: number | null;
+  installment_count?: number | null;
+  provider_financing_fee?: number | null;
 };
 
 export function mapPaymentRow(row: PaymentRow): PaymentRecord {
@@ -41,6 +44,10 @@ export function mapPaymentRow(row: PaymentRow): PaymentRecord {
     paidAt: row.paid_at,
     releasedAt: row.released_at,
     createdAt: row.created_at,
+    clientChargedAmount:
+      row.client_charged_amount != null ? Number(row.client_charged_amount) : null,
+    installmentCount: row.installment_count != null ? Number(row.installment_count) : null,
+    providerFinancingFee: Number(row.provider_financing_fee ?? 0),
   };
 }
 

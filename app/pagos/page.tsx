@@ -236,6 +236,12 @@ export default function ClientPaymentsPage() {
                             >
                               Pagar con Mercado Pago <ArrowRight size={16} />
                             </button>
+                            <Link
+                              href={`/pagos/comprobante/${payment.id}`}
+                              className="secondaryButton"
+                            >
+                              Ver desglose boleta
+                            </Link>
                             {process.env.NODE_ENV !== "production" && (
                               <button
                                 className="secondaryButton"
@@ -284,6 +290,9 @@ export default function ClientPaymentsPage() {
                         <Link href={`/solicitudes/${payment.requestId}`} className="secondaryButton">
                           Ver estado del trabajo
                         </Link>
+                        <Link href={`/pagos/comprobante/${payment.id}`} className="secondaryButton">
+                          Ver comprobante
+                        </Link>
                       </div>
                     }
                   />
@@ -301,11 +310,26 @@ export default function ClientPaymentsPage() {
                       <ReceiptText size={18} />
                       <div>
                         <strong>{payment.publicId}</strong>
-                        <p>{formatCLP(payment.amountGross)} · liberado {payment.releasedAt ? new Date(payment.releasedAt).toLocaleString("es-CL") : ""}</p>
+                        <p>
+                          {formatCLP(payment.amountGross)} · liberado{" "}
+                          {payment.releasedAt
+                            ? new Date(payment.releasedAt).toLocaleString("es-CL")
+                            : ""}
+                        </p>
+                        <Link href={`/pagos/comprobante/${payment.id}`} className="textLink">
+                          Ver comprobante / boleta
+                        </Link>
                       </div>
                     </article>
                   ))}
                 </div>
+              )}
+              {(pending.length > 0 || active.length > 0) && (
+                <p className="muted">
+                  También puedes abrir el comprobante de un pago activo desde su ID cuando esté
+                  pagado. En cuotas, el financiamiento aparece como cobro de la entidad financiera
+                  de tu tarjeta, no como venta de ZOVIT.
+                </p>
               )}
             </section>
           </section>
