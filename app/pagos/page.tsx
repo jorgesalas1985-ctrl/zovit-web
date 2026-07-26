@@ -104,7 +104,7 @@ export default function ClientPaymentsPage() {
 
   async function openDispute(paymentId: string) {
     const reason = window.prompt(
-      "Describe el problema (mín. 10 caracteres). Se abrirá una disputa y el pago quedará retenido.",
+      "Describe el problema (mín. 10 caracteres). Se abrirá una disputa y el pago quedará retenido.\n\nSi ya pagaste y el profesional llegó/está en camino, el reembolso NO es automático. Acordar fuera de ZOVIT y luego cancelar puede bloquear cuentas.",
     );
     if (!reason || reason.trim().length < 10) {
       setMessage("Debes describir el motivo de la disputa.");

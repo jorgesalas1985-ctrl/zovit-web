@@ -62,6 +62,15 @@ type DisputeRow = {
   reason: string;
   status: string;
   created_at: string;
+  dispute_kind?: string;
+};
+
+const DISPUTE_KIND_LABELS: Record<string, string> = {
+  general: "General",
+  cancelacion_post_pago: "Cancelación post-pago",
+  cancelacion_post_llegada: "Cancelación post-llegada",
+  calidad_servicio: "Calidad del servicio",
+  no_asistencia: "No asistencia",
 };
 
 type PayoutRow = {
@@ -351,8 +360,20 @@ export default function AdminPaymentsPage() {
             ) : (
               openDisputes.map((dispute) => (
                 <article className="paymentHistoryItem" key={dispute.id}>
-                  <strong>{dispute.status}</strong>
+                  <strong>
+                    {dispute.status}
+                    {dispute.dispute_kind
+                      ? ` · ${DISPUTE_KIND_LABELS[dispute.dispute_kind] ?? dispute.dispute_kind}`
+                      : ""}
+                  </strong>
                   <p>{dispute.reason}</p>
+                  {(dispute.dispute_kind === "cancelacion_post_llegada" ||
+                    dispute.dispute_kind === "cancelacion_post_pago") && (
+                    <p className="muted">
+                      Regla: tras pago/llegada el reembolso no es automático. Si hay indicios de trato
+                      fuera de ZOVIT, prioriza liberar al profesional o sancionar.
+                    </p>
+                  )}
                   <div className="browseProfessionalActions">
                     <button
                       className="secondaryButton"

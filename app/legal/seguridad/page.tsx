@@ -132,6 +132,10 @@ export default function SecurityPolicyPage() {
             <li>
               Declarar montos menores en la app para reducir la comisión y cobrar el resto fuera.
             </li>
+            <li>
+              Acordar el servicio fuera de ZOVIT después de pagar y luego pedir cancelación o
+              reembolso.
+            </li>
             <li>Acoso, amenazas o uso de la plataforma para delitos.</li>
           </ul>
           <p>

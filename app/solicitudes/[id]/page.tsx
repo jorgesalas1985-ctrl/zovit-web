@@ -286,9 +286,7 @@ export default function RequestDetailPage() {
     }
 
     const feeText = preview.feeApplies
-      ? preview.hasHeldPayment
-        ? `Se retendrá ${new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(preview.feeAmount ?? 0)} del pago protegido (${preview.reasonLabel}).`
-        : `Se cobrará un mínimo de ${new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(preview.feeAmount ?? 0)} (${preview.reasonLabel}). No podrás publicar otra solicitud hasta pagarlo en /pagos.`
+      ? `Se cobrará un mínimo de ${new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(preview.feeAmount ?? 0)} (${preview.reasonLabel}). No podrás publicar otra solicitud hasta pagarlo en /pagos.`
       : "Esta cancelación no tiene cargo.";
 
     const accepted = window.confirm(
@@ -323,6 +321,31 @@ export default function RequestDetailPage() {
     }
     await load();
     setBusy(false);
+  }
+
+  async function requestPostPaymentCancel() {
+    if (!request) return;
+    const reason = window.prompt(
+      "Ya hay pago protegido. Describe el motivo (mín. 10 caracteres).\n\nImportante: si el profesional llegó o están en camino, el reembolso NO es automático. Acordar fuera de ZOVIT y luego cancelar puede bloquear cuentas.",
+    );
+    if (!reason || reason.trim().length < 10) {
+      setError("Debes describir el motivo (mín. 10 caracteres).");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    const response = await fetch(`/api/requests/${request.id}/post-payment-cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: reason.trim() }),
+    });
+    const data = (await response.json()) as { error?: string };
+    setBusy(false);
+    if (!response.ok) {
+      setError(data.error ?? "No se pudo abrir la disputa de cancelación.");
+      return;
+    }
+    window.location.href = "/pagos";
   }
 
   async function uploadPhoto(file: File, type: "before" | "after") {
@@ -565,20 +588,41 @@ export default function RequestDetailPage() {
                             : "Finalizar trabajo"}
                       </button>
                     )}
-                    {isClient && ["publicada", "aceptada"].includes(request.status) && (
-                      <button
-                        className="dangerButton fullButton"
-                        disabled={busy}
-                        onClick={() => void cancelRequest()}
-                      >
-                        Cancelar solicitud
-                      </button>
-                    )}
-                    {isClient && ["publicada", "aceptada"].includes(request.status) && (
-                      <p className="muted">
-                        Cancelar puede tener un cargo mínimo de $3.000 si ya hay propuestas, profesional
-                        asignado, pago, o cancelaciones repetidas.
-                      </p>
+                    {isClient &&
+                      ["publicada", "aceptada"].includes(request.status) &&
+                      !hasProtectedPayment && (
+                        <>
+                          <button
+                            className="dangerButton fullButton"
+                            disabled={busy}
+                            onClick={() => void cancelRequest()}
+                          >
+                            Cancelar solicitud
+                          </button>
+                          <p className="muted">
+                            Cancelar puede tener un cargo mínimo de $3.000 si ya hay propuestas,
+                            profesional asignado, pago pendiente o cancelaciones repetidas.
+                          </p>
+                        </>
+                      )}
+                    {isClient && hasProtectedPayment && !isCancelled && !isFinalized && (
+                      <>
+                        <button
+                          className="dangerButton fullButton"
+                          disabled={busy}
+                          onClick={() => void requestPostPaymentCancel()}
+                        >
+                          Solicitar cancelación (disputa)
+                        </button>
+                        <p className="muted">
+                          Con pago protegido ya no puedes cancelar a voluntad. Si el profesional llegó
+                          o está en camino, el reembolso no es automático. Acordar el servicio fuera
+                          de ZOVIT y luego pedir cancelación puede bloquear cuentas.
+                        </p>
+                        <Link href="/pagos" className="secondaryButton fullButton">
+                          Ir a Pagos / disputas
+                        </Link>
+                      </>
                     )}
                     {request.status === "finalizada" && (
                       <div className="completionBox">

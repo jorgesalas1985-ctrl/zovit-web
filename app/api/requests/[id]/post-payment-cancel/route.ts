@@ -10,10 +10,7 @@ export async function POST(request: Request, { params }: Params) {
     if (!csrf.ok) return csrfDeniedResponse(csrf.error);
 
     const { id } = await params;
-    const body = (await request.json().catch(() => ({}))) as {
-      reason?: string;
-      disputeKind?: string;
-    };
+    const body = (await request.json().catch(() => ({}))) as { reason?: string };
     const reason = body.reason?.trim() ?? "";
 
     const supabase = await createClient();
@@ -22,10 +19,9 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "No autenticado." }, { status: 401 });
     }
 
-    const { data, error } = await supabase.rpc("open_payment_dispute", {
-      p_payment_id: id,
+    const { data, error } = await supabase.rpc("client_open_post_payment_cancel_dispute", {
+      p_request_id: id,
       p_reason: reason,
-      p_dispute_kind: body.disputeKind ?? null,
     });
 
     if (error) {

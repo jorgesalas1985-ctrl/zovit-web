@@ -138,11 +138,18 @@ export default function TermsPage() {
           </p>
           <p>
             Cancelar una solicitud puede generar un cargo mínimo (actualmente $3.000 CLP) cuando ya
-            existan propuestas, profesional asignado, pago iniciado/retenido, o cancelaciones
-            repetidas. La primera cancelación de una solicitud aún publicada sin propuestas puede
-            estar exenta. Si el cargo queda pendiente, ZOVIT puede impedir publicar nuevas
-            solicitudes hasta que se pague en la plataforma. Si ya había pago protegido, el cargo
-            puede retenerse del escrow y el saldo restante reembolsarse según revisión.
+            existan propuestas, profesional asignado, pago iniciado, o cancelaciones repetidas. La
+            primera cancelación de una solicitud aún publicada sin propuestas puede estar exenta. Si
+            el cargo queda pendiente, ZOVIT puede impedir publicar nuevas solicitudes hasta que se
+            pague en la plataforma.
+          </p>
+          <p>
+            Una vez que el Cliente pagó y el dinero está protegido en ZOVIT, o cuando el Profesional
+            está en camino o en ejecución, el Cliente no puede cancelar unilateralmente ni obtener
+            reembolso automático. Debe abrir una disputa. Si las partes acuerdan el servicio o un
+            cobro fuera de ZOVIT después del pago (por ejemplo en el lugar) y luego el Cliente pide
+            cancelar/reembolsar, ello constituye elusión: ZOVIT puede rechazar el reembolso, liberar
+            el pago al Profesional según corresponda, y suspender o bloquear cuentas.
           </p>
 
           <h2>8. Pagos protegidos y trabajos adicionales</h2>
