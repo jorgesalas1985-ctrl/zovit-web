@@ -46,10 +46,12 @@ SQL: `supabase/SPRINT_17_INSTALLMENT_CLIENT_FEES.sql`.
 
 ### Boleta / factura (desglose)
 
-- **Ítem servicio (ZOVIT):** `amount_gross` — va en boleta/factura del servicio.
-- **Financiamiento cuotas:** `provider_financing_fee` — **no** es venta ZOVIT; leyenda: lo cobra la entidad financiera / tarjeta de crédito vía Mercado Pago.
-- Comprobante cliente: `/pagos/comprobante/[id]` · textos en `lib/payments/receiptCopy.ts`.
-- Emisión SII electrónica: pendiente; usará el mismo desglose.
+- **Emisor SII:** Impresiones Getsemaní · RUT **77.057.636-9** (Pro Pyme General 14D).
+- **POS / DTE:** **Haulmer** (máquina con la que cobran hoy).
+- **Ítem servicio/comisión:** va en boleta/factura Haulmer → SII.
+- **Financiamiento cuotas:** `provider_financing_fee` — **no** es venta del emisor; leyenda: lo cobra la entidad financiera / tarjeta.
+- Comprobante cliente: `/pagos/comprobante/[id]` · `lib/payments/receiptCopy.ts` · datos en `lib/billing/company.ts`.
+- Emisión SII vía API Haulmer: pendiente de cablear; mismo desglose.
 
 ## Flujo del dinero
 

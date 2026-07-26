@@ -2,6 +2,7 @@
 
 import { Protected } from "@/components/Protected";
 import { RoleGuard } from "@/components/RoleGuard";
+import { ZOVIT_ISSUER } from "@/lib/billing/company";
 import type { PaymentRecord } from "@/lib/payments/types";
 import { formatCLP, PAYMENT_STATUS_LABELS } from "@/lib/payments/types";
 import { ArrowLeft, FileText } from "lucide-react";
@@ -68,8 +69,9 @@ export default function PaymentReceiptPage() {
             </div>
             <h1>Boleta / factura del pago</h1>
             <p className="muted">
-              El documento del servicio corresponde a ZOVIT. Si pagaste en cuotas, el financiamiento
-              lo cobra la entidad financiera de tu tarjeta de crédito.
+              Emisor: {ZOVIT_ISSUER.tradeName} · RUT {ZOVIT_ISSUER.rut} (documentos vía{" "}
+              {ZOVIT_ISSUER.posProviderLabel}). Si pagaste en cuotas, el financiamiento lo cobra la
+              entidad financiera de tu tarjeta de crédito.
             </p>
 
             {loading && <p className="muted">Cargando comprobante…</p>}
