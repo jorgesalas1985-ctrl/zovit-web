@@ -88,3 +88,5 @@ SPRINT_8_BIOMETRICO.sql
 ```
 
 `SPRINT_8_BIOMETRICO.sql` agrega selfie, prueba de vida, metadata biométrica y flag `biometric_verified`.
+
+Sprints posteriores (pagos, cancelaciones, Haulmer): ver archivos `SPRINT_5B_*` … `SPRINT_18_HAULMER_DTE.sql` en esta carpeta. `SPRINT_18` crea `tax_documents` para boletas/facturas OpenFactura.

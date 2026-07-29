@@ -202,6 +202,27 @@ export default function AdminPaymentsPage() {
     await load();
   }
 
+  async function emitHaulmerDte(paymentId: string) {
+    setBusyId(paymentId);
+    const response = await fetch(`/api/payments/orders/${paymentId}/dte`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dteType: 39, scope: "service" }),
+    });
+    const data = await response.json();
+    setBusyId("");
+    if (!response.ok) {
+      setMessage(data.error ?? "No se pudo emitir el DTE Haulmer.");
+      return;
+    }
+    const folio = data.document?.folio ?? "s/n";
+    setMessage(
+      data.alreadyIssued
+        ? `DTE ya emitido (folio ${folio}).`
+        : `Boleta Haulmer emitida (folio ${folio}).`,
+    );
+  }
+
   if (loading) {
     return <div className="centerState">Cargando…</div>;
   }
@@ -461,7 +482,33 @@ export default function AdminPaymentsPage() {
           <section className="paymentsSection">
             <h2>Pagos recientes</h2>
             {payments.map((payment) => (
-              <PaymentCard key={payment.id} payment={payment} />
+              <PaymentCard
+                key={payment.id}
+                payment={payment}
+                actions={
+                  [
+                    "pago_recibido",
+                    "pago_retenido",
+                    "trabajo_en_ejecucion",
+                    "trabajo_finalizado",
+                    "esperando_aprobacion_cliente",
+                    "pago_liberado",
+                  ].includes(payment.status) ? (
+                    <div className="browseProfessionalActions">
+                      <Link className="secondaryButton" href={`/pagos/comprobante/${payment.id}`}>
+                        Comprobante
+                      </Link>
+                      <button
+                        className="secondaryButton"
+                        disabled={busyId === payment.id}
+                        onClick={() => void emitHaulmerDte(payment.id)}
+                      >
+                        Emitir boleta Haulmer
+                      </button>
+                    </div>
+                  ) : undefined
+                }
+              />
             ))}
           </section>
 

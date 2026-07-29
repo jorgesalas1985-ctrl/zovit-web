@@ -51,7 +51,9 @@ SQL: `supabase/SPRINT_17_INSTALLMENT_CLIENT_FEES.sql`.
 - **Ítem servicio/comisión:** va en boleta/factura Haulmer → SII.
 - **Financiamiento cuotas:** `provider_financing_fee` — **no** es venta del emisor; leyenda: lo cobra la entidad financiera / tarjeta.
 - Comprobante cliente: `/pagos/comprobante/[id]` · `lib/payments/receiptCopy.ts` · datos en `lib/billing/company.ts`.
-- Emisión SII vía API Haulmer: pendiente de cablear; mismo desglose.
+- Emisión SII vía API Haulmer (OpenFactura): Sprint 18 — `lib/billing/haulmer/` · `supabase/SPRINT_18_HAULMER_DTE.sql` · `POST /api/payments/orders/[id]/dte`.
+- Activar con `HAULMER_DTE_ENABLED=true` y `HAULMER_API_KEY` (producción). En development, sin key usa el sandbox público de OpenFactura.
+- Auto-emisión post-pago: `HAULMER_AUTO_EMIT=true` (boleta 39 del servicio, sin ítem de financiamiento).
 
 ## Flujo del dinero
 
@@ -114,6 +116,9 @@ Calificación + experiencia verificable (requiere pago_liberado)
 | `/api/payments/dashboard/professional` | GET | Panel profesional |
 | `/api/payments/dashboard/admin` | GET | Panel admin |
 | `/api/payments/webhook/[provider]` | POST | Webhook proveedor |
+| `/api/payments/orders/[id]/receipt` | GET | Comprobante + desglose boleta |
+| `/api/payments/orders/[id]/dte` | GET/POST | Listar / emitir DTE Haulmer (POST: super admin) |
+| `/api/payments/orders/[id]/dte/[documentId]/pdf` | GET | PDF del DTE emitido |
 
 ## Fase A (activa): escrow contable + retiros
 
@@ -151,8 +156,9 @@ SQL: `supabase/SPRINT_5B_PAYOUTS_DISPUTES_REFUNDS.sql`
 1. Integrar SDK Webpay Plus (Transbank) en `lib/payments/providers/webpay.ts`
 2. ~~Disputas / reembolsos / retiros (Fase A)~~
 3. Marketplace MP OAuth + split (Fase B)
-4. Facturación electrónica (SII) sobre comisiones
+4. ~~Facturación electrónica (SII) Haulmer/OpenFactura~~ — ejecutar `SPRINT_18_HAULMER_DTE.sql` y configurar `HAULMER_*`
 5. Automatizar transferencia bancaria (API banco / MP money-out) al marcar `pagar`
+6. Factura 33 a empresas: completar `HAULMER_ACTECO` + `HAULMER_CDG_SII_SUCUR` desde el panel OpenFactura
 
 ---
 

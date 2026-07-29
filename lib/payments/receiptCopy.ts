@@ -18,7 +18,7 @@ export const RECEIPT_SERVICE_NOTE =
   "La boleta o factura del servicio corresponde al monto del trabajo acordado en ZOVIT (precio del servicio). La comisión de la plataforma y los impuestos aplicables se desglosan conforme a la normativa vigente cuando se emita el documento tributario.";
 
 export const RECEIPT_SII_PENDING_NOTE =
-  `La emisión electrónica ante el SII se hará con Haulmer a nombre de ${ZOVIT_ISSUER.tradeName} (RUT ${ZOVIT_ISSUER.rut}), sobre este desglose: monto de servicio/comisión en el DTE; financiamiento de cuotas solo como leyenda (cobro de la entidad financiera), sin incorporarlo como ítem de venta.`;
+  `La emisión electrónica ante el SII se hace con Haulmer (OpenFactura) a nombre de ${ZOVIT_ISSUER.tradeName} (RUT ${ZOVIT_ISSUER.rut}): monto de servicio/comisión en el DTE; financiamiento de cuotas solo como leyenda (cobro de la entidad financiera), sin incorporarlo como ítem de venta. Si aún no ves folio, el super admin puede emitir desde la API o activar HAULMER_AUTO_EMIT.`;
 
 export type ReceiptLine = {
   code: string;

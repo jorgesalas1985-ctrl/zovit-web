@@ -1,3 +1,5 @@
+import { listTaxDocumentsForPayment } from "@/lib/billing/haulmer";
+import { ZOVIT_ISSUER } from "@/lib/billing/company";
 import { buildClientReceiptLines, RECEIPT_FINANCING_NOTE, RECEIPT_SII_PENDING_NOTE } from "@/lib/payments/receiptCopy";
 import { mapPaymentRow } from "@/lib/payments/mappers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -42,6 +44,12 @@ export async function GET(_request: Request, { params }: Params) {
       installments: payment.installmentCount,
     });
 
+    const taxDocuments = await listTaxDocumentsForPayment(payment.id);
+    const issued = taxDocuments.find((doc) => doc.status === "issued");
+    const siiNote = issued
+      ? `Documento tributario emitido vía ${ZOVIT_ISSUER.posProviderLabel} (folio ${issued.folio ?? "s/n"}, tipo ${issued.dteType}) a nombre de ${ZOVIT_ISSUER.tradeName}. El financiamiento de cuotas no forma parte del DTE.`
+      : RECEIPT_SII_PENDING_NOTE;
+
     return NextResponse.json({
       payment,
       lines,
@@ -53,9 +61,25 @@ export async function GET(_request: Request, { params }: Params) {
         zovitFee: payment.platformFee,
         zovitFeeTax: payment.taxAmount,
       },
+      issuer: {
+        tradeName: ZOVIT_ISSUER.tradeName,
+        rut: ZOVIT_ISSUER.rut,
+        posProvider: ZOVIT_ISSUER.posProviderLabel,
+      },
+      taxDocuments: taxDocuments.map((doc) => ({
+        id: doc.id,
+        dteType: doc.dteType,
+        scope: doc.scope,
+        status: doc.status,
+        folio: doc.folio,
+        amountTotal: doc.amountTotal,
+        issuedAt: doc.issuedAt,
+        errorMessage: doc.errorMessage,
+        hasPdf: Boolean(doc.pdfBase64),
+      })),
       legal: {
         financingNote: RECEIPT_FINANCING_NOTE,
-        siiNote: RECEIPT_SII_PENDING_NOTE,
+        siiNote,
       },
     });
   } catch (error) {

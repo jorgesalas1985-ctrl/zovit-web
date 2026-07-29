@@ -26,4 +26,6 @@ export const HAULMER_INTEGRATION_NOTES = {
    * lo cobra la entidad financiera de la tarjeta.
    */
   excludeCardFinancingFromDte: true,
+  /** API: OpenFactura (Haulmer) — ver lib/billing/haulmer y SPRINT_18_HAULMER_DTE.sql */
+  openFacturaDocs: "https://docsapi-openfactura.haulmer.com/",
 } as const;

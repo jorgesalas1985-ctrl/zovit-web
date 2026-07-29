@@ -1,3 +1,4 @@
+import { maybeAutoEmitDteAfterPayment } from "@/lib/billing/haulmer";
 import { createAdminClient } from "@/lib/payments/server";
 import type { PaymentProviderName } from "@/lib/payments/types";
 
@@ -116,6 +117,9 @@ export async function confirmPaymentReceived(
   if (error) {
     throw new PaymentConfirmationError(error.message);
   }
+
+  // Emisión SII Haulmer (opcional, no bloquea el cobro).
+  void maybeAutoEmitDteAfterPayment(paymentRow.id);
 
   return { alreadyProcessed: false, status: "pago_retenido" };
 }

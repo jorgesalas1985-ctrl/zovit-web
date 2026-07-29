@@ -18,6 +18,18 @@ type ReceiptLine = {
   note?: string;
 };
 
+type TaxDocumentSummary = {
+  id: string;
+  dteType: number;
+  scope: string;
+  status: string;
+  folio: string | null;
+  amountTotal: number;
+  issuedAt: string | null;
+  errorMessage: string | null;
+  hasPdf: boolean;
+};
+
 type ReceiptPayload = {
   payment: PaymentRecord;
   lines: ReceiptLine[];
@@ -29,11 +41,18 @@ type ReceiptPayload = {
     zovitFee: number;
     zovitFeeTax: number;
   };
+  taxDocuments?: TaxDocumentSummary[];
   legal: {
     financingNote: string;
     siiNote: string;
   };
 };
+
+function dteTypeLabel(type: number) {
+  if (type === 39) return "Boleta electrónica";
+  if (type === 33) return "Factura electrónica";
+  return `DTE ${type}`;
+}
 
 export default function PaymentReceiptPage() {
   const { id } = useParams<{ id: string }>();
@@ -55,6 +74,8 @@ export default function PaymentReceiptPage() {
       setData(payload as ReceiptPayload);
     })();
   }, [id]);
+
+  const issuedDocs = data?.taxDocuments?.filter((doc) => doc.status === "issued") ?? [];
 
   return (
     <Protected>
@@ -147,8 +168,42 @@ export default function PaymentReceiptPage() {
                   </dl>
                 </section>
 
+                <section className="paymentsSection">
+                  <h2>Documento tributario (SII)</h2>
+                  {issuedDocs.length === 0 ? (
+                    <p className="muted">{data.legal.siiNote}</p>
+                  ) : (
+                    issuedDocs.map((doc) => (
+                      <article className="paymentHistoryItem" key={doc.id}>
+                        <strong>
+                          {dteTypeLabel(doc.dteType)} · folio {doc.folio ?? "s/n"} ·{" "}
+                          {formatCLP(doc.amountTotal)}
+                        </strong>
+                        <p className="muted">
+                          Emitido
+                          {doc.issuedAt
+                            ? ` el ${new Date(doc.issuedAt).toLocaleString("es-CL")}`
+                            : ""}{" "}
+                          vía {ZOVIT_ISSUER.posProviderLabel}.
+                        </p>
+                        {doc.hasPdf && (
+                          <p>
+                            <a
+                              className="secondaryButton"
+                              href={`/api/payments/orders/${data.payment.id}/dte/${doc.id}/pdf`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Ver PDF
+                            </a>
+                          </p>
+                        )}
+                      </article>
+                    ))
+                  )}
+                </section>
+
                 <p className="muted">{data.legal.financingNote}</p>
-                <p className="muted">{data.legal.siiNote}</p>
               </>
             )}
           </section>
