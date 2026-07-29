@@ -32,9 +32,12 @@ create table if not exists public.tax_documents (
   updated_at timestamptz not null default now()
 );
 
-create unique index if not exists tax_documents_one_issued_per_scope
-  on public.tax_documents (payment_id, dte_type, scope)
+create unique index if not exists tax_documents_one_issued_per_payment
+  on public.tax_documents (payment_id)
   where status = 'issued';
+
+-- Índice legado por scope (si existía); preferimos un solo DTE emitido por pago.
+drop index if exists tax_documents_one_issued_per_scope;
 
 create index if not exists tax_documents_payment_idx
   on public.tax_documents (payment_id, created_at desc);

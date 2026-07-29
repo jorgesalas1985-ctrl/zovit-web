@@ -74,7 +74,9 @@ export async function emitDteForPayment(
 ): Promise<{ document: TaxDocumentRecord; alreadyIssued: boolean }> {
   const config = getHaulmerConfig();
   if (!haulmerIsConfigured()) {
-    throw new Error("Haulmer/OpenFactura no está configurado (HAULMER_API_KEY).");
+    throw new Error(
+      "Haulmer/OpenFactura no está configurado. Define HAULMER_DTE_ENABLED=true y HAULMER_API_KEY (o HAULMER_USE_PUBLIC_SANDBOX=true solo en development).",
+    );
   }
 
   const dteType = input.dteType ?? HAULMER_DTE_TYPES.boletaAfecta;
@@ -97,22 +99,37 @@ export async function emitDteForPayment(
     throw new Error("Solo se emite DTE cuando el pago ya fue recibido o retenido.");
   }
 
-  const { data: existing } = await admin
+  // Un solo DTE emitido por pago (evita boleta de servicio + comisión al mismo cliente).
+  const { data: existingIssued } = await admin
     .from("tax_documents")
     .select("*")
     .eq("payment_id", payment.id)
-    .eq("dte_type", dteType)
-    .eq("scope", scope)
     .eq("status", "issued")
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  if (existing && !input.force) {
-    return { document: mapTaxDocument(existing as Record<string, unknown>), alreadyIssued: true };
+  if (existingIssued && !input.force) {
+    return {
+      document: mapTaxDocument(existingIssued as Record<string, unknown>),
+      alreadyIssued: true,
+    };
+  }
+
+  if (existingIssued && input.force) {
+    await admin
+      .from("tax_documents")
+      .update({
+        status: "skipped",
+        error_message: `Reemplazado por reemisión forzada (${new Date().toISOString()})`,
+      })
+      .eq("payment_id", payment.id)
+      .eq("status", "issued");
   }
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("full_name,rut")
+    .select("full_name,rut,address,commune")
     .eq("id", payment.client_id)
     .maybeSingle();
 
@@ -127,6 +144,8 @@ export async function emitDteForPayment(
     paymentPublicId: String(payment.public_id),
     receptorRut: profile?.rut ?? null,
     receptorName: profile?.full_name ?? null,
+    receptorAddress: profile?.address ?? null,
+    receptorCommune: profile?.commune ?? null,
   });
 
   const idempotencyKey = `zovit-${payment.public_id}-${dteType}-${scope}`;
@@ -159,43 +178,64 @@ export async function emitDteForPayment(
     );
   }
 
+  let haulmerSucceeded = false;
+  let responseFolio: string | null = null;
+
   try {
-    // En sandbox Haulmer la API key pública espera emisor Haulmer; en prod usamos Impresiones Getsemaní.
-    const payloadForEnv =
-      config.environment === "development" &&
-      config.apiKey &&
-      !process.env.HAULMER_API_KEY
-        ? rewriteEmitterForPublicSandbox(built.payload)
-        : built.payload;
+    const payloadForEnv = config.usesPublicSandbox
+      ? rewriteEmitterForPublicSandbox(built.payload)
+      : built.payload;
 
     const response = await haulmerEmitDocument({
       payload: payloadForEnv,
       idempotencyKey,
     });
 
+    if (response.FOLIO == null || String(response.FOLIO).trim() === "") {
+      throw new HaulmerApiError("Haulmer no devolvió folio; la emisión no se considera válida.");
+    }
+
+    haulmerSucceeded = true;
+    responseFolio = String(response.FOLIO);
+
+    const issuedFields = {
+      status: "issued" as const,
+      folio: responseFolio,
+      provider_token: response.TOKEN ?? null,
+      pdf_base64: response.PDF ?? null,
+      xml_content: response.XML ?? null,
+      timbre_base64: response.TIMBRE ?? null,
+      provider_response: {
+        folio: response.FOLIO,
+        token: response.TOKEN,
+        warnings: response.WARNING ?? [],
+      },
+      error_message: null as string | null,
+      issued_at: new Date().toISOString(),
+    };
+
     const { data: issued, error: updateError } = await admin
       .from("tax_documents")
-      .update({
-        status: "issued",
-        folio: response.FOLIO != null ? String(response.FOLIO) : null,
-        provider_token: response.TOKEN ?? null,
-        pdf_base64: response.PDF ?? null,
-        xml_content: response.XML ?? null,
-        timbre_base64: response.TIMBRE ?? null,
-        provider_response: {
-          folio: response.FOLIO,
-          token: response.TOKEN,
-          warnings: response.WARNING ?? [],
-        },
-        error_message: null,
-        issued_at: new Date().toISOString(),
-      })
+      .update(issuedFields)
       .eq("id", pendingRow.id)
       .select("*")
       .single();
 
     if (updateError || !issued) {
-      throw new Error(updateError?.message ?? "DTE emitido pero no se pudo guardar.");
+      // No marcar failed: el DTE ya existe en Haulmer/SII.
+      await admin
+        .from("tax_documents")
+        .update({
+          ...issuedFields,
+          error_message: `Emitido en Haulmer (folio ${responseFolio}) pero falló el guardado local: ${
+            updateError?.message ?? "sin fila"
+          }`.slice(0, 2000),
+        })
+        .eq("id", pendingRow.id);
+
+      throw new Error(
+        `DTE emitido en Haulmer (folio ${responseFolio}) pero no se pudo guardar en ZOVIT. Reintenta con force=true para reconciliar.`,
+      );
     }
 
     return { document: mapTaxDocument(issued as Record<string, unknown>), alreadyIssued: false };
@@ -207,13 +247,15 @@ export async function emitDteForPayment(
           ? error.message
           : "Error al emitir DTE";
 
-    await admin
-      .from("tax_documents")
-      .update({
-        status: "failed",
-        error_message: message.slice(0, 2000),
-      })
-      .eq("id", pendingRow.id);
+    if (!haulmerSucceeded) {
+      await admin
+        .from("tax_documents")
+        .update({
+          status: "failed",
+          error_message: message.slice(0, 2000),
+        })
+        .eq("id", pendingRow.id);
+    }
 
     throw error instanceof Error ? error : new Error(message);
   }
@@ -252,8 +294,11 @@ function rewriteEmitterForPublicSandbox(payload: Record<string, unknown>): Recor
  * Emisión automática post-pago (no bloquea el cobro si falla).
  */
 export async function maybeAutoEmitDteAfterPayment(paymentId: string): Promise<void> {
+  if (!haulmerIsConfigured()) return;
   const config = getHaulmerConfig();
-  if (!config.enabled || !config.autoEmit || !haulmerIsConfigured()) return;
+  if (!config.autoEmit) return;
+  // Nunca auto-emitir al sandbox público (solo pruebas manuales).
+  if (config.usesPublicSandbox) return;
 
   try {
     await emitDteForPayment({

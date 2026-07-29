@@ -52,8 +52,10 @@ SQL: `supabase/SPRINT_17_INSTALLMENT_CLIENT_FEES.sql`.
 - **Financiamiento cuotas:** `provider_financing_fee` — **no** es venta del emisor; leyenda: lo cobra la entidad financiera / tarjeta.
 - Comprobante cliente: `/pagos/comprobante/[id]` · `lib/payments/receiptCopy.ts` · datos en `lib/billing/company.ts`.
 - Emisión SII vía API Haulmer (OpenFactura): Sprint 18 — `lib/billing/haulmer/` · `supabase/SPRINT_18_HAULMER_DTE.sql` · `POST /api/payments/orders/[id]/dte`.
-- Activar con `HAULMER_DTE_ENABLED=true` y `HAULMER_API_KEY` (producción). En development, sin key usa el sandbox público de OpenFactura.
-- Auto-emisión post-pago: `HAULMER_AUTO_EMIT=true` (boleta 39 del servicio, sin ítem de financiamiento).
+- Activar con `HAULMER_DTE_ENABLED=true` y `HAULMER_API_KEY` de la cuenta OpenFactura de Impresiones Getsemaní.
+- Sandbox público solo con `HAULMER_USE_PUBLIC_SANDBOX=true` + `HAULMER_ENV=development` (nunca en producción).
+- Auto-emisión post-pago: `HAULMER_AUTO_EMIT=true` (una boleta 39 del servicio por pago; sin ítem de financiamiento).
+- Un solo DTE `issued` por pago (servicio o comisión, no ambos).
 
 ## Flujo del dinero
 

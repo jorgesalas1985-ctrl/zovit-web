@@ -20,7 +20,7 @@ export async function haulmerEmitDocument(input: {
   const config = getHaulmerConfig();
   if (!config.apiKey) {
     throw new HaulmerApiError(
-      "Falta HAULMER_API_KEY. En desarrollo puedes usar la key pública de OpenFactura o dejar HAULMER_ENV=development.",
+      "Falta HAULMER_API_KEY. En development puedes usar HAULMER_USE_PUBLIC_SANDBOX=true con la key pública de OpenFactura.",
     );
   }
 

@@ -45,7 +45,9 @@ export async function GET(_request: Request, { params }: Params) {
     });
 
     const taxDocuments = await listTaxDocumentsForPayment(payment.id);
-    const issued = taxDocuments.find((doc) => doc.status === "issued");
+    const issued =
+      taxDocuments.find((doc) => doc.status === "issued" && doc.scope === "service") ??
+      taxDocuments.find((doc) => doc.status === "issued");
     const siiNote = issued
       ? `Documento tributario emitido vía ${ZOVIT_ISSUER.posProviderLabel} (folio ${issued.folio ?? "s/n"}, tipo ${issued.dteType}) a nombre de ${ZOVIT_ISSUER.tradeName}. El financiamiento de cuotas no forma parte del DTE.`
       : RECEIPT_SII_PENDING_NOTE;

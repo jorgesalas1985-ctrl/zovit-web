@@ -25,6 +25,8 @@ export type BuildDteInput = {
   paymentPublicId: string;
   receptorRut: string | null;
   receptorName: string | null;
+  receptorAddress?: string | null;
+  receptorCommune?: string | null;
   emissionDate?: string;
 };
 
@@ -62,13 +64,26 @@ function todayChile(): string {
 
 function resolveReceptor(input: BuildDteInput, dteType: HaulmerDteType) {
   const name = (input.receptorName?.trim() || "Cliente ZOVIT").slice(0, 100);
+  const address = (input.receptorAddress?.trim() || "Chile").slice(0, 70);
+  const commune = (input.receptorCommune?.trim() || "Santiago").slice(0, 20);
+
   if (input.receptorRut && isValidChileanRut(input.receptorRut)) {
-    return { rut: formatRutForHaulmer(input.receptorRut), name };
+    return {
+      rut: formatRutForHaulmer(input.receptorRut),
+      name,
+      address,
+      commune,
+    };
   }
   if (dteType === HAULMER_DTE_TYPES.facturaAfecta) {
     throw new Error("La factura electrónica requiere RUT válido del receptor.");
   }
-  return { rut: BOLETA_GENERIC_RECEPTOR_RUT, name };
+  return {
+    rut: BOLETA_GENERIC_RECEPTOR_RUT,
+    name,
+    address: "Chile",
+    commune: "Santiago",
+  };
 }
 
 function resolveAmounts(input: BuildDteInput): {
@@ -141,8 +156,8 @@ export function buildHaulmerDtePayload(input: BuildDteInput): BuiltDte {
             Receptor: {
               RUTRecep: receptor.rut,
               RznSocRecep: receptor.name,
-              DirRecep: config.emitterAddress.slice(0, 70),
-              CmnaRecep: config.emitterCommune.slice(0, 20),
+              DirRecep: receptor.address,
+              CmnaRecep: receptor.commune,
             },
             Totales: {
               MntNeto: totals.mntNeto,
@@ -213,8 +228,8 @@ export function buildHaulmerDtePayload(input: BuildDteInput): BuiltDte {
             RUTRecep: receptor.rut,
             RznSocRecep: receptor.name,
             GiroRecep: "Particular o empresa",
-            DirRecep: "Chile",
-            CmnaRecep: config.emitterCommune.slice(0, 20),
+            DirRecep: receptor.address,
+            CmnaRecep: receptor.commune,
           },
           Totales: {
             MntNeto: amountNet,
