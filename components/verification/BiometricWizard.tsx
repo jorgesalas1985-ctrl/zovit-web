@@ -306,7 +306,7 @@ export function BiometricWizard({
           <span>Captura guiada automática</span>
         </div>
         <p className="muted">
-          Presiona selfie para abrir la cámara. Cada paso espera 5 segundos para leer la instrucción y luego captura sola.
+        Presiona selfie para abrir la cámara. Cada paso espera 5 segundos para leer la instrucción y luego captura sola.
         </p>
       </div>
 
