@@ -41,6 +41,8 @@ export function BiometricWizard({
   const [message, setMessage] = useState("");
   const [localBusy, setLocalBusy] = useState(false);
   const [autoStartAttempted, setAutoStartAttempted] = useState(false);
+  const selfieAutoCaptureTimerRef = useRef<number | null>(null);
+  const selfieAutoCaptureDoneRef = useRef(false);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -84,6 +86,9 @@ export function BiometricWizard({
   useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
+      if (selfieAutoCaptureTimerRef.current !== null) {
+        window.clearTimeout(selfieAutoCaptureTimerRef.current);
+      }
     };
   }, []);
 
@@ -113,7 +118,7 @@ export function BiometricWizard({
     }
   }
 
-  async function captureSelfie() {
+  const captureSelfie = useCallback(async () => {
     if (!videoRef.current) return;
     setLocalBusy(true);
     setMessage("");
@@ -129,9 +134,9 @@ export function BiometricWizard({
     } finally {
       setLocalBusy(false);
     }
-  }
+  }, [onUpload]);
 
-  async function captureLiveness() {
+  const captureLiveness = useCallback(async () => {
     if (!videoRef.current || !session) return;
     setLocalBusy(true);
     setMessage("");
@@ -153,7 +158,34 @@ export function BiometricWizard({
     } finally {
       setLocalBusy(false);
     }
-  }
+  }, [onUpload, session, stopCamera]);
+
+  useEffect(() => {
+    if (selfieAutoCaptureTimerRef.current !== null) {
+      window.clearTimeout(selfieAutoCaptureTimerRef.current);
+      selfieAutoCaptureTimerRef.current = null;
+    }
+
+    if (step !== "selfie" || hasSelfie || hasLiveness || disabled || !cameraReady || localBusy) {
+      selfieAutoCaptureDoneRef.current = false;
+      return;
+    }
+
+    if (selfieAutoCaptureDoneRef.current) return;
+
+    selfieAutoCaptureDoneRef.current = true;
+    selfieAutoCaptureTimerRef.current = window.setTimeout(() => {
+      selfieAutoCaptureTimerRef.current = null;
+      void captureSelfie();
+    }, 900);
+
+    return () => {
+      if (selfieAutoCaptureTimerRef.current !== null) {
+        window.clearTimeout(selfieAutoCaptureTimerRef.current);
+        selfieAutoCaptureTimerRef.current = null;
+      }
+    };
+  }, [cameraReady, captureSelfie, disabled, hasLiveness, hasSelfie, localBusy, step]);
 
   const isBusy = busy || localBusy;
 
@@ -210,7 +242,7 @@ export function BiometricWizard({
           {step === "selfie" && (
             <>
               <p className="muted">Paso 1: centra tu rostro y captura una selfie clara, sin lentes ni gorros.</p>
-              {!cameraReady && (
+              {(!cameraReady || message) && (
                 <button
                   type="button"
                   className="secondaryButton biometricRetryButton"
@@ -220,14 +252,11 @@ export function BiometricWizard({
                   <Camera size={16} /> Reintentar cámara
                 </button>
               )}
-              <button
-                type="button"
-                className="primaryButton biometricCaptureButton"
-                disabled={disabled || isBusy || !cameraReady}
-                onClick={() => void captureSelfie()}
-              >
-                {isBusy ? "Capturando…" : "Capturar selfie"}
-              </button>
+              {cameraReady && (
+                <p className="muted biometricAutoCaptureHint">
+                  Tomando selfie automáticamente...
+                </p>
+              )}
             </>
           )}
 
