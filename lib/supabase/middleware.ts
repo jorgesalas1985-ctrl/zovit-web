@@ -6,6 +6,9 @@ function getSupabaseEnv() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) {
+    if (process.env.NODE_ENV === "development") {
+      return null;
+    }
     throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY");
   }
 
@@ -14,9 +17,13 @@ function getSupabaseEnv() {
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
-  const { url, key } = getSupabaseEnv();
+  const env = getSupabaseEnv();
 
-  const supabase = createServerClient(url, key, {
+  if (!env) {
+    return { supabase: null, user: null, supabaseResponse };
+  }
+
+  const supabase = createServerClient(env.url, env.key, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

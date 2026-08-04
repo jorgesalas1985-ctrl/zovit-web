@@ -3923,6 +3923,147 @@ html[data-theme="dark"] .homeStoryWallPeel {
   border-radius: 16px;
   animation: missingPulse 1.2s ease-in-out 0s 3;
 }
+
+.biometricIntroPanel {
+  display: grid;
+  gap: 12px;
+}
+
+.biometricIntroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.biometricSelfieGuide,
+.biometricLivenessGuide {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  padding: 18px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line-blue);
+  background:
+    radial-gradient(circle at top, rgba(6, 182, 212, 0.14), transparent 58%),
+    color-mix(in srgb, var(--surface) 88%, var(--bg));
+}
+
+.biometricFacePulse,
+.biometricLivenessFace {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--cyan);
+  background: rgba(6, 182, 212, 0.12);
+  position: relative;
+}
+
+.biometricFacePulse span {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(6, 182, 212, 0.4);
+  animation: biometricFacePulse 1.6s ease-in-out infinite;
+}
+
+.biometricCountdownHint {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue-bright);
+  letter-spacing: 0.01em;
+}
+
+.biometricChallengeOverlay {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  align-content: start;
+  backdrop-filter: blur(10px);
+}
+
+.biometricChallengeOverlay--left {
+  justify-items: start;
+}
+
+.biometricChallengeOverlay--right {
+  justify-items: end;
+}
+
+.biometricChallengeOverlay--center {
+  justify-items: center;
+  text-align: center;
+}
+
+.biometricChallengeCue {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: white;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.9), rgba(37, 99, 235, 0.9));
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+  animation: biometricCueFloat 1.4s ease-in-out infinite;
+}
+
+.biometricChallengeOverlay--left .biometricChallengeCue {
+  animation-name: biometricCueLeft;
+}
+
+.biometricChallengeOverlay--right .biometricChallengeCue {
+  animation-name: biometricCueRight;
+}
+
+.biometricChallengeOverlay--center .biometricChallengeCue {
+  animation-name: biometricCueCenter;
+}
+
+.biometricChallengeOverlay p {
+  margin: 0;
+}
+
+@keyframes biometricFacePulse {
+  0%, 100% {
+    transform: scale(0.96);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes biometricCueFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes biometricCueLeft {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-8px); }
+}
+
+@keyframes biometricCueRight {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(8px); }
+}
+
+@keyframes biometricCueCenter {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .biometricFacePulse span,
+  .biometricChallengeCue,
+  .biometricProgressStep--active {
+    animation: none !important;
+  }
+}
 .workerDocAttach.isMissingField .workerDocAttachName,
 .workerDocAttach.isMissingField .workerDocAttachBtn {
   border-color: rgba(239, 68, 68, 0.75) !important;
