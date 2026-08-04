@@ -19,7 +19,7 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pd
 type PendingBiometricFormProps = {
   documents: RegistrationDocument[];
   rut: string;
-  onRutChange: (value: string) => void;
+  onRutChange?: (value: string) => void;
   onAddDocument: (
     type: IdentityDocumentType,
     file: File,
@@ -28,6 +28,7 @@ type PendingBiometricFormProps = {
   onSubmit: (event: FormEvent) => void;
   busy: boolean;
   message: string;
+  hideRutSection?: boolean;
 };
 
 function carnetHint() {
@@ -42,6 +43,7 @@ export function PendingBiometricForm({
   onSubmit,
   busy,
   message,
+  hideRutSection,
 }: PendingBiometricFormProps) {
   const fileInputs = useRef<Partial<Record<IdentityDocumentType, HTMLInputElement | null>>>({});
 
@@ -57,7 +59,7 @@ export function PendingBiometricForm({
       <div className="verificationInfoBox">
         <h2>Verificación biométrica ZOVIT</h2>
         <ul>
-          <li><strong>RUT:</strong> requerido para validar tu identidad.</li>
+          {!hideRutSection && <li><strong>RUT:</strong> requerido para validar tu identidad.</li>}
           <li><strong>Carnet:</strong> cédula frontal y reverso.</li>
           <li><strong>Selfie:</strong> captura en vivo con cámara frontal.</li>
           <li><strong>Prueba de vida:</strong> instrucción dinámica + código en pantalla.</li>
@@ -74,20 +76,24 @@ export function PendingBiometricForm({
       )}
 
       <form className="verificationUploadGrid" onSubmit={onSubmit}>
-        <div className="verificationSectionLabel">RUT</div>
-        <article className="verificationUploadCard">
-          <label>
-            RUT
-            <input
-              required
-              value={rut}
-              onChange={(event) => onRutChange(event.target.value)}
-              placeholder={FIELD_PLACEHOLDERS.rut}
-              autoComplete="off"
-            />
-            <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
-          </label>
-        </article>
+        {!hideRutSection && (
+          <>
+            <div className="verificationSectionLabel">RUT</div>
+            <article className="verificationUploadCard">
+              <label>
+                RUT
+                <input
+                  required
+                  value={rut}
+                  onChange={(event) => onRutChange?.(event.target.value)}
+                  placeholder={FIELD_PLACEHOLDERS.rut}
+                  autoComplete="off"
+                />
+                <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
+              </label>
+            </article>
+          </>
+        )}
 
         <div className="verificationSectionLabel">Carnet</div>
         {carnetDocuments.map((type) => {

@@ -38,7 +38,7 @@ type RegisterStep = "biometric" | "account" | "success";
 function RegisterStepBadge({ step }: { step: 1 | 2 }) {
   return (
     <p className="registerStepBadge">
-      Paso {step} de 2 · {step === 1 ? "Verificación biométrica" : "Crear cuenta"}
+      Paso {step} de 2 · {step === 1 ? "Datos de cuenta" : "Verificación biométrica"}
     </p>
   );
 }
@@ -47,7 +47,7 @@ function RegisterPageContent() {
   const searchParams = useSearchParams();
   const nextPath = safeNextPath(searchParams.get("next"));
   const loginHref = `/login?next=${encodeURIComponent(nextPath)}`;
-  const [step, setStep] = useState<RegisterStep>("biometric");
+  const [step, setStep] = useState<RegisterStep>("account");
   const [role, setRole] = useState<"client" | "professional">("client");
   const [form, setForm] = useState({
     firstName: "",
@@ -95,7 +95,7 @@ function RegisterPageContent() {
     ]);
   }
 
-  function continueToAccount(event: FormEvent) {
+  function continueToBiometric(event: FormEvent) {
     event.preventDefault();
     setMessage("");
 
@@ -110,7 +110,7 @@ function RegisterPageContent() {
     }
 
     setRut(normalizeChileanRut(rut));
-    setStep("account");
+    setStep("biometric");
   }
 
   async function createAccount(event: FormEvent) {
@@ -243,22 +243,65 @@ function RegisterPageContent() {
     );
   }
 
-  if (step === "account") {
+  if (step === "biometric") {
     return (
       <main className="authPage">
         <section className="authCard large">
           <RegisterStepBadge step={2} />
           <p className="kicker">REGISTRO REAL</p>
-          <h1>Crea tu cuenta ZOVIT</h1>
+          <h1>Verifica tu identidad</h1>
           <p className="muted">
-            Todos los campos son obligatorios. Si falta alguno, no podrás crear tu cuenta.
+            Ya completaste tus datos. Ahora sube el carnet y presiona selfie para continuar.
+          </p>
+
+          <PendingBiometricForm
+            documents={documents}
+            rut={rut}
+            onRutChange={setRut}
+            onAddDocument={addDocument}
+            onSubmit={createAccount}
+            busy={busy}
+            message={message}
+            hideRutSection
+          />
+
+          <div className="verificationActionsRow full">
+            <button type="button" className="secondaryButton" disabled={busy} onClick={() => setStep("account")}>
+              Volver a datos
+            </button>
+          </div>
+
+          <p className="authFooter">¿Ya tienes cuenta? <Link href={loginHref}>Ingresa aquí</Link></p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="simplePage">
+      <section className="formPageCard verificationPage">
+        <RegisterStepBadge step={1} />
+        <div className="eyebrow">
+          <ScanFace size={16} /> Registro ZOVIT
+        </div>
+        <h1>Completa tus datos</h1>
+        <p className="muted">
+          Paso 1: completa tus datos primero. Después pasarás a la biometría, donde presionarás
+          selfie para abrir la cámara y continuar.
+        </p>
+
+        <div className="authCard large">
+          <p className="kicker">REGISTRO REAL</p>
+          <h2>Crea tu cuenta ZOVIT</h2>
+          <p className="muted">
+            Todos los campos son obligatorios. Si falta alguno, no podrás seguir a la biometría.
           </p>
 
           <div className="roleSelector">
-            <button className={role === "client" ? "roleCard active" : "roleCard"} onClick={() => setRole("client")}>
+            <button type="button" className={role === "client" ? "roleCard active" : "roleCard"} onClick={() => setRole("client")}>
               <UserRound /><span><b>Cliente</b><small>Necesito contratar servicios</small></span>
             </button>
-            <button className={role === "professional" ? "roleCard active" : "roleCard"} onClick={() => setRole("professional")}>
+            <button type="button" className={role === "professional" ? "roleCard active" : "roleCard"} onClick={() => setRole("professional")}>
               <BriefcaseBusiness /><span><b>Profesional</b><small>Quiero ofrecer mis servicios</small></span>
             </button>
           </div>
@@ -274,7 +317,7 @@ function RegisterPageContent() {
             }}
           />
 
-          <form onSubmit={createAccount} className="formGrid" noValidate>
+          <form onSubmit={continueToBiometric} className="formGrid" noValidate>
             <label>
               Nombres
               <input
@@ -300,13 +343,10 @@ function RegisterPageContent() {
               <input
                 required
                 value={rut}
-                readOnly
-                aria-readonly="true"
+                onChange={(e) => setRut(e.target.value)}
                 placeholder={FIELD_PLACEHOLDERS.rut}
               />
-              <small className="fieldHint">
-                Definido en verificación biométrica. {FIELD_PLACEHOLDERS.rutHint}
-              </small>
+              <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
             </label>
             <label>
               Teléfono
@@ -381,43 +421,12 @@ function RegisterPageContent() {
             </p>
 
             <div className="verificationActionsRow full">
-              <button type="button" className="secondaryButton" disabled={busy} onClick={() => setStep("biometric")}>
-                Volver
-              </button>
               <button className="primaryButton wide" disabled={busy || !canCreateAccount}>
-                {busy ? "Creando cuenta…" : <>Crear cuenta <ArrowRight size={18} /></>}
+                {busy ? "Continuando…" : <>Continuar a biometría <ArrowRight size={18} /></>}
               </button>
             </div>
           </form>
-
-          <p className="authFooter">¿Ya tienes cuenta? <Link href={loginHref}>Ingresa aquí</Link></p>
-        </section>
-      </main>
-    );
-  }
-
-  return (
-    <main className="simplePage">
-      <section className="formPageCard verificationPage">
-        <RegisterStepBadge step={1} />
-        <div className="eyebrow">
-          <ScanFace size={16} /> Registro ZOVIT
         </div>
-        <h1>Verificación biométrica</h1>
-        <p className="muted">
-          Paso 1 (igual para clientes y profesionales): valida tu identidad con carnet, selfie y
-          prueba de vida. Luego crearás tu cuenta con todos tus datos personales.
-        </p>
-
-        <PendingBiometricForm
-          documents={documents}
-          rut={rut}
-          onRutChange={setRut}
-          onAddDocument={addDocument}
-          onSubmit={continueToAccount}
-          busy={busy}
-          message={message}
-        />
 
         <p className="authFooter">¿Ya tienes cuenta? <Link href={loginHref}>Ingresa aquí</Link></p>
       </section>
