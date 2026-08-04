@@ -914,7 +914,17 @@ button.roleModeBadge {
 .intranetSelectWrap svg { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
 .intranetFooterNote { margin: 0; color: var(--muted); font-size: 13px; }
 .intranetPage .browseShell { max-width: 980px; }
-.intranetPageWide .browseShell { max-width: min(1480px, calc(100vw - 40px)); }
+.intranetPageWide {
+  padding-left: 0;
+  padding-right: 0;
+  place-items: stretch;
+}
+.intranetPageWide .browseShell {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
 .intranetPageWide .intranetTableWrap { overflow-x: visible; }
 .intranetPageWide .intranetTableWide { min-width: 100%; width: 100%; }
 .intranetPageWide .intranetTable td,
@@ -940,7 +950,8 @@ button.roleModeBadge {
 .intranetTable th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .intranetTableWide { min-width: 980px; }
 @media (max-width: 1200px) {
-  .intranetPageWide .browseShell { max-width: calc(100vw - 32px); }
+  .intranetPageWide { padding-left: 0; padding-right: 0; }
+  .intranetPageWide .browseShell { max-width: none; width: 100%; }
   .intranetPageWide .intranetTableWrap { overflow-x: auto; }
   .intranetPageWide .intranetTableWide { min-width: 1100px; }
 }
