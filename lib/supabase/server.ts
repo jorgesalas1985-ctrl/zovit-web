@@ -6,17 +6,24 @@ function getSupabaseEnv() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) {
-    if (process.env.NODE_ENV === "development") {
-      return null;
-    }
-    throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    return null;
   }
 
   return { url, key };
 }
 
-function createNoopClient() {
+function createNoopClient(): ReturnType<typeof createServerClient> {
+  const response = { data: null, error: null, count: 0 };
   const query = {
+    then(resolve: (value: typeof response) => unknown) {
+      return Promise.resolve(response).then(resolve);
+    },
+    catch(reject: (reason?: unknown) => unknown) {
+      return Promise.resolve(response).catch(reject);
+    },
+    finally(onFinally: () => void) {
+      return Promise.resolve(response).finally(onFinally);
+    },
     select() {
       return query;
     },
@@ -65,8 +72,8 @@ function createNoopClient() {
     or() {
       return query;
     },
-    maybeSingle: async () => ({ data: null, error: null }),
-    single: async () => ({ data: null, error: null }),
+    maybeSingle: async () => response,
+    single: async () => response,
   };
 
   return {
@@ -75,12 +82,40 @@ function createNoopClient() {
       getSession: async () => ({ data: { session: null }, error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
       signOut: async () => ({ error: null }),
+      updateUser: async () => ({ data: { user: null }, error: null }),
+      signInWithPassword: async () => ({ data: { user: null, session: null }, error: null }),
+      signUp: async () => ({ data: { user: null, session: null }, error: null }),
+      resetPasswordForEmail: async () => ({ data: null, error: null }),
+      exchangeCodeForSession: async () => ({ data: { user: null, session: null }, error: null }),
     },
     from() {
       return query;
     },
-    rpc: async () => ({ data: null, error: null }),
-  };
+    rpc: async () => ({ data: null, error: null, count: 0 }),
+    storage: {
+      from() {
+        return {
+          upload: async () => ({ data: null, error: null }),
+          remove: async () => ({ data: null, error: null }),
+          createSignedUrl: async () => ({ data: { signedUrl: "" }, error: null }),
+          getPublicUrl: () => ({ data: { publicUrl: "" } }),
+        };
+      },
+    },
+    channel() {
+      return {
+        on(..._args: unknown[]) {
+          return this;
+        },
+        subscribe() {
+          return Promise.resolve({ status: "SUBSCRIBED" });
+        },
+        unsubscribe() {
+          return Promise.resolve();
+        },
+      } as unknown as ReturnType<typeof createServerClient>["channel"];
+    },
+  } as unknown as ReturnType<typeof createServerClient>;
 }
 
 export async function createClient() {

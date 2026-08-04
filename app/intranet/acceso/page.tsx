@@ -92,7 +92,10 @@ export default function IntranetAccessPage() {
       return;
     }
 
-    const role = isIntranetRole(profileRow?.intranet_role) ? profileRow.intranet_role : null;
+    const role: IntranetRole | null =
+      profileRow?.intranet_role && isIntranetRole(profileRow.intranet_role)
+        ? profileRow.intranet_role
+        : null;
 
     if (!role) {
       setMessage("Tu cuenta no tiene acceso interno activo. Contacta a RR.HH. o al super administrador.");

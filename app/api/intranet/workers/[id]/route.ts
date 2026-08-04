@@ -32,18 +32,22 @@ export async function GET(_request: Request, context: RouteContext) {
     if ("error" in auth) return auth.error;
     const { id } = await context.params;
 
-    const [{ data: registration }, { data: credentials }, { data: services }, { data: history }] =
-      await Promise.all([
-        auth.supabase.from("worker_registrations").select("*").eq("profile_id", id).maybeSingle(),
-        auth.supabase.from("worker_credentials").select("*").eq("profile_id", id),
-        auth.supabase.from("worker_service_authorizations").select("*").eq("profile_id", id),
-        auth.supabase
-          .from("worker_review_history")
-          .select("*")
-          .eq("profile_id", id)
-          .order("created_at", { ascending: false })
-          .limit(50),
-      ]);
+    const registrationResponse = await auth.supabase
+      .from("worker_registrations")
+      .select("*")
+      .eq("profile_id", id)
+      .maybeSingle();
+    const { data: credentials } = await auth.supabase.from("worker_credentials").select("*").eq("profile_id", id);
+    const { data: services } = await auth.supabase
+      .from("worker_service_authorizations")
+      .select("*")
+      .eq("profile_id", id);
+    const { data: history } = await auth.supabase
+      .from("worker_review_history")
+      .select("*")
+      .eq("profile_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50);
 
     const { data: profile } = await auth.supabase
       .from("profiles")
@@ -55,7 +59,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
     return NextResponse.json({
       profile,
-      registration,
+      registration: registrationResponse.data,
       credentials: credentials ?? [],
       services: services ?? [],
       history: history ?? [],
