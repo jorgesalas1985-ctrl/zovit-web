@@ -4,7 +4,12 @@ import { AiSearchForm } from "@/components/ai/AiSearchForm";
 import { AiRecommendations } from "@/components/AiRecommendations";
 import { useAuth } from "@/components/AuthProvider";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
-import { canPublishServiceRequest, getActiveMode, shouldShowPublishUI } from "@/lib/auth/roles";
+import {
+  canPublishServiceRequest,
+  getActiveMode,
+  getRequestServiceHref,
+  shouldShowPublishUI,
+} from "@/lib/auth/roles";
 import type { AiRecommendResponse } from "@/lib/ai/types";
 import { ArrowLeft, Bot } from "lucide-react";
 import Link from "next/link";
@@ -83,7 +88,7 @@ function AiResultsContent() {
           specialty: result.parsed.specialty,
         }),
       );
-      router.push("/seguridad");
+      router.push(getRequestServiceHref(false));
       return;
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { AiRecommendResponse } from "@/lib/ai/types";
+import { getRequestServiceHref } from "@/lib/auth/roles";
 import { ProfessionalTrustBadges } from "@/components/verification/ProfessionalTrustBadges";
 import { ArrowRight, Bot, MapPin, Star, UserRound } from "lucide-react";
 import Link from "next/link";
@@ -113,7 +114,7 @@ export function AiRecommendations({
           </button>
         ) : !isLoggedIn ? (
           <Link
-            href="/seguridad"
+            href={getRequestServiceHref(false)}
             className="primaryButton"
           >
             Regístrate para solicitar <ArrowRight size={18} />

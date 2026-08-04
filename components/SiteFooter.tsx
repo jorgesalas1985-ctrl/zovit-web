@@ -35,7 +35,7 @@ export function SiteFooter() {
         ? { label: "Ver trabajos", href: "/trabajos" }
         : {
             label: "Regístrate para solicitar",
-            href: "/seguridad",
+            href: `/registro?next=${encodeURIComponent("/solicitudes/nueva")}`,
           };
 
     return [

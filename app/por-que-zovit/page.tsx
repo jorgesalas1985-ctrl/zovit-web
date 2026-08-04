@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, ArrowRight, BriefcaseBusiness } from "lucide-react";
+import { getRequestServiceHref } from "@/lib/auth/roles";
 
 export const metadata: Metadata = {
   title: "¿Por qué ZOVIT? | ZOVIT",
@@ -96,7 +97,7 @@ export default function PorQueZovitPage() {
             crear tu cuenta y verificar tu identidad.
           </p>
           <div className="whyStoryActions">
-            <Link href="/seguridad" className="primaryButton">
+            <Link href={getRequestServiceHref(false)} className="primaryButton">
               Empezar como cliente <ArrowRight size={18} />
             </Link>
             <Link href="/registro" className="whiteButton">
