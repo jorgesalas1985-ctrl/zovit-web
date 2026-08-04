@@ -40,6 +40,34 @@ export function BiometricWizard({
   const [localBusy, setLocalBusy] = useState(false);
   const [autoStartAttempted, setAutoStartAttempted] = useState(false);
 
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setCameraReady(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    setMessage("");
+    stopCamera();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraReady(true);
+      return true;
+    } catch {
+      setMessage("No pudimos acceder a la cámara. Revisa permisos del navegador.");
+      setCameraReady(false);
+      return false;
+    }
+  }, [stopCamera]);
+
   useEffect(() => {
     if (hasSelfie && hasLiveness) setStep("done");
     else if (hasSelfie) setStep("liveness");
@@ -74,34 +102,6 @@ export function BiometricWizard({
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
     });
   }, [step]);
-
-  const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    setCameraReady(false);
-  }, []);
-
-  const startCamera = useCallback(async () => {
-    setMessage("");
-    stopCamera();
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setCameraReady(true);
-      return true;
-    } catch {
-      setMessage("No pudimos acceder a la cámara. Revisa permisos del navegador.");
-      setCameraReady(false);
-      return false;
-    }
-  }, [stopCamera]);
 
   async function beginSelfieCapture() {
     setStep("selfie");
