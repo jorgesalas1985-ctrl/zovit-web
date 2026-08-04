@@ -27,13 +27,8 @@ import { getAuthCallbackUrl } from "@/lib/auth/redirects";
 import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
 import type { RegistrationDocument } from "@/lib/registration/finishRegistration";
 import { storeRegistrationDocuments } from "@/lib/registration/pendingRegistration";
-import {
-  isRegistrationComplete,
-  isValidChileanRut,
-  normalizeChileanRut,
-  validateRegistrationFields,
-} from "@/lib/registration/validateRegistration";
-import { FIELD_PLACEHOLDERS, RUT_FORMAT_ERROR } from "@/lib/ui/fieldPlaceholders";
+import { normalizeChileanRut, validateRegistrationFields } from "@/lib/registration/validateRegistration";
+import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
 import { supabase } from "@/lib/supabase";
 import type { IdentityDocumentType } from "@/lib/verification/types";
 
@@ -90,10 +85,6 @@ function RegisterPageContent() {
     [form, rut]
   );
 
-  const canCreateAccount =
-    isRegistrationComplete(registrationFields) &&
-    validatePasswordForCreate(form.password) === null;
-
   function addDocument(
     type: IdentityDocumentType,
     file: File,
@@ -108,14 +99,9 @@ function RegisterPageContent() {
   function continueToBiometric(event: FormEvent) {
     event.preventDefault();
     setMessage("");
-
-    if (!rut.trim()) {
-      setMessage("Completa el campo RUT para continuar.");
-      return;
-    }
-
-    if (!isValidChileanRut(rut)) {
-      setMessage(RUT_FORMAT_ERROR);
+    const fieldsError = validateRegistrationFields(registrationFields);
+    if (fieldsError) {
+      setMessage(fieldsError);
       return;
     }
 
@@ -441,7 +427,7 @@ function RegisterPageContent() {
             </p>
 
             <div className="verificationActionsRow full">
-              <button className="primaryButton wide" disabled={busy || !canCreateAccount}>
+              <button type="submit" className="primaryButton wide" disabled={busy}>
                 {busy ? "Continuando…" : <>Continuar a biometría <ArrowRight size={18} /></>}
               </button>
             </div>
