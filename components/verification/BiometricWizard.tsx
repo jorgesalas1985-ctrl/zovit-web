@@ -37,15 +37,14 @@ export function BiometricWizard({
   const demoAnimationRef = useRef<number | null>(null);
   const demoCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [step, setStep] = useState<Step>(
-    hasSelfie && hasLiveness ? "done" : hasSelfie ? "liveness" : "selfie",
+    hasSelfie && hasLiveness ? "done" : hasSelfie ? "liveness" : "intro",
   );
   const [session, setSession] = useState<BiometricSession | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
-  const [message, setMessage] = useState("La cámara se abrirá automáticamente para iniciar la captura.");
+  const [message, setMessage] = useState("Presiona selfie para abrir la cámara y comenzar.");
   const [localBusy, setLocalBusy] = useState(false);
   const [capturePhase, setCapturePhase] = useState<"idle" | "camera" | "countdown" | "capturing">("idle");
   const selfieAutoCaptureTimerRef = useRef<number | null>(null);
-  const autoStartAttemptedRef = useRef(false);
   const livenessAutoCaptureTimerRef = useRef<number | null>(null);
   const selfieAutoCaptureDoneRef = useRef(false);
   const livenessAutoCaptureDoneRef = useRef(false);
@@ -159,17 +158,6 @@ export function BiometricWizard({
     if (step !== "liveness" || hasLiveness || session) return;
     setSession(createBiometricSession());
   }, [hasLiveness, session, step]);
-
-  useEffect(() => {
-    if (step !== "selfie" || hasSelfie || hasLiveness || disabled || localBusy) {
-      autoStartAttemptedRef.current = false;
-      return;
-    }
-
-    if (autoStartAttemptedRef.current) return;
-    autoStartAttemptedRef.current = true;
-    void beginSelfieCapture();
-  }, [disabled, hasLiveness, hasSelfie, localBusy, step]);
 
   useEffect(() => {
     return () => {
@@ -318,7 +306,7 @@ export function BiometricWizard({
           <span>Captura guiada automática</span>
         </div>
         <p className="muted">
-          La cámara se abre automáticamente cuando entras al paso de selfie. Cada paso espera 5 segundos para leer la instrucción y luego captura solo.
+          Presiona selfie para abrir la cámara. Cada paso espera 5 segundos para leer la instrucción y luego captura sola.
         </p>
       </div>
 
@@ -444,9 +432,8 @@ export function BiometricWizard({
               disabled={isBusy}
               onClick={() => {
                 setSession(null);
-                setStep("selfie");
+                setStep("intro");
                 setCapturePhase("idle");
-                autoStartAttemptedRef.current = false;
                 selfieAutoCaptureDoneRef.current = false;
                 livenessAutoCaptureDoneRef.current = false;
               }}
