@@ -20,7 +20,7 @@ const FIELD_LABELS: Record<keyof RegistrationProfileFields, string> = {
   rut: "RUT",
 };
 
-/** Normaliza RUT chileno a formato 12345678-9 */
+/** Normaliza RUT chileno a formato 12.123.456-7 */
 export function normalizeChileanRut(value: string): string {
   const cleaned = value
     .trim()
@@ -33,22 +33,24 @@ export function normalizeChileanRut(value: string): string {
 
   const body = cleaned.slice(0, -1);
   const dv = cleaned.slice(-1);
-  return `${body}-${dv}`;
+  const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${formattedBody}-${dv}`;
 }
 
 /** Valida dígito verificador del RUT chileno. */
 export function isValidChileanRut(value: string): boolean {
   const normalized = normalizeChileanRut(value);
-  const match = normalized.match(/^(\d{7,8})-([\dK])$/);
+  const match = normalized.match(/^(\d{1,2}(?:\.\d{3}){2})-([\dK])$/);
   if (!match) return false;
 
   const body = match[1];
   const dv = match[2];
+  const digits = body.replace(/\./g, "");
   let sum = 0;
   let multiplier = 2;
 
-  for (let i = body.length - 1; i >= 0; i -= 1) {
-    sum += Number(body[i]) * multiplier;
+  for (let i = digits.length - 1; i >= 0; i -= 1) {
+    sum += Number(digits[i]) * multiplier;
     multiplier = multiplier === 7 ? 2 : multiplier + 1;
   }
 
@@ -67,7 +69,7 @@ export function validateRegistrationFields(
   }
 
   if (!isValidChileanRut(fields.rut)) {
-    return "Ingresa un RUT válido. Formatos: 123456785 · 12.345.678-5 · 12345678-5";
+    return "Ingresa un RUT válido. Usa el formato 12.123.456-7.";
   }
 
   const phoneDigits = fields.phone.replace(/\D/g, "");

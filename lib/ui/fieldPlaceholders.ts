@@ -5,8 +5,8 @@
 export const FIELD_PLACEHOLDERS = {
   firstName: "Ej: Camila",
   lastName: "Ej: Rojas Muñoz",
-  rut: "12.345.678-5",
-  rutHint: "Formatos válidos: 123456785 · 12.345.678-5 · 12345678-5",
+  rut: "12.123.456-7",
+  rutHint: "Formato válido: 12.123.456-7",
   phone: "+56 9 8765 4321",
   email: "nombre@correo.com",
   password: "Mínimo 8 caracteres",
@@ -40,4 +40,4 @@ export const FIELD_PLACEHOLDERS = {
 } as const;
 
 export const RUT_FORMAT_ERROR =
-  "Ingresa un RUT válido. Formatos: 123456785 · 12.345.678-5 · 12345678-5";
+  "Ingresa un RUT válido. Usa el formato 12.123.456-7.";
