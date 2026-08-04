@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, ArrowRight, BriefcaseBusiness, ScanFace, UserRound } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  BriefcaseBusiness,
+  Building2,
+  GraduationCap,
+  ScanFace,
+  School,
+  UserRound,
+} from "lucide-react";
 import { FormEvent, Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PendingBiometricForm } from "@/components/verification/PendingBiometricForm";
@@ -34,6 +43,7 @@ function safeNextPath(value: string | null): string {
 }
 
 type RegisterStep = "biometric" | "account" | "success";
+type AccountType = "client" | "company" | "student" | "institution" | "professional";
 
 function RegisterStepBadge({ step }: { step: 1 | 2 }) {
   return (
@@ -48,7 +58,7 @@ function RegisterPageContent() {
   const nextPath = safeNextPath(searchParams.get("next"));
   const loginHref = `/login?next=${encodeURIComponent(nextPath)}`;
   const [step, setStep] = useState<RegisterStep>("account");
-  const [role, setRole] = useState<"client" | "professional">("client");
+  const [accountType, setAccountType] = useState<AccountType>("client");
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -141,6 +151,8 @@ function RegisterPageContent() {
       commune: form.commune.trim(),
     };
 
+    const signupRole = accountType === "professional" ? "professional" : "client";
+
     const { data, error } = await supabase.auth.signUp({
       email: normalizeAuthEmail(form.email),
       password: normalizeAuthPassword(form.password),
@@ -153,7 +165,8 @@ function RegisterPageContent() {
           address: profileData.address,
           commune: profileData.commune,
           rut: normalizedRut,
-          role,
+          role: signupRole,
+          account_type: accountType,
         },
       },
     });
@@ -186,9 +199,7 @@ function RegisterPageContent() {
       }
 
       // Profesionales continúan con el registro de perfiles de servicio.
-      window.location.assign(
-        role === "professional" ? "/registro/trabajador" : nextPath
-      );
+      window.location.assign(accountType === "professional" ? "/registro/trabajador" : nextPath);
       return;
     }
 
@@ -222,7 +233,7 @@ function RegisterPageContent() {
               ? "Revisa tu correo, confirma tu cuenta e ingresa. Tu verificación biométrica se enviará automáticamente al confirmar."
               : "Tu cuenta y verificación biométrica fueron registradas correctamente."}
           </p>
-          {role === "professional" && (
+          {accountType === "professional" && (
             <p className="muted">
               Después de ingresar, completa tu registro de trabajador para declarar formación,
               experiencia y servicios.
@@ -231,7 +242,7 @@ function RegisterPageContent() {
           <Link
             className="primaryButton wide"
             href={
-              role === "professional"
+              accountType === "professional"
                 ? `/login?next=${encodeURIComponent("/registro/trabajador")}`
                 : loginHref
             }
@@ -298,10 +309,19 @@ function RegisterPageContent() {
           </p>
 
           <div className="roleSelector">
-            <button type="button" className={role === "client" ? "roleCard active" : "roleCard"} onClick={() => setRole("client")}>
+            <button type="button" className={accountType === "client" ? "roleCard active" : "roleCard"} onClick={() => setAccountType("client")}>
               <UserRound /><span><b>Cliente</b><small>Necesito contratar servicios</small></span>
             </button>
-            <button type="button" className={role === "professional" ? "roleCard active" : "roleCard"} onClick={() => setRole("professional")}>
+            <button type="button" className={accountType === "company" ? "roleCard active" : "roleCard"} onClick={() => setAccountType("company")}>
+              <Building2 /><span><b>Empresa</b><small>Quiero contratar para mi negocio</small></span>
+            </button>
+            <button type="button" className={accountType === "student" ? "roleCard active" : "roleCard"} onClick={() => setAccountType("student")}>
+              <GraduationCap /><span><b>Alumno</b><small>Necesito apoyo para mis estudios</small></span>
+            </button>
+            <button type="button" className={accountType === "institution" ? "roleCard active" : "roleCard"} onClick={() => setAccountType("institution")}>
+              <School /><span><b>Institución</b><small>Quiero gestionar servicios para mi institución</small></span>
+            </button>
+            <button type="button" className={accountType === "professional" ? "roleCard active" : "roleCard"} onClick={() => setAccountType("professional")}>
               <BriefcaseBusiness /><span><b>Profesional</b><small>Quiero ofrecer mis servicios</small></span>
             </button>
           </div>
