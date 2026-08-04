@@ -3,6 +3,7 @@
 import { AlertCircle, ArrowRight, FileUp, ScanFace, Upload } from "lucide-react";
 import { FormEvent, useRef, useState } from "react";
 import { BiometricWizard } from "@/components/verification/BiometricWizard";
+import { MobileDocumentCaptureButton } from "@/components/verification/MobileDocumentCaptureButton";
 import { IdentityBadge, IdentityStatusPill } from "@/components/verification/IdentityBadge";
 import { supabase } from "@/lib/supabase";
 import type { UserRole } from "@/lib/auth/roles";
@@ -180,6 +181,15 @@ export function BiometricOnboardingForm({
                     <Upload size={16} />
                     {uploaded ? "Reemplazar archivo" : "Subir carnet"}
                   </button>
+                  <MobileDocumentCaptureButton
+                    documentType={type}
+                    label={IDENTITY_DOCUMENT_LABELS[type]}
+                    busy={busyType === type}
+                    disabled={busyType === type}
+                    onCaptured={async (file, metadata) => {
+                      await onUpload(type, file, metadata);
+                    }}
+                  />
                   {uploaded && <span className="verificationUploadedTag">Archivo cargado</span>}
                 </div>
               </article>

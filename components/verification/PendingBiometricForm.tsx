@@ -3,6 +3,7 @@
 import { AlertCircle, ArrowRight, FileUp, ScanFace, Upload } from "lucide-react";
 import { FormEvent, useRef } from "react";
 import { BiometricWizard } from "@/components/verification/BiometricWizard";
+import { MobileDocumentCaptureButton } from "@/components/verification/MobileDocumentCaptureButton";
 import type { RegistrationDocument } from "@/lib/registration/finishRegistration";
 import { isValidChileanRut } from "@/lib/registration/validateRegistration";
 import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
@@ -130,6 +131,15 @@ export function PendingBiometricForm({
                   <Upload size={16} />
                   {uploaded ? "Reemplazar archivo" : "Subir carnet"}
                 </button>
+                <MobileDocumentCaptureButton
+                  documentType={type}
+                  label={IDENTITY_DOCUMENT_LABELS[type]}
+                  busy={busy}
+                  disabled={busy}
+                  onCaptured={async (file, metadata) => {
+                    onAddDocument(type, file, metadata);
+                  }}
+                />
                 {uploaded && <span className="verificationUploadedTag">Archivo cargado</span>}
               </div>
             </article>
