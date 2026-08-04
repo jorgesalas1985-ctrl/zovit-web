@@ -39,7 +39,12 @@ export async function POST(request: Request, { params }: Params) {
         .eq("public_id", result.externalReference)
         .maybeSingle();
 
-      if (paymentRow && (paymentRow.status === "esperando_pago" || paymentRow.status === "pendiente")) {
+      if (
+        paymentRow &&
+        (paymentRow.status === "esperando_pago" ||
+          paymentRow.status === "pendiente" ||
+          paymentRow.status === "cancelado")
+      ) {
         const charged =
           paymentRow.client_charged_amount != null
             ? Number(paymentRow.client_charged_amount)

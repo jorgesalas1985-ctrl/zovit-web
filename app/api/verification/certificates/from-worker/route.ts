@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthenticatedUser } from "@/lib/auth/requirePlatformAdmin";
+import { isValidUuid } from "@/lib/security/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   importWorkerCertificatesToStudyVerification,
@@ -11,6 +12,9 @@ export async function GET() {
   try {
     const auth = await requireAuthenticatedUser();
     if ("error" in auth) return auth.error;
+    if (!isValidUuid(auth.user.id)) {
+      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
+    }
     if (!canAccessStudyCertificates(auth.profile.role)) {
       return NextResponse.json({ available: false, documents: [] });
     }
@@ -31,6 +35,9 @@ export async function POST() {
   try {
     const auth = await requireAuthenticatedUser();
     if ("error" in auth) return auth.error;
+    if (!isValidUuid(auth.user.id)) {
+      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
+    }
 
     if (!canAccessStudyCertificates(auth.profile.role)) {
       return NextResponse.json(

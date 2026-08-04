@@ -1,3 +1,5 @@
+import { extractMpProcessingFee } from "@/lib/payments/mercadopagoFees";
+import { getPaymentProvider } from "@/lib/payments/providers";
 import { createAdminClient } from "@/lib/payments/server";
 import type { PaymentProviderName } from "@/lib/payments/types";
 
@@ -6,6 +8,7 @@ export type MercadoPagoPaymentDetails = {
   external_reference?: string;
   transaction_amount?: number;
   currency_id?: string;
+  provider_processing_fee?: number;
 };
 
 export type ConfirmPaymentInput = {
@@ -52,7 +55,7 @@ export function validateMercadoPagoPayment(
 
 export async function confirmPaymentReceived(
   input: ConfirmPaymentInput
-): Promise<{ alreadyProcessed: boolean; status: string }> {
+): Promise<{ alreadyProcessed: boolean; status: string; autoRefunded?: boolean }> {
   const admin = createAdminClient();
 
   const { data: paymentRow, error: fetchError } = await admin
@@ -87,6 +90,29 @@ export async function confirmPaymentReceived(
     throw new PaymentConfirmationError("La moneda indicada no coincide con el pago ZOVIT.");
   }
 
+  // Cobro MP después de cancelar la orden → reembolso automático (evita huérfanos).
+  if (paymentRow.status === "cancelado" && input.provider === "mercadopago") {
+    const mpRef = input.providerReference;
+    if (mpRef && /^\d+$/.test(mpRef)) {
+      const provider = getPaymentProvider("mercadopago");
+      await provider.refund(mpRef);
+      await admin.from("payment_events").insert({
+        payment_id: paymentRow.id,
+        event_type: "auto_refund_after_cancel",
+        old_status: "cancelado",
+        new_status: "cancelado",
+        metadata: {
+          provider_reference: mpRef,
+          reason: "Pago MP recibido tras cancelación de la orden ZOVIT",
+        },
+      });
+      return { alreadyProcessed: true, status: "cancelado", autoRefunded: true };
+    }
+    throw new PaymentConfirmationError(
+      "Pago MP llegó con orden cancelada y no se pudo reembolsar automáticamente.",
+    );
+  }
+
   if (paymentRow.status !== "esperando_pago" && paymentRow.status !== "pendiente") {
     return { alreadyProcessed: true, status: paymentRow.status };
   }
@@ -115,6 +141,29 @@ export async function confirmPaymentReceived(
 
   if (error) {
     throw new PaymentConfirmationError(error.message);
+  }
+
+  const mpFee = Number(input.mercadoPagoPayment?.provider_processing_fee ?? 0);
+  if (mpFee > 0) {
+    await admin
+      .from("payments")
+      .update({
+        provider_processing_fee: mpFee,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", paymentRow.id);
+
+    await admin.from("payment_events").insert({
+      payment_id: paymentRow.id,
+      event_type: "provider_processing_fee",
+      old_status: "esperando_pago",
+      new_status: "pago_retenido",
+      amount: mpFee,
+      metadata: {
+        provider: input.provider,
+        note: "Comisión pasarela descontada de la comisión neta ZOVIT (no del profesional).",
+      },
+    });
   }
 
   return { alreadyProcessed: false, status: "pago_retenido" };

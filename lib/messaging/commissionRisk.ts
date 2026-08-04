@@ -41,4 +41,4 @@ export function commissionMismatch(
 }
 
 export const COMMISSION_SAFETY_NOTICE =
-  "El precio real del trabajo debe registrarse y pagarse en ZOVIT. Declarar un monto menor para bajar la comisión, o cobrar el resto fuera de la app, está prohibido y puede bloquear cuentas.";
+  "El monto real del trabajo debe registrarse y pagarse en ZOVIT. Declarar un monto menor para reducir la comisión o solicitar pagos fuera de la app puede generar bloqueos y afectar tu cuenta.";

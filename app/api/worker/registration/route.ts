@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAuthenticatedUser } from "@/lib/auth/requirePlatformAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isValidStoragePathForUser } from "@/lib/security/validation";
+import { validateAdultBirthDate } from "@/lib/registration/age";
 import { chileanDateToIso } from "@/lib/ui/chileanDate";
 import { pickPrimaryProfile } from "@/lib/worker/classify";
 import {
@@ -107,6 +109,7 @@ export async function GET() {
         .eq("id", user.id)
         .maybeSingle();
 
+      // Sin borrador en storage = no hay registro activo (no inventar aviso en el panel).
       return NextResponse.json({
         registration: fallback
           ? {
@@ -155,6 +158,13 @@ export async function PUT(request: Request) {
     const body = (await request.json()) as { draft?: WorkerRegistrationDraft };
     if (!body.draft) {
       return NextResponse.json({ error: "Falta el borrador." }, { status: 400 });
+    }
+
+    if (body.draft.personal?.birthDate?.trim()) {
+      const ageError = validateAdultBirthDate(body.draft.personal.birthDate);
+      if (ageError) {
+        return NextResponse.json({ error: ageError }, { status: 400 });
+      }
     }
 
     const draft = applyServiceLocks({
@@ -300,7 +310,9 @@ export async function POST(request: Request) {
           year_obtained: cred.yearObtained ? Number(cred.yearObtained) || null : null,
           registry_number: cred.registryNumber || null,
           expires_at: cred.expiresAt || null,
-          storage_path: cred.storagePath || null,
+          storage_path: isValidStoragePathForUser(cred.storagePath, user.id)
+            ? cred.storagePath
+            : null,
           document_mime: cred.documentMime || null,
           status: "pending",
         }))
@@ -333,7 +345,18 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ ok: true, status: "submitted", draft });
+    // Revisión IA automática (sin esperar clic de admin).
+    void import("@/lib/worker/processWorkerAiBatch")
+      .then(({ processWorkerAiReview }) => processWorkerAiReview(user.id))
+      .catch((err) => console.error("[worker-ai] post-submit failed", err));
+
+    return NextResponse.json({
+      ok: true,
+      status: "submitted",
+      draft,
+      reviewQueued: true,
+      aiQueued: false,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -3,11 +3,13 @@ export type UserRole = "client" | "professional" | "admin";
 import type { IdentityStatus } from "@/lib/verification/types";
 import { needsBiometricOnboarding } from "@/lib/verification/types";
 import { safeNextPath } from "@/lib/auth/safeNextPath";
+import { resolvePrimaryEcosystemRole, type EcosystemProfileInput, type EcosystemRole } from "@/lib/ecosystem/roles";
 
 export type RoleMode = "client" | "professional";
 
 export type ProfileModeFields = {
   role: UserRole;
+  account_kind?: string | null;
   can_act_as_client: boolean;
   can_act_as_professional: boolean;
   active_mode: RoleMode;
@@ -37,6 +39,7 @@ export function resolveRoleMode(
 
 export function getActiveMode(profile: ProfileModeFields | null | undefined): RoleMode {
   if (!profile) return "client";
+  if (profile.account_kind === "student") return "client";
   if (profile.role === "admin") return profile.active_mode;
   return profile.active_mode;
 }
@@ -68,6 +71,10 @@ export function isPublicIntranetRoute(pathname: string): boolean {
   return pathname === "/intranet" || pathname === "/intranet/acceso";
 }
 
+export function isFinancialAdminRoute(pathname: string): boolean {
+  return pathname.startsWith("/admin/pagos") || pathname.startsWith("/intranet/finanzas");
+}
+
 export function isProtectedRoute(pathname: string): boolean {
   if (isPublicIntranetRoute(pathname)) return false;
 
@@ -79,6 +86,10 @@ export function isProtectedRoute(pathname: string): boolean {
     pathname.startsWith("/registro/trabajador") ||
     pathname.startsWith("/experiencia") ||
     pathname.startsWith("/solicitudes") ||
+    pathname.startsWith("/cliente") ||
+    pathname.startsWith("/alumno") ||
+    pathname.startsWith("/empresa") ||
+    pathname.startsWith("/institucion") ||
     pathname.startsWith("/trabajos") ||
     pathname.startsWith("/pagos") ||
     pathname.startsWith("/intranet") ||
@@ -98,10 +109,8 @@ export function canAccessRoute(pathname: string, profile: ProfileModeFields | Us
         }
       : profile;
 
-  if (pathname.startsWith("/admin/pagos")) {
-    // El gate real es intranet_role=super_admin en middleware + API.
-    // No abrir por role=admin (RR.HH. podría tener role admin histórico).
-    return true;
+  if (isFinancialAdminRoute(pathname)) {
+    return false;
   }
 
   if (pathname.startsWith("/admin")) {
@@ -128,6 +137,10 @@ export function canAccessRoute(pathname: string, profile: ProfileModeFields | Us
   }
 
   if (pathname === "/solicitudes/nueva" || pathname.startsWith("/solicitudes/nueva/")) {
+    return canPublishServiceRequest(ctx);
+  }
+
+  if (pathname.startsWith("/cliente")) {
     return canPublishServiceRequest(ctx);
   }
 
@@ -180,6 +193,7 @@ export function getBrowseServicesHref(isLoggedIn: boolean): string {
 /** Panel and navigation: never default registered professionals to client UI. */
 export function resolvePanelViewMode(profile: ProfileModeFields | null | undefined): RoleMode | null {
   if (!profile) return null;
+  if (profile.account_kind === "student") return "client";
   if (isProfessionalMode(profile)) return "professional";
   if (isClientMode(profile)) return "client";
   if (profile.role === "professional") return "professional";
@@ -187,11 +201,34 @@ export function resolvePanelViewMode(profile: ProfileModeFields | null | undefin
   return profile.active_mode;
 }
 
+export function resolvePrimaryRoleForEcosystem(
+  profile: EcosystemProfileInput | null | undefined,
+): EcosystemRole | null {
+  return resolvePrimaryEcosystemRole(profile);
+}
+
 export function resolvePostLoginPath(
   nextPath: string | null,
-  profile: ProfileModeFields,
+  profile: ProfileModeFields & { intranet_role?: string | null },
   identityStatus?: IdentityStatus | null
 ): string {
+  // Super admin: nunca forzar biometría ni bloquear destino.
+  if (profile.intranet_role === "super_admin") {
+    return safeNextPath(nextPath, "/panel");
+  }
+
+  if (profile.account_kind === "student") {
+    return "/alumno";
+  }
+
+  if (profile.account_kind === "company") {
+    return "/empresa";
+  }
+
+  if (profile.account_kind === "institution") {
+    return "/institucion";
+  }
+
   if (needsBiometricOnboarding(identityStatus)) {
     if (nextPath === "/registro/biometria") {
       return nextPath;

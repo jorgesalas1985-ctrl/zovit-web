@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Informe de mejoras para la propuesta ZOVIT</title>
+  <style>
+    @page {
+      margin: 24mm 18mm;
+    }
+    body {
+      color: #111827;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      line-height: 1.55;
+      margin: 0;
+    }
+    h1 {
+      color: #111827;
+      font-size: 24pt;
+      line-height: 1.15;
+      margin: 0 0 8mm;
+    }
+    h2 {
+      border-top: 1px solid #d1d5db;
+      color: #1f2937;
+      font-size: 15pt;
+      margin: 9mm 0 3mm;
+      padding-top: 5mm;
+    }
+    p {
+      margin: 0 0 3.5mm;
+    }
+    ul {
+      margin: 0 0 4mm 6mm;
+      padding: 0 0 0 4mm;
+    }
+    li {
+      margin: 0 0 1.5mm;
+    }
+    .cover {
+      border-bottom: 3px solid #2563eb;
+      margin-bottom: 9mm;
+      padding-bottom: 7mm;
+    }
+    .eyebrow {
+      color: #2563eb;
+      font-size: 10pt;
+      font-weight: 700;
+      letter-spacing: .08em;
+      margin-bottom: 3mm;
+      text-transform: uppercase;
+    }
+    .subtitle {
+      color: #4b5563;
+      font-size: 13pt;
+      margin-bottom: 4mm;
+    }
+    .meta {
+      color: #6b7280;
+      font-size: 10pt;
+    }
+    .quote {
+      background: #eff6ff;
+      border-left: 4px solid #2563eb;
+      color: #1e3a8a;
+      font-size: 13pt;
+      font-weight: 700;
+      margin: 7mm 0;
+      padding: 5mm;
+    }
+    code {
+      background: #f3f4f6;
+      border-radius: 3px;
+      font-family: Consolas, monospace;
+      font-size: 10pt;
+      padding: 1px 4px;
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="eyebrow">ZOVIT</div>
+    <h1>Informe de mejoras para la propuesta del Ecosistema ZOVIT</h1>
+    <p class="subtitle">Educacion, certificacion, empleo y servicios conectados sobre una sola fuente de verdad.</p>
+    <p class="meta">Documento de analisis estrategico y tecnico.</p>
+  </section>
+
+  <h2>Resumen ejecutivo</h2>
+  <p>La propuesta de arquitectura del Ecosistema ZOVIT v1.0 tiene una base muy solida. Su mayor fortaleza es que deja de presentar a ZOVIT como una simple plataforma de servicios o busqueda laboral, y la posiciona como un ecosistema integrado de educacion, certificacion, empleo y servicios.</p>
+  <p>La idea central es potente: una persona puede iniciar como Alumno, avanzar en su formacion, demostrar competencias, certificarse, trabajar, construir reputacion y eventualmente convertirse en Profesional, Evaluador o incluso crear una Empresa, manteniendo siempre una identidad unica y un historial conectado.</p>
+  <p>La mejora principal recomendada es ordenar esa vision para que sea mas clara, implementable, segura y compatible con lo que ZOVIT ya tiene construido.</p>
+
+  <div class="quote">ZOVIT registra formacion, evalua competencias, certifica capacidades, conecta oportunidades y conserva evidencia durante toda la vida profesional del usuario.</div>
+
+  <h2>1. Separar persona, cuenta y roles</h2>
+  <p>La propuesta deberia distinguir mejor entre la persona y los roles que puede tener dentro de ZOVIT. Una misma persona no deberia necesitar varias cuentas. Debe existir una identidad unica, asociada a un historial unico, y sobre esa identidad se pueden activar distintos roles.</p>
+  <ul>
+    <li>Alumno.</li>
+    <li>Profesional.</li>
+    <li>Evaluador.</li>
+    <li>Cliente.</li>
+    <li>Representante de Empresa.</li>
+    <li>Representante de Institucion.</li>
+    <li>Administrador.</li>
+    <li>SUPERADMIN.</li>
+  </ul>
+  <p>Esto permite que un Alumno pueda transformarse en Profesional sin perder su historial academico, certificaciones, experiencia, reputacion ni evidencias.</p>
+
+  <h2>2. Definir niveles de competencia</h2>
+  <p>No conviene manejar solo "certificado" o "no certificado". ZOVIT deberia trabajar con niveles claros.</p>
+  <ul>
+    <li>Formacion academica registrada.</li>
+    <li>Modulo aprobado.</li>
+    <li>Competencia academica asociada.</li>
+    <li>Competencia evaluada.</li>
+    <li>Competencia certificada ZOVIT.</li>
+    <li>Competencia vigente.</li>
+    <li>Competencia vencida, suspendida o revocada.</li>
+  </ul>
+  <p>Esto evita confundir formacion academica con certificacion tecnica. Aprobar un modulo demuestra formacion, pero no habilita automaticamente para trabajar de forma autonoma.</p>
+
+  <h2>3. Agregar alcance permitido</h2>
+  <p>Cada Certificacion ZOVIT deberia indicar exactamente que permite hacer.</p>
+  <ul>
+    <li>Trabajo bajo supervision.</li>
+    <li>Trabajo autonomo.</li>
+    <li>Diagnostico solamente.</li>
+    <li>Ejecucion completa.</li>
+    <li>Trabajo de bajo riesgo.</li>
+    <li>Trabajo de alto riesgo.</li>
+    <li>Requiere licencia externa.</li>
+    <li>Requiere renovacion.</li>
+    <li>No habilitado para clientes finales.</li>
+  </ul>
+  <p>Esto protege a ZOVIT, al Alumno, al Cliente y a la Empresa.</p>
+
+  <h2>4. Fortalecer el rol Empresa</h2>
+  <p>La Empresa no deberia ser solo un usuario que busca talento. Debe ser un actor que genera informacion util para todo el ecosistema.</p>
+  <ul>
+    <li>Publicar practicas, trabajos parciales, empleos y servicios especificos.</li>
+    <li>Definir competencias requeridas y herramientas necesarias.</li>
+    <li>Indicar si acepta alumnos bajo supervision.</li>
+    <li>Evaluar desempeno y registrar brechas.</li>
+    <li>Retroalimentar a ZOVIT e Instituciones.</li>
+  </ul>
+  <p>Esa informacion alimenta el motor de coincidencias, el pasaporte del Alumno y los reportes institucionales.</p>
+
+  <h2>5. Fortalecer el rol Institucion</h2>
+  <p>La Institucion no debe limitarse a validar modulos. Su mayor valor esta en conectar formacion con empleabilidad.</p>
+  <ul>
+    <li>Carreras mas demandadas.</li>
+    <li>Competencias mas solicitadas.</li>
+    <li>Brechas formativas.</li>
+    <li>Semestres con mayor empleabilidad.</li>
+    <li>Evaluaciones empresariales.</li>
+    <li>Nuevas tecnologias requeridas.</li>
+    <li>Alumnos certificados.</li>
+    <li>Evolucion de cohortes.</li>
+  </ul>
+  <p>Los datos identificables del Alumno deben requerir consentimiento. Por defecto, los reportes institucionales deberian ser estadisticos y agregados.</p>
+
+  <h2>6. Agregar un motor de confianza</h2>
+  <p>Ademas del motor inteligente de coincidencias, ZOVIT deberia tener un motor de confianza. Este motor responderia preguntas como si un usuario puede aparecer para una oportunidad, aceptar un servicio, trabajar sin supervision o requiere controles adicionales.</p>
+  <p>Ejemplo de regla:</p>
+  <ul>
+    <li>Identidad verificada.</li>
+    <li>Certificacion ZOVIT vigente.</li>
+    <li>Competencia relacionada.</li>
+    <li>Sin bloqueo activo.</li>
+    <li>Documentos al dia.</li>
+    <li>Riesgo permitido.</li>
+    <li>Disponibilidad activa.</li>
+  </ul>
+
+  <h2>7. Ajustar la regla de no duplicacion</h2>
+  <p>La frase "nunca deberan existir datos duplicados" es correcta como principio, pero debe matizarse. En sistemas reales a veces se necesitan copias historicas o snapshots.</p>
+  <p>Redaccion recomendada:</p>
+  <p><code>No deben duplicarse datos operativos. Cuando sea necesario guardar una copia historica, esta debe quedar versionada, marcada como snapshot y vinculada a su fuente original.</code></p>
+
+  <h2>8. Definir un MVP inicial</h2>
+  <p>La propuesta es amplia. Para hacerla viable, conviene definir un primer MVP.</p>
+  <ul>
+    <li>Mantener Cliente y Profesional actuales.</li>
+    <li>Crear rol Alumno.</li>
+    <li>Crear Catalogo Maestro de Competencias.</li>
+    <li>Relacionar modulos aprobados con competencias academicas.</li>
+    <li>Crear evaluacion tecnica ZOVIT.</li>
+    <li>Emitir Certificacion ZOVIT solo tras evaluacion aprobada.</li>
+    <li>Crear Pasaporte Digital basico.</li>
+    <li>Permitir que Empresa busque alumnos por formacion, disponibilidad y certificaciones.</li>
+    <li>Mantener todo conectado con notificaciones y auditoria.</li>
+  </ul>
+
+  <h2>9. Gobernanza del Catalogo Maestro</h2>
+  <p>El Catalogo Maestro de Competencias sera el corazon de ZOVIT. Por eso necesita reglas claras.</p>
+  <ul>
+    <li>Quien puede crear competencias.</li>
+    <li>Quien puede editarlas.</li>
+    <li>Quien puede aprobarlas.</li>
+    <li>Como se versionan.</li>
+    <li>Como se relacionan con carreras, modulos, herramientas, servicios y certificaciones.</li>
+    <li>Como se evita duplicar competencias similares.</li>
+    <li>Como se retira o actualiza una competencia obsoleta.</li>
+  </ul>
+
+  <h2>10. Riesgos legales y de seguridad</h2>
+  <p>La propuesta deberia incluir una seccion de riesgos legales y operativos.</p>
+  <ul>
+    <li>Menores de edad.</li>
+    <li>Trabajos regulados.</li>
+    <li>Servicios de riesgo.</li>
+    <li>Uso de herramientas peligrosas.</li>
+    <li>Certificaciones vencidas.</li>
+    <li>Responsabilidad ante fallas.</li>
+    <li>Consentimiento para compartir datos.</li>
+    <li>Revocacion o suspension de certificaciones.</li>
+    <li>Proteccion de documentos sensibles.</li>
+    <li>Trazabilidad de evaluaciones.</li>
+  </ul>
+
+  <h2>Conclusion</h2>
+  <p>La propuesta tiene una vision fuerte y diferenciadora. La mejora principal es convertirla en una arquitectura mas precisa, gobernable y ejecutable por etapas. ZOVIT puede convertirse en una infraestructura de confianza entre educacion, trabajo, servicios y certificacion, siempre que conserve lo que ya funciona, separe formacion de certificacion y mantenga toda la informacion conectada.</p>
+</body>
+</html>

@@ -1,5 +1,6 @@
 "use client";
 
+import { CredentialAvatar } from "@/components/credential/CredentialAvatar";
 import { getCredentialPublicUrl } from "@/lib/credential/url";
 import type { PublicCredentialProfile } from "@/lib/credential/types";
 import { IdentityBadge } from "@/components/verification/IdentityBadge";
@@ -16,9 +17,9 @@ import {
   Share2,
   ShieldCheck,
   Smartphone,
-  UserRound,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 
@@ -132,11 +133,14 @@ export function ZovitCredentialCard({ profile, showActions = true }: ZovitCreden
   }
 
   function printCredential() {
+    document.body.classList.add("print-credential");
+    document.body.classList.remove("print-cv");
     window.print();
+    window.setTimeout(() => document.body.classList.remove("print-credential"), 300);
   }
 
   return (
-    <article className="credentialCard">
+    <article className="credentialCard" data-doc="credential">
       <header className="credentialCardHeader">
         <div className="credentialBrand">
           <span className="credentialBrandMark">Z</span>
@@ -152,23 +156,7 @@ export function ZovitCredentialCard({ profile, showActions = true }: ZovitCreden
       </header>
 
       <div className="credentialCardBody">
-        <div className="credentialPhotoWrap">
-          {profile.avatar_url ? (
-            <Image
-              src={profile.avatar_url}
-              alt={`Foto de ${name}`}
-              width={160}
-              height={200}
-              className="credentialPhoto"
-              unoptimized
-            />
-          ) : (
-            <div className="credentialPhotoPlaceholder">
-              <UserRound size={56} />
-              <span>Sin foto</span>
-            </div>
-          )}
-        </div>
+        <CredentialAvatar profileId={profile.id} avatarUrl={profile.avatar_url} name={name} />
 
         <div className="credentialDetails">
           <p className="credentialRole">{roleLabel(profile.role).toUpperCase()}</p>
@@ -191,6 +179,15 @@ export function ZovitCredentialCard({ profile, showActions = true }: ZovitCreden
               ? "Certificado gratuito ZOVIT. Úsalo para presentar tu identidad y experiencia al postular a un trabajo, o para validarte ante un cliente."
               : "Esta credencial existe, pero la verificación biométrica aún no está completa."}
           </p>
+          {!profile.avatar_url && (
+            <p className="credentialPhotoHint no-print">
+              Sube tu foto en{" "}
+              <Link href="/perfil" className="textLink">
+                Mi perfil
+              </Link>{" "}
+              para que aparezca en este círculo.
+            </p>
+          )}
         </div>
 
         <div className="credentialQrBlock">

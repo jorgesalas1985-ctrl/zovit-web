@@ -45,7 +45,10 @@ export function IntranetGuard({ allowedRoles, permission, children }: IntranetGu
       return;
     }
 
-    if (!isRealSuperAdmin && allowedRoles && roleForAccess && !allowedRoles.includes(roleForAccess)) {
+    // Super admin real: nunca redirigir por permisos.
+    if (isRealSuperAdmin) return;
+
+    if (allowedRoles && roleForAccess && !allowedRoles.includes(roleForAccess)) {
       router.replace("/intranet/acceso");
     }
   }, [allowedRoles, isRealSuperAdmin, loading, pathname, realRole, roleForAccess, router, user]);
@@ -54,10 +57,20 @@ export function IntranetGuard({ allowedRoles, permission, children }: IntranetGu
     return <div className="centerState">Cargando intranet…</div>;
   }
 
+  // Super admin real: entra a cualquier sección sin restricciones (el paseo solo cambia el banner).
+  if (isRealSuperAdmin) {
+    return (
+      <>
+        <IntranetRoleBanner role={bannerRole} />
+        {children}
+      </>
+    );
+  }
+
   const deniedByAllowed =
     Boolean(allowedRoles && roleForAccess && !allowedRoles.includes(roleForAccess));
 
-  if (deniedByAllowed && !isRealSuperAdmin) {
+  if (deniedByAllowed) {
     return (
       <>
         <IntranetRoleBanner role={bannerRole} />
@@ -74,23 +87,6 @@ export function IntranetGuard({ allowedRoles, permission, children }: IntranetGu
     );
   }
 
-  if (isRealSuperAdmin && deniedByAllowed && tourAccount !== "super_admin") {
-    return (
-      <>
-        <IntranetRoleBanner role={bannerRole} />
-        <main className="simplePage">
-          <section className="formPageCard intranetNoticeCard">
-            <h1>Vista simulada: sin acceso</h1>
-            <p className="muted">
-              Estás paseando como esta cuenta. Usa el botón flotante para cambiar a Super
-              administrador u otro perfil con acceso.
-            </p>
-          </section>
-        </main>
-      </>
-    );
-  }
-
   if (permission && roleForAccess && !hasIntranetPermission(roleForAccess, permission)) {
     return (
       <>
@@ -98,18 +94,14 @@ export function IntranetGuard({ allowedRoles, permission, children }: IntranetGu
         <main className="simplePage">
           <section className="formPageCard intranetNoticeCard">
             <h1>Acción no permitida</h1>
-            <p className="muted">
-              {isRealSuperAdmin && tourAccount !== "super_admin"
-                ? "En esta vista simulada no tienes ese permiso. Cambia de cuenta con el botón flotante."
-                : "No tienes permisos para esta operación."}
-            </p>
+            <p className="muted">No tienes permisos para esta operación.</p>
           </section>
         </main>
       </>
     );
   }
 
-  if (roleForAccess && !canAccessIntranetPath(pathname, roleForAccess) && !isRealSuperAdmin) {
+  if (roleForAccess && !canAccessIntranetPath(pathname, roleForAccess)) {
     return (
       <>
         <IntranetRoleBanner role={bannerRole} />
@@ -117,27 +109,6 @@ export function IntranetGuard({ allowedRoles, permission, children }: IntranetGu
           <section className="formPageCard intranetNoticeCard">
             <h1>Ruta restringida</h1>
             <p className="muted">Esta área está reservada para otro perfil interno.</p>
-          </section>
-        </main>
-      </>
-    );
-  }
-
-  if (
-    isRealSuperAdmin &&
-    roleForAccess &&
-    !canAccessIntranetPath(pathname, roleForAccess) &&
-    tourAccount !== "super_admin"
-  ) {
-    return (
-      <>
-        <IntranetRoleBanner role={bannerRole} />
-        <main className="simplePage">
-          <section className="formPageCard intranetNoticeCard">
-            <h1>Vista simulada: ruta restringida</h1>
-            <p className="muted">
-              Con esta cuenta no podrías ver esta sección. Cambia de cuenta con el botón flotante.
-            </p>
           </section>
         </main>
       </>

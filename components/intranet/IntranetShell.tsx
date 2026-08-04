@@ -7,10 +7,18 @@ type Props = {
   description?: string;
   kicker?: string;
   wide?: boolean;
+  headerAction?: ReactNode;
   children: ReactNode;
 };
 
-export function IntranetShell({ title, description, kicker = "INTRANET ZOVIT", wide = false, children }: Props) {
+export function IntranetShell({
+  title,
+  description,
+  kicker = "INTRANET ZOVIT",
+  wide = false,
+  headerAction,
+  children,
+}: Props) {
   return (
     <main className={`simplePage browsePage intranetPage${wide ? " intranetPageWide" : ""}`}>
       <section className="browseShell">
@@ -18,10 +26,13 @@ export function IntranetShell({ title, description, kicker = "INTRANET ZOVIT", w
           <ArrowLeft size={18} /> Volver al sitio público
         </Link>
 
-        <div className="browseHeader">
-          <p className="kicker">{kicker}</p>
-          <h1>{title}</h1>
-          {description && <p className="muted browseDescription">{description}</p>}
+        <div className={`browseHeader${headerAction ? " browseHeaderWithAction" : ""}`}>
+          <div className="browseHeaderCopy">
+            <p className="kicker">{kicker}</p>
+            <h1>{title}</h1>
+            {description && <p className="muted browseDescription">{description}</p>}
+          </div>
+          {headerAction ? <div className="browseHeaderAction">{headerAction}</div> : null}
         </div>
 
         {children}

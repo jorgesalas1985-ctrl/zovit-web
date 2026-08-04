@@ -37,6 +37,12 @@ export type PublicProfessionalProfile = {
   experience_level: ExperienceLevel;
   public_profile: boolean;
   identity_verified: boolean;
+  primary_service_profile?:
+    | "certified"
+    | "experience_verified"
+    | "in_training"
+    | "community_collaborator"
+    | null;
 };
 
 export const EXPERIENCE_BADGES: Record<ExperienceLevel, { label: string; description: string }> = {

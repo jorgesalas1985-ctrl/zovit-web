@@ -16,20 +16,20 @@ export default function IntranetFinancePage() {
   return (
     <IntranetGuard allowedRoles={["super_admin"]}>
       <IntranetShell
-        title="Super administraci?n ZOVIT"
-        description="Solo t?: dineros, estados de cuenta y revisi?n de todas las cuentas. RR.HH. no tiene acceso aqu?."
+        title="Super administración ZOVIT"
+        description="Solo tú: dineros, estados de cuenta y revisión de todas las cuentas. RR.HH. no tiene acceso aquí."
         kicker="SUPER ADMIN"
       >
         <div className="intranetGrid">
           <Link href="/admin/pagos" className="intranetCard">
             <CreditCard size={24} />
             <h3>Estados de cuenta y pagos</h3>
-            <p>Wallets, retenciones, liberaciones, comisiones y auditor?a de dinero.</p>
+            <p>Wallets, retenciones, liberaciones, comisiones y auditoría de dinero.</p>
           </Link>
           <article className="intranetCard intranetCardStatic">
             <Building2 size={24} />
             <h3>Panel financiero</h3>
-            <p>Ingresos, costos, m?rgenes, flujo y KPIs econ?micos (pr?ximamente).</p>
+            <p>Ingresos, costos, márgenes, flujo y KPIs económicos (próximamente).</p>
           </article>
           <Link href="/intranet/admin/gestion-usuarios" className="intranetCard">
             <UserCog size={24} />
@@ -39,7 +39,7 @@ export default function IntranetFinancePage() {
           <Link href="/intranet/admin" className="intranetCard">
             <Users size={24} />
             <h3>RR.HH. y trabajadores</h3>
-            <p>Acceso completo a fichas y gesti?n de personal (tambi?n disponible para RR.HH.).</p>
+            <p>Acceso completo a fichas y gestión de personal (también disponible para RR.HH.).</p>
           </Link>
           <Link href="/intranet/liquidaciones" className="intranetCard">
             <PencilLine size={24} />
@@ -53,13 +53,13 @@ export default function IntranetFinancePage() {
           </Link>
           <article className="intranetCard intranetCardStatic">
             <Shield size={24} />
-            <h3>Separaci?n de poderes</h3>
+            <h3>Separación de poderes</h3>
             <p>Administrador RR.HH. no ve dineros ni el listado completo de cuentas.</p>
           </article>
           <article className="intranetCard intranetCardStatic">
             <Wallet size={24} />
             <h3>Reportes contables</h3>
-            <p>Exportaciones y conciliaci?n financiera (pr?ximamente).</p>
+            <p>Exportaciones y conciliación financiera (próximamente).</p>
           </article>
         </div>
       </IntranetShell>

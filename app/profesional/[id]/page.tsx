@@ -23,11 +23,7 @@ export default function PublicProfessionalPage() {
       setError("");
 
       const [profileResult, statsResult, experienceResult, ratingsResult] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id,first_name,last_name,commune,experience_level,public_profile,role,identity_verified")
-          .eq("id", id)
-          .maybeSingle(),
+        supabase.rpc("get_public_professional_profile", { p_id: id }),
         supabase.rpc("get_professional_stats", { p_professional_id: id }),
         supabase
           .from("professional_experience")
@@ -43,7 +39,9 @@ export default function PublicProfessionalPage() {
           .limit(10),
       ]);
 
-      const profileData = profileResult.data;
+      const profileData = Array.isArray(profileResult.data)
+        ? profileResult.data[0]
+        : profileResult.data;
       if (profileResult.error || !profileData || profileData.role !== "professional" || profileData.public_profile === false) {
         setError("Este perfil profesional no está disponible.");
         setLoading(false);
@@ -58,6 +56,7 @@ export default function PublicProfessionalPage() {
         experience_level: profileData.experience_level ?? "junior",
         public_profile: profileData.public_profile ?? true,
         identity_verified: profileData.identity_verified ?? false,
+        primary_service_profile: profileData.primary_service_profile ?? null,
       });
 
       const statsRow = Array.isArray(statsResult.data) ? statsResult.data[0] : statsResult.data;

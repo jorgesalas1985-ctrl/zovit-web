@@ -1,9 +1,12 @@
+import { AutomationTicker } from "@/components/automation/AutomationTicker";
+import { AutomationLastSummary } from "@/components/automation/AutomationLastSummary";
 import { IntranetGuard } from "@/components/intranet/IntranetGuard";
 import { IntranetShell } from "@/components/intranet/IntranetShell";
 import Link from "next/link";
 import {
   BriefcaseBusiness,
   FileText,
+  Gauge,
   ShieldCheck,
   UserPlus,
   Users,
@@ -17,7 +20,19 @@ export default function IntranetAdminPage() {
         description="Solo recursos humanos: personal, verificación y credenciales internas. Sin acceso a dineros ni estados de cuenta."
         kicker="RECURSOS HUMANOS"
       >
+        <AutomationTicker />
+        <AutomationLastSummary />
         <div className="intranetGrid">
+          <Link href="/intranet/admin/centro-control" className="intranetCard">
+            <Gauge size={24} />
+            <h3>Centro de Control</h3>
+            <p>Ver prioridades operativas, revisiones, suspensiones y automatizaciones sensibles.</p>
+          </Link>
+          <Link href="/intranet/admin/documentos" className="intranetCard">
+            <FileText size={24} />
+            <h3>Revision documental</h3>
+            <p>Aprobar o rechazar documentos semestrales usando datos OCR y eventos auditables.</p>
+          </Link>
           <Link href="/intranet/equipo" className="intranetCard">
             <Users size={24} />
             <h3>Trabajadores ZOVIT</h3>

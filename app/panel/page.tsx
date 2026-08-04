@@ -8,6 +8,7 @@ import {
   CreditCard,
   FileText,
   IdCard,
+  MapPinned,
   Plus,
   Share2,
   ShieldCheck,
@@ -15,13 +16,16 @@ import {
   UserRound,
 } from "lucide-react";
 import { AccountModeControls } from "@/components/AccountModeControls";
+import { EcosystemAccessGrid } from "@/components/ecosystem/EcosystemAccessGrid";
 import { Protected } from "@/components/Protected";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { IdentityBadge } from "@/components/verification/IdentityBadge";
 import { ExperienceBadge, ProfessionalStatsGrid } from "@/components/experience/ExperienceSection";
+import { ProfessionalAvailabilityToggle } from "@/components/map/ProfessionalAvailabilityToggle";
 import { useAuth } from "@/components/AuthProvider";
 import type { ProfessionalStats } from "@/lib/experience/types";
 import { isSuperAdminRole } from "@/lib/auth/intranetRoles";
+import { hasUnrestrictedSuperAdminAccess } from "@/lib/auth/superAdminAccess";
 import {
   getActiveMode,
   hasDualMode,
@@ -50,6 +54,7 @@ function PanelContent() {
   const [accessMessage, setAccessMessage] = useState("");
   const [professionalStats, setProfessionalStats] = useState<ProfessionalStats | null>(null);
   const [workerRegistrationStatus, setWorkerRegistrationStatus] = useState<string | null>(null);
+  const [documentAlertCount, setDocumentAlertCount] = useState(0);
 
   const role = profile?.role;
   const activeMode = profile ? getActiveMode(profile) : "client";
@@ -77,7 +82,8 @@ function PanelContent() {
       setError("");
 
       if (isProfessionalView) {
-        const [jobsResult, statsResult, registrationResult] = await Promise.all([
+        const [jobsResult, statsResult, registrationResult, documentAlertsResult] =
+          await Promise.all([
           supabase
             .from("solicitudes_de_servicio")
             .select("id,category,description,status,created_at")
@@ -94,9 +100,19 @@ function PanelContent() {
               return data.registration?.status ?? null;
             })
             .catch(() => null),
+          supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .is("read_at", null)
+            .in("title", [
+              "Renueva tus documentos ZOVIT",
+              "Cuenta pendiente por documentos",
+            ]),
         ]);
 
         setWorkerRegistrationStatus(registrationResult);
+        setDocumentAlertCount(documentAlertsResult.count ?? 0);
 
         if (jobsResult.error) {
           setError("No fue posible cargar tu actividad. Intenta nuevamente.");
@@ -117,8 +133,8 @@ function PanelContent() {
         }
 
         setLoading(false);
-        return;
-      }
+      return;
+    }
 
       const [requestResult, countResult] = await Promise.all([
         supabase
@@ -152,26 +168,17 @@ function PanelContent() {
 
       <RoleModeBanner role={activeMode} />
 
-      {isProfessionalView && workerRegistrationStatus !== "verified" && (
+      {isProfessionalView &&
+        !hasUnrestrictedSuperAdminAccess(profile?.intranet_role) &&
+        (workerRegistrationStatus === "submitted" ||
+          workerRegistrationStatus === "needs_info") && (
         <section className="panelSection compactSection">
           <div className="notice workerPanelNotice">
-            {workerRegistrationStatus === "submitted" ||
-            workerRegistrationStatus === "needs_info" ? (
-              <>
-                Tu registro de trabajador está en revisión. Puedes ver el estado o corregir datos si
-                hiciera falta.
-                <Link href="/registro/trabajador" className="textLink">
-                  Ver estado del registro <ArrowRight size={16} />
-                </Link>
-              </>
-            ) : (
-              <>
-                Completa tu registro de trabajador para declarar formación, experiencia y servicios.
-                <Link href="/registro/trabajador" className="textLink">
-                  Continuar registro <ArrowRight size={16} />
-                </Link>
-              </>
-            )}
+            Tu registro de trabajador está en revisión. Puedes ver el estado o corregir datos si
+            hiciera falta.
+            <Link href="/registro/trabajador" className="textLink">
+              Ver estado del registro <ArrowRight size={16} />
+            </Link>
           </div>
         </section>
       )}
@@ -179,6 +186,12 @@ function PanelContent() {
       {!isAdmin && (
         <section className="panelSection compactSection">
           <AccountModeControls />
+        </section>
+      )}
+
+      {isProfessionalView && (
+        <section className="panelSection compactSection">
+          <ProfessionalAvailabilityToggle />
         </section>
       )}
 
@@ -204,7 +217,14 @@ function PanelContent() {
             <Link className="secondaryButton" href="/experiencia"><Sparkles size={18} /> Mi experiencia</Link>
           </div>
         ) : (
-          <Link className="whiteButton" href="/solicitudes/nueva"><Plus size={18} /> Nueva solicitud</Link>
+          <div className="panelHeroActions">
+            <Link className="whiteButton" href="/cliente/mapa">
+              <MapPinned size={18} /> Mapa de profesionales
+            </Link>
+            <Link className="secondaryButton" href="/solicitudes/nueva">
+              <Plus size={18} /> Nueva solicitud
+            </Link>
+          </div>
         )}
       </section>
 
@@ -225,6 +245,20 @@ function PanelContent() {
           <ProfessionalStatsGrid stats={professionalStats} />
         </section>
       )}
+
+      {isProfessionalView && documentAlertCount > 0 && (
+        <section className="panelSection compactSection">
+          <div className="notice workerPanelNotice">
+            Tienes {documentAlertCount} aviso documental pendiente. Revisa o renueva tus documentos
+            semestrales para mantener tu cuenta operativa.
+            <Link href="/registro/trabajador" className="textLink">
+              Renovar documentos <ArrowRight size={16} />
+            </Link>
+          </div>
+        </section>
+      )}
+
+      <EcosystemAccessGrid />
 
       <section className="dashboardGrid">
         <Link href="/perfil" className="dashboardCard">
@@ -253,6 +287,17 @@ function PanelContent() {
                 Si ya adjuntaste certificados en el registro (botón +), úsalos aquí sin subirlos de
                 nuevo.
               </p>
+            </div>
+            <ArrowRight />
+          </Link>
+        )}
+
+        {isClientView && (
+          <Link href="/cliente/mapa" className="dashboardCard">
+            <div className="dashboardIcon"><MapPinned /></div>
+            <div>
+              <h3>Mapa de profesionales</h3>
+              <p>Mira quién está cerca, filtra por oficio y solicita en el mapa.</p>
             </div>
             <ArrowRight />
           </Link>

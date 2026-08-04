@@ -223,24 +223,11 @@ function buildPrompt(input: AiDocumentInput): string {
 
 export async function analyzeWorkerDocumentsWithOpenAI(
   input: AiDocumentInput,
-  options?: { apiKey?: string; model?: string }
+  _options?: { apiKey?: string; model?: string },
 ): Promise<AiWorkerVerdict> {
-  const apiKey = options?.apiKey ?? process.env.OPENAI_API_KEY;
-  const model = options?.model ?? process.env.OPENAI_MODEL ?? "gpt-4o";
   const hasDocuments = input.files.length > 0;
 
-  if (!apiKey) {
-    return {
-      decision: "dudoso",
-      confidence: 0,
-      forgeryRisk: "medium",
-      summary: "Falta OPENAI_API_KEY en el servidor. No se pudo validar automáticamente.",
-      professionalMessage: "Tu solicitud quedó en revisión. Te avisaremos pronto.",
-      credentials: [],
-      model: "none",
-    };
-  }
-
+  // Sin APIs externas: los documentos de trabajador quedan para revisión humana.
   if (!hasDocuments) {
     return {
       decision: "dudoso",
@@ -261,71 +248,21 @@ export async function analyzeWorkerDocumentsWithOpenAI(
     };
   }
 
-  const content: Array<Record<string, unknown>> = [
-    { type: "text", text: buildPrompt(input) },
-  ];
-
-  for (const file of input.files) {
-    if (file.mime === "application/pdf") {
-      content.push({
-        type: "text",
-        text: `Archivo PDF "${file.label}" adjunto en base64 (primeros caracteres omitidos en visión). Analiza coherencia si el modelo lo permite; si no puedes leer PDF, marca dudoso.`,
-      });
-      // Vision models prefer images; for PDF send as text note + skip binary to avoid huge payloads
-      // when possible. If small PDF, still attach as image_url data url may fail — keep metadata path.
-      continue;
-    }
-    content.push({
-      type: "text",
-      text: `Documento: ${file.label}`,
-    });
-    content.push({
-      type: "image_url",
-      image_url: {
-        url: `data:${file.mime};base64,${file.base64}`,
-        detail: "high",
-      },
-    });
-  }
-
-  // If all were PDFs, still call with text-only analysis of metadata + ask reject/dudoso
-  if (content.length === 1) {
-    content.push({
-      type: "text",
-      text: "Solo hay PDFs. Sin preview visual: decision=dudoso salvo que los metadatos sean inconsistentes (entonces rejected).",
-    });
-  }
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.1,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "Eres un auditor documental estricto. Respondes únicamente JSON válido según el esquema pedido.",
-        },
-        { role: "user", content },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`OpenAI error ${response.status}: ${errText.slice(0, 400)}`);
-  }
-
-  const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
+  return {
+    decision: "dudoso",
+    confidence: 0.4,
+    forgeryRisk: "medium",
+    summary:
+      "Documentos recibidos. Quedan en cola humana (OCR local aplica a carnets de identidad, no a certificados de oficio).",
+    professionalMessage: "Tu solicitud quedó en revisión. Te avisaremos pronto.",
+    credentials: input.credentials.map((c) => ({
+      credentialId: c.id,
+      decision: "dudoso" as const,
+      forgeryRisk: "medium" as const,
+      confidence: 0.4,
+      reasons: ["Revisión humana requerida"],
+      manipulationSignals: [],
+    })),
+    model: "human-queue",
   };
-  const text = payload.choices?.[0]?.message?.content ?? "";
-  const parsed = extractJsonObject(text);
-  return normalizeAiWorkerVerdict(parsed, model, hasDocuments);
 }

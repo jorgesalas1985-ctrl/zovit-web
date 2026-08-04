@@ -1,5 +1,6 @@
 import { CANCELLATION_FEE_REASON_LABELS } from "@/lib/payments/cancellationFee";
 import { assertSameOrigin, csrfDeniedResponse } from "@/lib/security/csrf";
+import { isValidUuid } from "@/lib/security/validation";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -8,6 +9,10 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(_request: Request, { params }: Params) {
   try {
     const { id } = await params;
+    if (!isValidUuid(id)) {
+      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
+    }
+
     const supabase = await createClient();
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) {
@@ -44,6 +49,10 @@ export async function POST(request: Request, { params }: Params) {
     if (!csrf.ok) return csrfDeniedResponse(csrf.error);
 
     const { id } = await params;
+    if (!isValidUuid(id)) {
+      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
+    }
+
     const body = (await request.json().catch(() => ({}))) as { acceptFee?: boolean };
     if (!body.acceptFee) {
       return NextResponse.json(

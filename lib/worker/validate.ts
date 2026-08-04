@@ -1,3 +1,4 @@
+import { validateAdultBirthDate } from "@/lib/registration/age";
 import { isValidChileanRut } from "@/lib/registration/validateRegistration";
 import { isValidChileanDate } from "@/lib/ui/chileanDate";
 import { RUT_FORMAT_ERROR } from "@/lib/ui/fieldPlaceholders";
@@ -65,6 +66,14 @@ function getPersonalIssue(draft: WorkerRegistrationDraft): ValidationIssue | nul
   if (!isValidChileanDate(p.birthDate)) {
     return {
       message: "Fecha de nacimiento inválida. Usa día/mes/año, ej: 15/03/1990.",
+      fieldId: "personal.birthDate",
+      step: 1,
+    };
+  }
+  const ageError = validateAdultBirthDate(p.birthDate);
+  if (ageError) {
+    return {
+      message: ageError,
       fieldId: "personal.birthDate",
       step: 1,
     };

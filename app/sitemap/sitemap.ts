@@ -38,6 +38,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.75,
     },
+    {
+      url: `${siteUrl}/certificados/validar`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
     { url: `${siteUrl}/login`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${siteUrl}/legal/terminos`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${siteUrl}/legal/privacidad`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },

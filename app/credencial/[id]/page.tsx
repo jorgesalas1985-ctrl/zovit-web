@@ -1,4 +1,6 @@
-import { ZovitCredentialCard } from "@/components/credential/ZovitCredentialCard";
+import { CredentialDocumentsHub } from "@/components/credential/CredentialDocumentsHub";
+import { loadPremiumCertificate } from "@/lib/credential/loadPremiumCertificate";
+import { loadVerifiedCredentialCv } from "@/lib/credential/loadVerifiedCv";
 import type { PublicCredentialProfile } from "@/lib/credential/types";
 import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
@@ -21,10 +23,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     title: `${fullName} · Credencial ZOVIT`,
-    description: "Verifica la identidad y credenciales de un usuario registrado en ZOVIT.",
+    description:
+      "Credencial, curriculum de experiencia verificada y certificado profesional descargable ZOVIT.",
     openGraph: {
       title: `${fullName} · Credencial ZOVIT`,
-      description: "Credencial verificable con código QR · ZOVIT",
+      description: "Identidad, CV y certificado verificables · ZOVIT",
       type: "profile",
     },
   };
@@ -58,9 +61,17 @@ export default async function PublicCredentialPage({ params }: PageProps) {
     experience_level: row.experience_level,
   };
 
+  const cv = await loadVerifiedCredentialCv(id);
+  const certificate = await loadPremiumCertificate(profile, cv.stats);
+
   return (
     <main className="credentialPage">
-      <ZovitCredentialCard profile={profile} />
+      <CredentialDocumentsHub
+        profile={profile}
+        experience={cv.experience}
+        stats={cv.stats}
+        certificate={certificate}
+      />
     </main>
   );
 }

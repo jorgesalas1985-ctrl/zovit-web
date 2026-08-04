@@ -7,13 +7,16 @@ import { ProposalSection } from "@/components/payments/ProposalSection";
 import { ServiceRatingForm } from "@/components/ServiceRatingForm";
 import { useAuth } from "@/components/AuthProvider";
 import { getActiveMode, isProfessionalMode } from "@/lib/auth/roles";
+import { ChatSafetyDialogue } from "@/components/messaging/ChatSafetyDialogue";
+import { ProfessionalLiveLocationPublisher } from "@/components/map/ProfessionalLiveLocationPublisher";
 import {
   COMMISSION_SAFETY_NOTICE,
   commissionMismatch,
   detectCommissionEvasionPhrase,
   extractMaxMoneyAmount,
 } from "@/lib/messaging/commissionRisk";
-import { CHAT_SAFETY_NOTICE, filterContactLeaks } from "@/lib/messaging/contactFilter";
+import { maskServiceAddress } from "@/lib/location/maskAddress";
+import { filterContactLeaks } from "@/lib/messaging/contactFilter";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle, ArrowLeft, Camera, CheckCircle2, MapPin, MessageCircle, Send, Upload } from "lucide-react";
 import Link from "next/link";
@@ -126,16 +129,24 @@ export default function RequestDetailPage() {
         .eq("request_id", id)
         .in("status", ["pendiente", "aceptada"]),
     ]);
+    const paymentRows = (paymentResult.data ?? []) as { status: string; amount_gross: number }[];
+    const paid = paymentRows.some((p) => PAID_STATUSES.has(p.status));
+    setHasProtectedPayment(paid);
+
     if (requestResult.error || !requestResult.data) {
       setError("No existe la solicitud o no tienes permiso para verla.");
     } else {
-      setRequest(requestResult.data as RequestRow);
+      const row = { ...(requestResult.data as RequestRow) };
+      const viewerIsClient = row.client_id === user.id;
+      const viewerIsAdmin = profileRole === "admin";
+      if (!viewerIsClient && !viewerIsAdmin && !paid) {
+        row.address = maskServiceAddress(row.address);
+      }
+      setRequest(row);
     }
     setMessages((messageResult.data ?? []) as Message[]);
     setHistory((historyResult.data ?? []) as StatusHistory[]);
     setExistingRating((ratingResult.data as ExistingRating | null) ?? null);
-    const paymentRows = (paymentResult.data ?? []) as { status: string; amount_gross: number }[];
-    setHasProtectedPayment(paymentRows.some((p) => PAID_STATUSES.has(p.status)));
     const proposalMax = Math.max(
       0,
       ...((proposalResult.data ?? []) as { amount: number }[]).map((p) => Number(p.amount) || 0),
@@ -155,7 +166,7 @@ export default function RequestDetailPage() {
     );
     setPhotos(withUrls);
     setLoading(false);
-  }, [id, user]);
+  }, [id, user, profileRole]);
 
   useEffect(() => {
     void load();
@@ -179,13 +190,21 @@ export default function RequestDetailPage() {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "solicitudes_de_servicio", filter: `id=eq.${id}` },
-        (payload) => setRequest(payload.new as RequestRow),
+        (payload) => {
+          const next = { ...(payload.new as RequestRow) };
+          const viewerIsClient = next.client_id === user.id;
+          const viewerIsAdmin = profileRole === "admin";
+          if (!viewerIsClient && !viewerIsAdmin && !hasProtectedPayment) {
+            next.address = maskServiceAddress(next.address);
+          }
+          setRequest(next);
+        },
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [id, user]);
+  }, [id, user, profileRole, hasProtectedPayment]);
 
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ behavior: "smooth" });
@@ -516,12 +535,7 @@ export default function RequestDetailPage() {
                       </div>
                       <MessageCircle />
                     </div>
-                    {canCollaborate && (
-                      <>
-                        <p className="muted">{CHAT_SAFETY_NOTICE}</p>
-                        <p className="muted">{COMMISSION_SAFETY_NOTICE}</p>
-                      </>
-                    )}
+                    {canCollaborate && <ChatSafetyDialogue />}
                     <div className="chatMessages">
                       {messages.length === 0 && <p className="chatEmpty">{chatPlaceholder}</p>}
                       {messages.map((message) => (
@@ -561,6 +575,13 @@ export default function RequestDetailPage() {
                 </div>
 
                 <aside className="requestSideColumn">
+                  {isAssignedProfessional && (
+                    <ProfessionalLiveLocationPublisher
+                      serviceId={request.id}
+                      status={request.status}
+                      enabled={isAssignedProfessional}
+                    />
+                  )}
                   {(request.status === "publicada" || proposalsVisible(request.status)) && (
                     <ProposalSection
                       requestId={request.id}

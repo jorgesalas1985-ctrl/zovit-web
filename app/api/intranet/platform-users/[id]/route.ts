@@ -5,6 +5,7 @@ import {
   deletePlatformUser,
   getPlatformUser,
   getPlatformUserErrorMessage,
+  type PlatformAccountKind,
   updatePlatformUser,
 } from "@/lib/intranet/platformUsers";
 import { NextResponse } from "next/server";
@@ -16,8 +17,19 @@ type UpdateBody = {
   phone?: string;
   address?: string;
   role?: string;
+  accountKind?: string;
   intranetRole?: string | null;
+  confirmEmailManually?: boolean;
+  emailConfirmationTicket?: string | null;
 };
+
+const PLATFORM_ACCOUNT_KINDS: PlatformAccountKind[] = [
+  "client",
+  "professional",
+  "student",
+  "company",
+  "institution",
+];
 
 export async function PATCH(
   request: Request,
@@ -48,6 +60,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Rol de plataforma inválido." }, { status: 400 });
     }
 
+    if (body.accountKind && !PLATFORM_ACCOUNT_KINDS.includes(body.accountKind as PlatformAccountKind)) {
+      return NextResponse.json({ error: "Tipo de cuenta inválido." }, { status: 400 });
+    }
+
+    if (body.confirmEmailManually && !body.emailConfirmationTicket?.trim()) {
+      return NextResponse.json(
+        { error: "Debes ingresar un ticket o motivo para confirmar el correo manualmente." },
+        { status: 400 },
+      );
+    }
+
     if (
       body.intranetRole !== undefined &&
       body.intranetRole !== null &&
@@ -63,6 +86,9 @@ export async function PATCH(
       phone: body.phone,
       address: body.address,
       role: body.role as UserRole | undefined,
+      accountKind: body.accountKind as PlatformAccountKind | undefined,
+      confirmEmailManually: body.confirmEmailManually,
+      emailConfirmationTicket: body.emailConfirmationTicket,
       intranetRole:
         body.intranetRole === undefined
           ? undefined

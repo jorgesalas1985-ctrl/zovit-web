@@ -38,6 +38,7 @@ export type WebhookResult = {
     external_reference?: string;
     transaction_amount?: number;
     currency_id?: string;
+    provider_processing_fee?: number;
   };
 };
 

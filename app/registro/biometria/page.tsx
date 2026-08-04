@@ -2,23 +2,26 @@
 
 import { ArrowRight, ScanFace } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Protected } from "@/components/Protected";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
 import { BiometricOnboardingForm } from "@/components/verification/BiometricOnboardingForm";
 import { useAuth } from "@/components/AuthProvider";
 import { useIdentityVerification } from "@/hooks/useIdentityVerification";
+import { validateCarnetBirthDateDeclaration } from "@/lib/registration/carnetBirthDate";
 import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
 import { flushPendingRegistration } from "@/lib/registration/pendingRegistration";
 import { getActiveMode } from "@/lib/auth/roles";
+import { chileanDateToIso, isoToChileanDate } from "@/lib/ui/chileanDate";
 import { canAccessPanel } from "@/lib/verification/types";
 import { supabase } from "@/lib/supabase";
 
 export default function RegisterBiometricPage() {
-  const router = useRouter();
   const { user, profile, refreshProfile } = useAuth();
-  const { state, message, busyType, uploadDocument, submitBiometric, loadState } = useIdentityVerification();
+  const { state, message, busyType, uploadDocument, submitBiometric, loadState, setMessage } =
+    useIdentityVerification();
   const [rut, setRut] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [carnetBirthDateConfirmed, setCarnetBirthDateConfirmed] = useState(false);
   const [navigating, setNavigating] = useState(false);
 
   const activeMode = profile ? getActiveMode(profile) : "client";
@@ -43,11 +46,13 @@ export default function RegisterBiometricPage() {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("rut")
+      .select("rut,birth_date,birth_date_carnet_confirmed")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         if (data?.rut) setRut(data.rut);
+        if (data?.birth_date) setBirthDate(isoToChileanDate(String(data.birth_date)));
+        if (data?.birth_date_carnet_confirmed) setCarnetBirthDateConfirmed(true);
       });
   }, [user]);
 
@@ -75,9 +80,24 @@ export default function RegisterBiometricPage() {
     event.preventDefault();
     if (!user || !rut.trim()) return;
 
+    const carnetError = validateCarnetBirthDateDeclaration({
+      birthDate,
+      confirmed: carnetBirthDateConfirmed,
+    });
+    if (carnetError) {
+      setMessage(carnetError);
+      return;
+    }
+
+    const birthIso = chileanDateToIso(birthDate);
     await supabase
       .from("profiles")
-      .update({ rut: rut.trim(), updated_at: new Date().toISOString() })
+      .update({
+        rut: rut.trim(),
+        birth_date: birthIso,
+        birth_date_carnet_confirmed: true,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", user.id);
 
     const ok = await submitBiometric();
@@ -117,6 +137,10 @@ export default function RegisterBiometricPage() {
               state={state}
               rut={rut}
               onRutChange={setRut}
+              birthDate={birthDate}
+              onBirthDateChange={setBirthDate}
+              carnetBirthDateConfirmed={carnetBirthDateConfirmed}
+              onCarnetBirthDateConfirmedChange={setCarnetBirthDateConfirmed}
               busyType={busyType}
               message={message}
               onUpload={handleUpload}

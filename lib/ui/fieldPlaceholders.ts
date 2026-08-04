@@ -13,7 +13,7 @@ export const FIELD_PLACEHOLDERS = {
   address: "Calle, número, depto/casa",
   commune: "Ej: Santiago, Maipú, Providencia",
   birthDate: "dd/mm/aaaa",
-  birthDateHint: "Formato: día/mes/año — ej: 15/03/1990",
+  birthDateHint: "Formato: día/mes/año — ej: 15/03/1990. Debes ser mayor de 18 años (Chile).",
   category: "Ej: Hogar, Construcción",
   description: "Describe el trabajo con el mayor detalle posible",
   serviceAddress: "Dirección o comuna del servicio",

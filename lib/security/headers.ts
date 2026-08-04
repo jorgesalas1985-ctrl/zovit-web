@@ -11,7 +11,9 @@ function buildCsp(isProd: boolean): string {
     "font-src 'self' data: https://fonts.gstatic.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://www.mercadopago.com https://www.mercadopago.cl https://*.mercadopago.com",
+    "worker-src 'self' blob:",
+    "child-src 'self' blob:",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://www.mercadopago.com https://www.mercadopago.cl https://*.mercadopago.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://nominatim.openstreetmap.org",
     "frame-src 'self' https://www.mercadopago.cl https://www.mercadopago.com https://*.mercadopago.com",
   ];
   if (isProd) directives.push("upgrade-insecure-requests");

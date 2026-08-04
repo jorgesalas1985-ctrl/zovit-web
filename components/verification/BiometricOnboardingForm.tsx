@@ -8,6 +8,12 @@ import { IdentityBadge, IdentityStatusPill } from "@/components/verification/Ide
 import { supabase } from "@/lib/supabase";
 import type { UserRole } from "@/lib/auth/roles";
 import {
+  CARNET_BIRTH_DATE_HINT,
+  carnetBirthDateMetadata,
+  validateCarnetBirthDateDeclaration,
+} from "@/lib/registration/carnetBirthDate";
+import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
+import {
   getCarnetDocuments,
   hasAllBiometricDocuments,
   hasBiometricDocuments,
@@ -24,6 +30,10 @@ type BiometricOnboardingFormProps = {
   state: IdentityVerificationState;
   rut: string;
   onRutChange: (value: string) => void;
+  birthDate: string;
+  onBirthDateChange: (value: string) => void;
+  carnetBirthDateConfirmed: boolean;
+  onCarnetBirthDateConfirmedChange: (value: boolean) => void;
   busyType: IdentityDocumentType | "submit" | "biometric" | null;
   message: string;
   onUpload: (
@@ -44,6 +54,10 @@ export function BiometricOnboardingForm({
   state,
   rut,
   onRutChange,
+  birthDate,
+  onBirthDateChange,
+  carnetBirthDateConfirmed,
+  onCarnetBirthDateConfirmedChange,
   busyType,
   message,
   onUpload,
@@ -58,10 +72,16 @@ export function BiometricOnboardingForm({
   const hasSelfie = state.documents.some((doc) => doc.document_type === "selfie");
   const hasLiveness = state.documents.some((doc) => doc.document_type === "liveness_proof");
   const biometricDone = hasBiometricDocuments(state.documents);
+  const carnetBirthOk =
+    validateCarnetBirthDateDeclaration({
+      birthDate,
+      confirmed: carnetBirthDateConfirmed,
+    }) === null;
   const canSubmit =
     !locked &&
     rut.trim().length > 0 &&
-    hasAllBiometricDocuments(state.documents);
+    hasAllBiometricDocuments(state.documents) &&
+    carnetBirthOk;
 
   async function saveRut() {
     if (!rut.trim()) {
@@ -92,12 +112,14 @@ export function BiometricOnboardingForm({
         <h2>Verificación biométrica ZOVIT</h2>
         <ul>
           <li><strong>RUT:</strong> requerido para validar tu identidad.</li>
+          <li><strong>Fecha de nacimiento:</strong> la misma impresa en tu carnet (mayores de 18).</li>
           <li><strong>Carnet:</strong> cédula frontal y reverso.</li>
           <li><strong>Selfie:</strong> captura en vivo con cámara frontal.</li>
           <li><strong>Prueba de vida:</strong> instrucción dinámica + código en pantalla.</li>
         </ul>
         <p className="muted">
           Protege a clientes y profesionales. Los archivos biométricos son privados y solo los revisa ZOVIT.
+          Un revisor corroborará tu fecha de nacimiento con la imagen del carnet.
         </p>
       </div>
 
@@ -146,7 +168,35 @@ export function BiometricOnboardingForm({
             {rutMessage && <p className="muted">{rutMessage}</p>}
           </article>
 
-          <div className="verificationSectionLabel">Paso 2 · Carnet</div>
+          <div className="verificationSectionLabel">Paso 2 · Fecha del carnet</div>
+          <article className="verificationUploadCard">
+            <label>
+              Fecha de nacimiento (como aparece en tu carnet)
+              <input
+                required
+                type="text"
+                inputMode="numeric"
+                autoComplete="bday"
+                value={birthDate}
+                onChange={(event) => onBirthDateChange(event.target.value)}
+                placeholder={FIELD_PLACEHOLDERS.birthDate}
+              />
+              <small className="fieldHint">{CARNET_BIRTH_DATE_HINT}</small>
+            </label>
+            <label className="checkboxRow">
+              <input
+                type="checkbox"
+                checked={carnetBirthDateConfirmed}
+                onChange={(event) => onCarnetBirthDateConfirmedChange(event.target.checked)}
+              />
+              <span>
+                Confirmo que esta fecha es exactamente la impresa en mi carnet de identidad y que soy
+                mayor de 18 años.
+              </span>
+            </label>
+          </article>
+
+          <div className="verificationSectionLabel">Paso 3 · Carnet</div>
           {carnetDocuments.map((type) => {
             const uploaded = state.documents.find((doc) => doc.document_type === type);
             return (
@@ -168,7 +218,12 @@ export function BiometricOnboardingForm({
                     hidden
                     onChange={(event) => {
                       const file = event.target.files?.[0];
-                      if (file) void onUpload(type, file);
+                      if (!file) return;
+                      const meta =
+                        birthDate.trim() && carnetBirthDateConfirmed
+                          ? carnetBirthDateMetadata(birthDate)
+                          : null;
+                      void onUpload(type, file, meta);
                       event.target.value = "";
                     }}
                   />
@@ -196,7 +251,7 @@ export function BiometricOnboardingForm({
             );
           })}
 
-          <div className="verificationSectionLabel">Paso 3 · Verificación biométrica</div>
+          <div className="verificationSectionLabel">Paso 4 · Verificación biométrica</div>
           <article className="verificationUploadCard">
             <div className="verificationUploadHead">
               <ScanFace size={18} />

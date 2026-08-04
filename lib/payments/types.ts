@@ -57,6 +57,8 @@ export type PaymentRecord = {
   clientChargedAmount: number | null;
   installmentCount: number | null;
   providerFinancingFee: number;
+  providerProcessingFeeEstimated: number;
+  providerProcessingFee: number;
 };
 
 export type PaymentEvent = {

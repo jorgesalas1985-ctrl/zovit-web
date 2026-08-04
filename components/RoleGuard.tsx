@@ -10,6 +10,7 @@ import {
   type RoleMode,
   type UserRole,
 } from "@/lib/auth/roles";
+import { hasUnrestrictedSuperAdminAccess } from "@/lib/auth/superAdminAccess";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -25,6 +26,7 @@ function hasRequiredAccess(
   requiredMode?: RoleMode,
   allowedRoles?: UserRole[]
 ): boolean {
+  if (hasUnrestrictedSuperAdminAccess(profile.intranet_role)) return true;
   if (profile.role === "admin") return true;
 
   if (requiredMode === "client") {

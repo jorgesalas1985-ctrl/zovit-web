@@ -48,7 +48,29 @@ export async function loadWorkerDraftFallback(
   const { data, error } = await admin.storage.from(BUCKET).download(path);
   if (error || !data) return null;
   const text = await data.text();
-  const parsed = JSON.parse(text) as { draft?: WorkerRegistrationDraft; status?: string };
-  if (!parsed.draft) return null;
+  const parsed = JSON.parse(text) as {
+    draft?: WorkerRegistrationDraft;
+    status?: string;
+    deleted?: boolean;
+  };
+  if (parsed.deleted || !parsed.draft) return null;
   return { draft: parsed.draft, status: parsed.status ?? "draft" };
+}
+
+/** Borra el borrador de respaldo para que el panel no muestre avisos fantasma. */
+export async function clearWorkerDraftFallback(admin: SupabaseClient, userId: string) {
+  const path = `${userId}/registration/draft.json`;
+  await admin.storage.from(BUCKET).upload(
+    path,
+    JSON.stringify({ deleted: true, updatedAt: new Date().toISOString() }),
+    { contentType: "application/json", upsert: true, cacheControl: "0" },
+  );
+  await admin.storage.from(BUCKET).remove([path]);
+  await admin.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      worker_registration_status: null,
+      worker_registration_updated_at: null,
+      worker_registration_profiles: null,
+    },
+  });
 }

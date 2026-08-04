@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, ArrowRight, ChevronDown, LockKeyhole, Mail, UserRound } from "lucide-react";
+import { AlertCircle, ArrowRight, BriefcaseBusiness, Building2, ChevronDown, GraduationCap, Landmark, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { resolvePostLoginPath, roleErrorMessage } from "@/lib/auth/roles";
@@ -16,11 +16,41 @@ import { flushPendingRegistration } from "@/lib/registration/pendingRegistration
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 
+type LoginAccountKind = "client" | "professional" | "student" | "company" | "institution";
+
+const LOGIN_ACCOUNT_OPTIONS: Array<{
+  id: LoginAccountKind;
+  label: string;
+  icon: typeof UserRound;
+}> = [
+  { id: "client", label: "Cliente", icon: UserRound },
+  { id: "professional", label: "Profesional", icon: BriefcaseBusiness },
+  { id: "student", label: "Alumno", icon: GraduationCap },
+  { id: "company", label: "Empresa", icon: Building2 },
+  { id: "institution", label: "Institucion", icon: Landmark },
+];
+
+function roleForLoginAccount(kind: LoginAccountKind): "client" | "professional" {
+  return kind === "professional" || kind === "student" ? "professional" : "client";
+}
+
+function loginAccountLabel(kind: LoginAccountKind): string {
+  return LOGIN_ACCOUNT_OPTIONS.find((option) => option.id === kind)?.label ?? "Cliente";
+}
+
+function authErrorMessage(message: string): string {
+  if (message === "Invalid login credentials") return "Correo o contraseña incorrectos.";
+  if (/email not confirmed|not confirmed/i.test(message)) {
+    return "Tu cuenta fue creada, pero falta confirmar el correo. Abre el correo de ZOVIT/Supabase, confirma la cuenta y vuelve a ingresar.";
+  }
+  return message;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, profile, profileError, profileLoading, loading, refreshProfile } = useAuth();
-  const [accountType, setAccountType] = useState<"client" | "professional">("client");
+  const [accountType, setAccountType] = useState<LoginAccountKind>("client");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const [email, setEmail] = useState("");
@@ -78,19 +108,29 @@ function LoginForm() {
     });
 
     if (error) {
-      setMessage(error.message === "Invalid login credentials"
-        ? "Correo o contraseña incorrectos."
-        : error.message);
+      setMessage(authErrorMessage(error.message));
       setBusy(false);
       return;
     }
 
     if (data.user) {
-      const { data: profileRow, error: profileError } = await supabase
+      const profileResult = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, intranet_role, account_kind")
         .eq("id", data.user.id)
         .maybeSingle();
+      let profileRow = profileResult.data as { role?: string | null; intranet_role?: string | null; account_kind?: string | null } | null;
+      let profileError = profileResult.error;
+
+      if (profileError && profileError.message.includes("account_kind")) {
+        const legacyResult = await supabase
+          .from("profiles")
+          .select("role, intranet_role")
+          .eq("id", data.user.id)
+          .maybeSingle();
+        profileRow = legacyResult.data as { role?: string | null; intranet_role?: string | null; account_kind?: string | null } | null;
+        profileError = legacyResult.error;
+      }
 
       if (profileError || !profileRow?.role) {
         setMessage(roleErrorMessage("perfil-incompleto"));
@@ -99,30 +139,34 @@ function LoginForm() {
         return;
       }
 
-      if (
-        profileRow.role !== "admin" &&
-        profileRow.role !== accountType
-      ) {
+      const isSuperAdmin = profileRow.intranet_role === "super_admin";
+
+      const profileAccountKind = (profileRow.account_kind as LoginAccountKind | null) ?? null;
+      const selectedRole = roleForLoginAccount(accountType);
+      const profileLoginKind = profileAccountKind ?? profileRow.role;
+
+      if (!isSuperAdmin && profileRow.role !== "admin" && profileLoginKind !== accountType && profileRow.role !== selectedRole) {
         setMessage(
-          accountType === "client"
-            ? "Esta cuenta es de profesional. Cambia el tipo de cuenta arriba."
-            : "Esta cuenta es de cliente. Cambia el tipo de cuenta arriba."
+          `Esta cuenta no corresponde a ${loginAccountLabel(accountType)}. Cambia el tipo de cuenta arriba.`
         );
         await supabase.auth.signOut();
         setBusy(false);
         return;
       }
 
-      try {
-        await flushPendingRegistration(email, data.user.id, completeRegistrationVerification);
-      } catch (pendingError) {
-        setMessage(
-          pendingError instanceof Error
-            ? pendingError.message
-            : "No se pudo completar tu verificación biométrica pendiente."
-        );
-        setBusy(false);
-        return;
+      // Super admin no pasa por verificación/revisión pendiente de registro.
+      if (!isSuperAdmin) {
+        try {
+          await flushPendingRegistration(email, data.user.id, completeRegistrationVerification);
+        } catch (pendingError) {
+          setMessage(
+            pendingError instanceof Error
+              ? pendingError.message
+              : "No se pudo completar tu verificación biométrica pendiente."
+          );
+          setBusy(false);
+          return;
+        }
       }
     }
 
@@ -166,40 +210,31 @@ function LoginForm() {
                 onClick={() => setAccountMenuOpen((open) => !open)}
               >
                 <UserRound size={18} />
-                <span>{accountType === "client" ? "Cliente" : "Profesional"}</span>
+                <span>{loginAccountLabel(accountType)}</span>
                 <ChevronDown size={22} className={accountMenuOpen ? "authSelectChevron open" : "authSelectChevron"} />
               </button>
 
               {accountMenuOpen && (
                 <ul className="authSelectMenu" role="listbox" aria-label="Tipo de cuenta">
-                  <li>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={accountType === "client"}
-                      className={accountType === "client" ? "active" : undefined}
-                      onClick={() => {
-                        setAccountType("client");
-                        setAccountMenuOpen(false);
-                      }}
-                    >
-                      Cliente
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={accountType === "professional"}
-                      className={accountType === "professional" ? "active" : undefined}
-                      onClick={() => {
-                        setAccountType("professional");
-                        setAccountMenuOpen(false);
-                      }}
-                    >
-                      Profesional
-                    </button>
-                  </li>
+                  {LOGIN_ACCOUNT_OPTIONS.map((option) => {
+                    const Icon = option.icon;
+                    return (
+                      <li key={option.id}>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={accountType === option.id}
+                          className={accountType === option.id ? "active" : undefined}
+                          onClick={() => {
+                            setAccountType(option.id);
+                            setAccountMenuOpen(false);
+                          }}
+                        >
+                          <Icon size={16} /> {option.label}
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

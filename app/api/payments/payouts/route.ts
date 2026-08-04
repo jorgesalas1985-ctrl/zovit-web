@@ -1,5 +1,6 @@
 import { requireIntranetSuperAdmin } from "@/lib/intranet/apiAuth";
 import { assertSameOrigin, csrfDeniedResponse } from "@/lib/security/csrf";
+import { isValidUuid } from "@/lib/security/validation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
@@ -10,6 +11,9 @@ export async function GET() {
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) {
       return NextResponse.json({ error: "No autenticado." }, { status: 401 });
+    }
+    if (!isValidUuid(authData.user.id)) {
+      return NextResponse.json({ error: "Identificador de usuario inválido." }, { status: 400 });
     }
 
     const superAuth = await requireIntranetSuperAdmin();

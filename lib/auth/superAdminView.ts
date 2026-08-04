@@ -7,6 +7,9 @@ export const SUPER_ADMIN_VIEW_KEY = "zovit-superadmin-view";
 export type SuperAdminTourAccount =
   | "client"
   | "professional"
+  | "student"
+  | "company"
+  | "institution"
   | "admin"
   | "worker"
   | "supervisor"
@@ -19,6 +22,9 @@ export const SUPER_ADMIN_TOUR_OPTIONS: Array<{
 }> = [
   { id: "client", label: "Cliente", href: "/panel" },
   { id: "professional", label: "Profesional", href: "/panel" },
+  { id: "student", label: "Alumno", href: "/alumno" },
+  { id: "company", label: "Empresa", href: "/empresa" },
+  { id: "institution", label: "Institucion", href: "/institucion" },
   { id: "admin", label: "Admin", href: "/intranet/admin" },
   { id: "worker", label: "Trabajador ZOVIT", href: intranetHomeForRole("worker") },
   { id: "supervisor", label: "Supervisor", href: intranetHomeForRole("supervisor") },

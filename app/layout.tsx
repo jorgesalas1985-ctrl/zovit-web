@@ -81,8 +81,17 @@ export const metadata: Metadata = {
     },
   },
   verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
-    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
-    : undefined,
+    ? {
+        google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+        other: {
+          "msvalidate.01": "4164D14ED407829C4BC8F061D0637F04",
+        },
+      }
+    : {
+        other: {
+          "msvalidate.01": "4164D14ED407829C4BC8F061D0637F04",
+        },
+      },
 };
 
 const themeInitScript = `(function(){try{var t=localStorage.getItem('zovit-theme');document.documentElement.dataset.theme=t==='light'?'light':'dark';}catch(e){document.documentElement.dataset.theme='dark';}})();`;

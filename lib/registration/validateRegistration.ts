@@ -1,3 +1,8 @@
+import {
+  BIRTH_DATE_REQUIRED_ERROR,
+  validateAdultBirthDate,
+} from "@/lib/registration/age";
+
 export type RegistrationProfileFields = {
   firstName: string;
   lastName: string;
@@ -7,6 +12,7 @@ export type RegistrationProfileFields = {
   address: string;
   commune: string;
   rut: string;
+  birthDate: string;
 };
 
 const FIELD_LABELS: Record<keyof RegistrationProfileFields, string> = {
@@ -18,6 +24,7 @@ const FIELD_LABELS: Record<keyof RegistrationProfileFields, string> = {
   address: "Dirección",
   commune: "Comuna",
   rut: "RUT",
+  birthDate: "Fecha de nacimiento",
 };
 
 /** Normaliza RUT chileno a formato 12.123.456-7 */
@@ -71,6 +78,13 @@ export function validateRegistrationFields(
   if (!isValidChileanRut(fields.rut)) {
     return "Ingresa un RUT válido. Usa el formato 12.123.456-7.";
   }
+
+  if (!fields.birthDate?.trim()) {
+    return BIRTH_DATE_REQUIRED_ERROR;
+  }
+
+  const ageError = validateAdultBirthDate(fields.birthDate);
+  if (ageError) return ageError;
 
   const phoneDigits = fields.phone.replace(/\D/g, "");
   if (phoneDigits.length < 8) {

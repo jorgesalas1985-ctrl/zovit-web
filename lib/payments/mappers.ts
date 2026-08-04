@@ -22,6 +22,8 @@ type PaymentRow = {
   client_charged_amount?: number | null;
   installment_count?: number | null;
   provider_financing_fee?: number | null;
+  provider_processing_fee_estimated?: number | null;
+  provider_processing_fee?: number | null;
 };
 
 export function mapPaymentRow(row: PaymentRow): PaymentRecord {
@@ -48,6 +50,8 @@ export function mapPaymentRow(row: PaymentRow): PaymentRecord {
       row.client_charged_amount != null ? Number(row.client_charged_amount) : null,
     installmentCount: row.installment_count != null ? Number(row.installment_count) : null,
     providerFinancingFee: Number(row.provider_financing_fee ?? 0),
+    providerProcessingFeeEstimated: Number(row.provider_processing_fee_estimated ?? 0),
+    providerProcessingFee: Number(row.provider_processing_fee ?? 0),
   };
 }
 

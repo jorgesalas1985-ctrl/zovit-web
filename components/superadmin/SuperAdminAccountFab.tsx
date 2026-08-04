@@ -8,7 +8,10 @@ import {
 } from "@/lib/auth/superAdminView";
 import {
   BriefcaseBusiness,
+  Building2,
   ChevronUp,
+  GraduationCap,
+  Landmark,
   Shield,
   UserCog,
   UserRound,
@@ -21,6 +24,9 @@ import { useEffect, useRef, useState } from "react";
 const ICONS: Record<SuperAdminTourAccount, typeof UserRound> = {
   client: UserRound,
   professional: BriefcaseBusiness,
+  student: GraduationCap,
+  company: Building2,
+  institution: Landmark,
   admin: Shield,
   worker: Users,
   supervisor: UserCog,

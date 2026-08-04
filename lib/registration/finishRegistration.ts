@@ -1,5 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { uploadProfileAvatar } from "@/lib/profile/avatar";
+import { carnetBirthDateMetadata } from "@/lib/registration/carnetBirthDate";
+import { chileanDateToIso } from "@/lib/ui/chileanDate";
 import type { IdentityDocumentType } from "@/lib/verification/types";
 
 export type RegistrationDocument = {
@@ -15,6 +17,8 @@ export type RegistrationProfileUpdate = {
   phone?: string;
   address?: string;
   commune?: string;
+  birthDate?: string;
+  birthDateCarnetConfirmed?: boolean;
 };
 
 export async function saveProfileRut(userId: string, rut: string): Promise<string | null> {
@@ -25,7 +29,7 @@ export async function saveRegistrationProfile(
   userId: string,
   profile: RegistrationProfileUpdate
 ): Promise<string | null> {
-  const payload: Record<string, string | null> = {
+  const payload: Record<string, string | boolean | null> = {
     rut: profile.rut.trim(),
     updated_at: new Date().toISOString(),
   };
@@ -35,6 +39,12 @@ export async function saveRegistrationProfile(
   if (profile.phone !== undefined) payload.phone = profile.phone.trim() || null;
   if (profile.address !== undefined) payload.address = profile.address.trim() || null;
   if (profile.commune !== undefined) payload.commune = profile.commune.trim() || null;
+  if (profile.birthDate !== undefined) {
+    payload.birth_date = chileanDateToIso(profile.birthDate) || null;
+  }
+  if (profile.birthDateCarnetConfirmed !== undefined) {
+    payload.birth_date_carnet_confirmed = profile.birthDateCarnetConfirmed;
+  }
 
   const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
   return error?.message ?? null;
@@ -42,8 +52,14 @@ export async function saveRegistrationProfile(
 
 export async function uploadRegistrationDocuments(
   userId: string,
-  documents: RegistrationDocument[]
+  documents: RegistrationDocument[],
+  birthDateFromCarnet?: string | null
 ): Promise<string | null> {
+  const carnetMeta =
+    birthDateFromCarnet && birthDateFromCarnet.trim()
+      ? carnetBirthDateMetadata(birthDateFromCarnet)
+      : null;
+
   for (const doc of documents) {
     const extension = doc.file.name.split(".").pop()?.toLowerCase() || "bin";
     const path = `${userId}/${doc.document_type}/${crypto.randomUUID()}.${extension}`;
@@ -54,12 +70,16 @@ export async function uploadRegistrationDocuments(
 
     if (uploadError) return uploadError.message;
 
+    const isCarnet = doc.document_type === "cedula_front" || doc.document_type === "cedula_back";
+    const metadata =
+      isCarnet && carnetMeta ? { ...(doc.metadata ?? {}), ...carnetMeta } : doc.metadata ?? null;
+
     const { error: rowError } = await supabase.from("identity_documents").insert({
       profile_id: userId,
       document_type: doc.document_type,
       storage_path: path,
       status: "uploaded",
-      metadata: doc.metadata ?? null,
+      metadata,
     });
 
     if (rowError) return rowError.message;
@@ -93,10 +113,12 @@ export async function completeRegistrationVerification(
     phone: profile?.phone,
     address: profile?.address,
     commune: profile?.commune,
+    birthDate: profile?.birthDate,
+    birthDateCarnetConfirmed: profile?.birthDateCarnetConfirmed ?? Boolean(profile?.birthDate),
   });
   if (rutError) return rutError;
 
-  const uploadError = await uploadRegistrationDocuments(userId, documents);
+  const uploadError = await uploadRegistrationDocuments(userId, documents, profile?.birthDate);
   if (uploadError) return uploadError;
 
   if (avatarFile) {

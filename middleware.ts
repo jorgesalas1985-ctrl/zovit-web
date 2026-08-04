@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import {
   canAccessRoute,
+  isFinancialAdminRoute,
   isPublicIntranetRoute,
   isProtectedRoute,
   isRoleMode,
@@ -8,6 +9,7 @@ import {
   type ProfileModeFields,
 } from "@/lib/auth/roles";
 import { isIntranetRole } from "@/lib/auth/intranetRoles";
+import { hasUnrestrictedSuperAdminAccess } from "@/lib/auth/superAdminAccess";
 import { applySecurityHeaders } from "@/lib/security/headers";
 import { needsBiometricOnboarding, canAccessPanel } from "@/lib/verification/types";
 import { mergeCookies, updateSession } from "@/lib/supabase/middleware";
@@ -81,12 +83,19 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  const isSuperAdmin = hasUnrestrictedSuperAdminAccess(profile.intranet_role);
+
   // Dinero / estados de cuenta: solo super_admin (RR.HH. bloqueado).
-  if (pathname.startsWith("/admin/pagos") && profile.intranet_role !== "super_admin") {
+  if (isFinancialAdminRoute(pathname) && !isSuperAdmin) {
     const deniedUrl = request.nextUrl.clone();
     deniedUrl.pathname = "/panel";
     deniedUrl.searchParams.set("error", "sin-permiso");
     return applySecurityHeaders(mergeCookies(supabaseResponse, NextResponse.redirect(deniedUrl)));
+  }
+
+  // Super admin real: sin restricciones de modo, rol ni biometría.
+  if (isSuperAdmin) {
+    return supabaseResponse;
   }
 
   if (!canAccessRoute(pathname, profileMode)) {
@@ -113,6 +122,7 @@ export async function middleware(request: NextRequest) {
   const requiresIdentityGate =
     pathname.startsWith("/panel") ||
     pathname.startsWith("/solicitudes/nueva") ||
+    pathname.startsWith("/cliente") ||
     pathname.startsWith("/trabajos") ||
     pathname === "/pagos" ||
     pathname.startsWith("/pagos/");

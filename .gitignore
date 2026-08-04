@@ -6,3 +6,8 @@ node_modules
 .DS_Store
 tsconfig.tsbuildinfo
 .env*
+respaldos/
+.cursor/
+debug.log
+sensitive-storage-search.txt
+test_codex.txt

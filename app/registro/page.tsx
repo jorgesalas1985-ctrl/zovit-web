@@ -7,8 +7,8 @@ import {
   BriefcaseBusiness,
   Building2,
   GraduationCap,
+  Landmark,
   ScanFace,
-  School,
   UserRound,
 } from "lucide-react";
 import { FormEvent, Suspense, useMemo, useState } from "react";
@@ -27,8 +27,15 @@ import { getAuthCallbackUrl } from "@/lib/auth/redirects";
 import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
 import type { RegistrationDocument } from "@/lib/registration/finishRegistration";
 import { storeRegistrationDocuments } from "@/lib/registration/pendingRegistration";
-import { normalizeChileanRut, validateRegistrationFields } from "@/lib/registration/validateRegistration";
-import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
+import { validateCarnetBirthDateDeclaration } from "@/lib/registration/carnetBirthDate";
+import {
+  isRegistrationComplete,
+  isValidChileanRut,
+  normalizeChileanRut,
+  validateRegistrationFields,
+} from "@/lib/registration/validateRegistration";
+import { chileanDateToIso } from "@/lib/ui/chileanDate";
+import { FIELD_PLACEHOLDERS, RUT_FORMAT_ERROR } from "@/lib/ui/fieldPlaceholders";
 import { supabase } from "@/lib/supabase";
 import type { IdentityDocumentType } from "@/lib/verification/types";
 
@@ -38,12 +45,91 @@ function safeNextPath(value: string | null): string {
 }
 
 type RegisterStep = "biometric" | "account" | "success";
-type AccountType = "client" | "company" | "student" | "institution" | "professional";
+type PublicAccountKind = "client" | "professional" | "student" | "company" | "institution";
+
+function roleForAccountKind(kind: PublicAccountKind): "client" | "professional" {
+  return kind === "professional" || kind === "student" ? "professional" : "client";
+}
+
+function postSignupPath(kind: PublicAccountKind, nextPath: string): string {
+  if (kind === "professional" || kind === "student") return "/registro/trabajador";
+  if (kind === "company") return "/empresa";
+  if (kind === "institution") return "/institucion";
+  return nextPath;
+}
+
+function AccountKindSelector({
+  accountKind,
+  onChange,
+}: {
+  accountKind: PublicAccountKind;
+  onChange: (kind: PublicAccountKind) => void;
+}) {
+  return (
+    <div className="roleSelector">
+      <button
+        type="button"
+        className={accountKind === "client" ? "roleCard active" : "roleCard"}
+        onClick={() => onChange("client")}
+      >
+        <UserRound />
+        <span>
+          <b>Cliente</b>
+          <small>Necesito contratar servicios</small>
+        </span>
+      </button>
+      <button
+        type="button"
+        className={accountKind === "professional" ? "roleCard active" : "roleCard"}
+        onClick={() => onChange("professional")}
+      >
+        <BriefcaseBusiness />
+        <span>
+          <b>Profesional</b>
+          <small>Quiero ofrecer mis servicios</small>
+        </span>
+      </button>
+      <button
+        type="button"
+        className={accountKind === "student" ? "roleCard active" : "roleCard"}
+        onClick={() => onChange("student")}
+      >
+        <GraduationCap />
+        <span>
+          <b>Alumno</b>
+          <small>Estoy en formacion y quiero construir mi pasaporte</small>
+        </span>
+      </button>
+      <button
+        type="button"
+        className={accountKind === "company" ? "roleCard active" : "roleCard"}
+        onClick={() => onChange("company")}
+      >
+        <Building2 />
+        <span>
+          <b>Empresa</b>
+          <small>Quiero gestionar oportunidades y servicios</small>
+        </span>
+      </button>
+      <button
+        type="button"
+        className={accountKind === "institution" ? "roleCard active" : "roleCard"}
+        onClick={() => onChange("institution")}
+      >
+        <Landmark />
+        <span>
+          <b>Institucion</b>
+          <small>Quiero vincular alumnos, certificados y reportes</small>
+        </span>
+      </button>
+    </div>
+  );
+}
 
 function RegisterStepBadge({ step }: { step: 1 | 2 }) {
   return (
     <p className="registerStepBadge">
-      Paso {step} de 2 · {step === 1 ? "Datos de cuenta" : "Verificación biométrica"}
+      Paso {step} de 2 · {step === 1 ? "Verificación biométrica" : "Crear cuenta"}
     </p>
   );
 }
@@ -52,8 +138,9 @@ function RegisterPageContent() {
   const searchParams = useSearchParams();
   const nextPath = safeNextPath(searchParams.get("next"));
   const loginHref = `/login?next=${encodeURIComponent(nextPath)}`;
-  const [step, setStep] = useState<RegisterStep>("account");
-  const [accountType, setAccountType] = useState<AccountType>("client");
+  const [step, setStep] = useState<RegisterStep>("biometric");
+  const [accountKind, setAccountKind] = useState<PublicAccountKind>("client");
+  const role = roleForAccountKind(accountKind);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -62,8 +149,10 @@ function RegisterPageContent() {
     password: "",
     address: "",
     commune: "",
+    birthDate: "",
   });
   const [rut, setRut] = useState("");
+  const [carnetBirthDateConfirmed, setCarnetBirthDateConfirmed] = useState(false);
   const [documents, setDocuments] = useState<RegistrationDocument[]>([]);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -81,9 +170,14 @@ function RegisterPageContent() {
       address: form.address,
       commune: form.commune,
       rut,
+      birthDate: form.birthDate,
     }),
     [form, rut]
   );
+
+  const canCreateAccount =
+    isRegistrationComplete(registrationFields) &&
+    validatePasswordForCreate(form.password) === null;
 
   function addDocument(
     type: IdentityDocumentType,
@@ -96,17 +190,31 @@ function RegisterPageContent() {
     ]);
   }
 
-  function continueToBiometric(event: FormEvent) {
+  function continueToAccount(event: FormEvent) {
     event.preventDefault();
     setMessage("");
-    const fieldsError = validateRegistrationFields(registrationFields);
-    if (fieldsError) {
-      setMessage(fieldsError);
+
+    if (!rut.trim()) {
+      setMessage("Completa el campo RUT para continuar.");
+      return;
+    }
+
+    if (!isValidChileanRut(rut)) {
+      setMessage(RUT_FORMAT_ERROR);
+      return;
+    }
+
+    const carnetDateError = validateCarnetBirthDateDeclaration({
+      birthDate: form.birthDate,
+      confirmed: carnetBirthDateConfirmed,
+    });
+    if (carnetDateError) {
+      setMessage(carnetDateError);
       return;
     }
 
     setRut(normalizeChileanRut(rut));
-    setStep("biometric");
+    setStep("account");
   }
 
   async function createAccount(event: FormEvent) {
@@ -129,15 +237,16 @@ function RegisterPageContent() {
     }
 
     const normalizedRut = normalizeChileanRut(rut);
+    const birthDateIso = chileanDateToIso(form.birthDate.trim());
     const profileData = {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       phone: form.phone.trim(),
       address: form.address.trim(),
       commune: form.commune.trim(),
+      birthDate: form.birthDate.trim(),
+      birthDateCarnetConfirmed: true,
     };
-
-    const signupRole = accountType === "professional" ? "professional" : "client";
 
     const { data, error } = await supabase.auth.signUp({
       email: normalizeAuthEmail(form.email),
@@ -150,9 +259,12 @@ function RegisterPageContent() {
           phone: profileData.phone,
           address: profileData.address,
           commune: profileData.commune,
+          birth_date: birthDateIso,
           rut: normalizedRut,
-          role: signupRole,
-          account_type: accountType,
+          role,
+          account_kind: accountKind,
+          primary_service_profile: accountKind === "student" ? "in_training" : null,
+          signup_source: "public",
         },
       },
     });
@@ -185,7 +297,9 @@ function RegisterPageContent() {
       }
 
       // Profesionales continúan con el registro de perfiles de servicio.
-      window.location.assign(accountType === "professional" ? "/registro/trabajador" : nextPath);
+      window.location.assign(
+        postSignupPath(accountKind, nextPath)
+      );
       return;
     }
 
@@ -213,23 +327,27 @@ function RegisterPageContent() {
       <main className="authPage">
         <section className="authCard successCard">
           <div className="successIcon">✓</div>
-          <h1>Cuenta creada</h1>
+          <h1>{needsEmailConfirm ? "Confirma tu correo para activar ZOVIT" : "Cuenta creada"}</h1>
           <p>
             {needsEmailConfirm
-              ? "Revisa tu correo, confirma tu cuenta e ingresa. Tu verificación biométrica se enviará automáticamente al confirmar."
+              ? "Te enviamos un correo de confirmación. Abre tu correo, confirma la cuenta y después ingresa a ZOVIT. Sin confirmar el correo, el sistema mostrará cuenta no confirmada y la revisión de carnet no aparecerá aún en administración."
               : "Tu cuenta y verificación biométrica fueron registradas correctamente."}
           </p>
-          {accountType === "professional" && (
+          {(accountKind === "professional" || accountKind === "student") && (
             <p className="muted">
-              Después de ingresar, completa tu registro de trabajador para declarar formación,
+              Después de ingresar, completa tu registro para declarar formación,
               experiencia y servicios.
             </p>
           )}
           <Link
             className="primaryButton wide"
             href={
-              accountType === "professional"
+              accountKind === "professional" || accountKind === "student"
                 ? `/login?next=${encodeURIComponent("/registro/trabajador")}`
+                : accountKind === "company"
+                  ? `/login?next=${encodeURIComponent("/empresa")}`
+                  : accountKind === "institution"
+                    ? `/login?next=${encodeURIComponent("/institucion")}`
                 : loginHref
             }
           >
@@ -240,77 +358,23 @@ function RegisterPageContent() {
     );
   }
 
-  if (step === "biometric") {
+  if (step === "account") {
     return (
       <main className="authPage">
         <section className="authCard large">
           <RegisterStepBadge step={2} />
           <p className="kicker">REGISTRO REAL</p>
-          <h1>Verifica tu identidad</h1>
+          <h1>Crea tu cuenta ZOVIT</h1>
           <p className="muted">
-            Ya completaste tus datos. Ahora sube el carnet y presiona selfie para continuar.
+            Todos los campos son obligatorios. Debes ser mayor de 18 años (Chile) para crear tu
+            cuenta.
           </p>
-
-          <PendingBiometricForm
-            documents={documents}
-            rut={rut}
-            onRutChange={setRut}
-            onAddDocument={addDocument}
-            onSubmit={createAccount}
-            busy={busy}
-            message={message}
-            hideRutSection
-          />
-
-          <div className="verificationActionsRow full">
-            <button type="button" className="secondaryButton" disabled={busy} onClick={() => setStep("account")}>
-              Volver a datos
-            </button>
+          <div className="formMessage info full">
+            <AlertCircle size={17} /> Al crear la cuenta debes confirmar el correo. Hasta que confirmes,
+            no podrás ingresar y tus documentos quedarán pendientes de envío al área de revisión.
           </div>
 
-          <p className="authFooter">¿Ya tienes cuenta? <Link href={loginHref}>Ingresa aquí</Link></p>
-        </section>
-      </main>
-    );
-  }
-
-  return (
-    <main className="simplePage">
-      <section className="formPageCard verificationPage">
-        <RegisterStepBadge step={1} />
-        <div className="eyebrow">
-          <ScanFace size={16} /> Registro ZOVIT
-        </div>
-        <h1>Completa tus datos</h1>
-        <p className="muted">
-          Paso 1: completa tus datos primero. Después pasarás a la biometría, donde presionarás
-          selfie para abrir la cámara y continuar.
-        </p>
-
-        <div className="authCard large">
-          <p className="kicker">REGISTRO REAL</p>
-          <h2>Crea tu cuenta ZOVIT</h2>
-          <p className="muted">
-            Todos los campos son obligatorios. Si falta alguno, no podrás seguir a la biometría.
-          </p>
-
-          <div className="roleSelector">
-            <button type="button" className={accountType === "client" ? "roleCard active" : "roleCard"} onClick={() => setAccountType("client")}>
-              <UserRound /><span><b>Cliente</b><small>Necesito contratar servicios</small></span>
-            </button>
-            <button type="button" className={accountType === "company" ? "roleCard active" : "roleCard"} onClick={() => setAccountType("company")}>
-              <Building2 /><span><b>Empresa</b><small>Quiero contratar para mi negocio</small></span>
-            </button>
-            <button type="button" className={accountType === "student" ? "roleCard active" : "roleCard"} onClick={() => setAccountType("student")}>
-              <GraduationCap /><span><b>Alumno</b><small>Necesito apoyo para mis estudios</small></span>
-            </button>
-            <button type="button" className={accountType === "institution" ? "roleCard active" : "roleCard"} onClick={() => setAccountType("institution")}>
-              <School /><span><b>Institución</b><small>Quiero gestionar servicios para mi institución</small></span>
-            </button>
-            <button type="button" className={accountType === "professional" ? "roleCard active" : "roleCard"} onClick={() => setAccountType("professional")}>
-              <BriefcaseBusiness /><span><b>Profesional</b><small>Quiero ofrecer mis servicios</small></span>
-            </button>
-          </div>
+          <AccountKindSelector accountKind={accountKind} onChange={setAccountKind} />
 
           <ProfilePhotoPicker
             previewUrl={avatarPreview}
@@ -323,7 +387,7 @@ function RegisterPageContent() {
             }}
           />
 
-          <form onSubmit={continueToBiometric} className="formGrid" noValidate>
+          <form onSubmit={createAccount} className="formGrid" noValidate>
             <label>
               Nombres
               <input
@@ -349,10 +413,29 @@ function RegisterPageContent() {
               <input
                 required
                 value={rut}
-                onChange={(e) => setRut(e.target.value)}
+                readOnly
+                aria-readonly="true"
                 placeholder={FIELD_PLACEHOLDERS.rut}
               />
-              <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
+              <small className="fieldHint">
+                Definido en verificación biométrica. {FIELD_PLACEHOLDERS.rutHint}
+              </small>
+            </label>
+            <label>
+              Fecha de nacimiento (del carnet)
+              <input
+                required
+                type="text"
+                inputMode="numeric"
+                autoComplete="bday"
+                placeholder={FIELD_PLACEHOLDERS.birthDate}
+                value={form.birthDate}
+                readOnly
+                aria-readonly="true"
+              />
+              <small className="fieldHint">
+                Definida en verificación con carnet. Un revisor la corroborará con tu cédula.
+              </small>
             </label>
             <label>
               Teléfono
@@ -427,12 +510,49 @@ function RegisterPageContent() {
             </p>
 
             <div className="verificationActionsRow full">
-              <button type="submit" className="primaryButton wide" disabled={busy}>
-                {busy ? "Continuando…" : <>Continuar a biometría <ArrowRight size={18} /></>}
+              <button type="button" className="secondaryButton" disabled={busy} onClick={() => setStep("biometric")}>
+                Volver
+              </button>
+              <button className="primaryButton wide" disabled={busy || !canCreateAccount}>
+                {busy ? "Creando cuenta…" : <>Crear cuenta <ArrowRight size={18} /></>}
               </button>
             </div>
           </form>
+
+          <p className="authFooter">¿Ya tienes cuenta? <Link href={loginHref}>Ingresa aquí</Link></p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="simplePage">
+      <section className="formPageCard verificationPage">
+        <RegisterStepBadge step={1} />
+        <div className="eyebrow">
+          <ScanFace size={16} /> Registro ZOVIT
         </div>
+        <h1>Verificación biométrica</h1>
+        <p className="muted">
+          Paso 1 (igual para clientes, profesionales, alumnos, empresas e instituciones): valida tu identidad con carnet, selfie y
+          prueba de vida. Luego crearás tu cuenta con todos tus datos personales.
+        </p>
+
+        <AccountKindSelector accountKind={accountKind} onChange={setAccountKind} />
+
+        <PendingBiometricForm
+          documents={documents}
+          rut={rut}
+          onRutChange={setRut}
+          birthDate={form.birthDate}
+          onBirthDateChange={(value) => setForm({ ...form, birthDate: value })}
+          carnetBirthDateConfirmed={carnetBirthDateConfirmed}
+          onCarnetBirthDateConfirmedChange={setCarnetBirthDateConfirmed}
+          onAddDocument={addDocument}
+          onSubmit={continueToAccount}
+          busy={busy}
+          message={message}
+        />
 
         <p className="authFooter">¿Ya tienes cuenta? <Link href={loginHref}>Ingresa aquí</Link></p>
       </section>

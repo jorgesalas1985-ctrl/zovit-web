@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isIntranetRole } from "@/lib/auth/intranetRoles";
+import { evaluateWorkerOperationalStatus } from "@/lib/operational/worker";
 
 async function requireHrReviewer() {
   const supabase = await createClient();
@@ -32,10 +33,12 @@ export async function GET(request: Request) {
     const status = searchParams.get("status");
     const profileType = searchParams.get("profile");
 
+    const profileFields =
+      "id,first_name,last_name,rut,commune,primary_service_profile,worker_registration_status,identity_status,identity_verified,biometric_verified";
     const selectWithAi =
-      "profile_id,status,suggested_profiles,submitted_at,reviewed_at,review_message,updated_at,draft,ai_review_status,ai_confidence,ai_forgery_risk,ai_review_summary, profiles!inner(id,first_name,last_name,rut,commune,primary_service_profile,worker_registration_status)";
+      `profile_id,status,suggested_profiles,submitted_at,reviewed_at,review_message,updated_at,draft,ai_review_status,ai_confidence,ai_forgery_risk,ai_review_summary, profiles!inner(${profileFields})`;
     const selectBase =
-      "profile_id,status,suggested_profiles,submitted_at,reviewed_at,review_message,updated_at,draft, profiles!inner(id,first_name,last_name,rut,commune,primary_service_profile,worker_registration_status)";
+      `profile_id,status,suggested_profiles,submitted_at,reviewed_at,review_message,updated_at,draft, profiles!inner(${profileFields})`;
 
     let query = auth.supabase
       .from("worker_registrations")
@@ -63,10 +66,61 @@ export async function GET(request: Request) {
     }
 
     if (error) {
+      const missing = /worker_registrations|schema cache|does not exist/i.test(error.message);
+      if (missing) {
+        return NextResponse.json({ workers: [], migrationRequired: true });
+      }
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ workers: data ?? [] });
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    const profileIds = rows
+      .map((row) => String(row.profile_id ?? ""))
+      .filter(Boolean);
+    const credentialsByProfile = new Map<string, Array<Record<string, unknown>>>();
+
+    if (profileIds.length) {
+      const { data: credentials, error: credentialsError } = await auth.supabase
+        .from("worker_credentials")
+        .select("profile_id,status,expires_at,reviewed_at,updated_at")
+        .in("profile_id", profileIds);
+
+      if (!credentialsError) {
+        for (const credential of credentials ?? []) {
+          const profileId = String(credential.profile_id ?? "");
+          const list = credentialsByProfile.get(profileId) ?? [];
+          list.push(credential as Record<string, unknown>);
+          credentialsByProfile.set(profileId, list);
+        }
+      }
+    }
+
+    const workers = rows.map((row) => {
+      const profile = (row.profiles ?? {}) as Record<string, unknown>;
+      const profileId = String(row.profile_id ?? "");
+      const credentials = credentialsByProfile.get(profileId) ?? [];
+
+      return {
+        ...row,
+        operational_decision: evaluateWorkerOperationalStatus({
+          workerStatus: String(row.status ?? ""),
+          primaryProfile: String(profile.primary_service_profile ?? ""),
+          identityStatus: (profile.identity_status as "none" | "pending" | "approved" | "rejected" | null) ?? null,
+          identityVerified: (profile.identity_verified as boolean | null) ?? null,
+          biometricVerified: (profile.biometric_verified as boolean | null) ?? null,
+          reviewedAt: (row.reviewed_at as string | null) ?? null,
+          updatedAt: (row.updated_at as string | null) ?? null,
+          credentials: credentials.map((credential) => ({
+            status: (credential.status as string | null) ?? null,
+            expiresAt: (credential.expires_at as string | null) ?? null,
+            reviewedAt: (credential.reviewed_at as string | null) ?? null,
+            updatedAt: (credential.updated_at as string | null) ?? null,
+          })),
+        }),
+      };
+    });
+
+    return NextResponse.json({ workers, migrationRequired: false });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";
     return NextResponse.json({ error: message }, { status: 500 });

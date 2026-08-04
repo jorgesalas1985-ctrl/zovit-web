@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
-import { getRequestServiceHref } from "@/lib/auth/roles";
+import { QuickHelpAssistant } from "@/components/support/QuickHelpAssistant";
 
 export const metadata: Metadata = {
   title: "Ayuda | ZOVIT",
@@ -101,7 +101,7 @@ export default function AyudaPage() {
             trabajar en ZOVIT, entender el pago protegido y usar tu credencial.
           </p>
           <div className="securityHeroActions">
-            <Link href={getRequestServiceHref(false)} className="primaryButton">
+            <Link href="/seguridad" className="primaryButton">
               Soy cliente <ArrowRight size={18} />
             </Link>
             <Link href="/registro" className="secondaryButton">
@@ -113,7 +113,8 @@ export default function AyudaPage() {
 
       <section className="securitySection">
         <div className="securitySectionInner">
-          <div className="sectionHeading">
+          <QuickHelpAssistant />
+          <div className="sectionHeading" style={{ marginTop: 28 }}>
             <div>
               <p className="kicker">ACCESOS RÁPIDOS</p>
               <h2>Ir directo a lo que necesitas</h2>

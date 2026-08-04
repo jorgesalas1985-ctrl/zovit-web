@@ -36,8 +36,10 @@ type IntranetUserRecord = {
 export function IntranetUsersManager() {
   const { profile } = useAuth();
   const realRole = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
-  // En paseo de super admin, filtrar como el rol simulado (RR.HH. no ve al super admin).
-  const effectiveRole = useEffectiveIntranetRole() ?? realRole;
+  const tourRole = useEffectiveIntranetRole() ?? realRole;
+  // Super admin real: vista de todas las cuentas sin restricciones (también en paseo).
+  const listViewerRole = realRole === "super_admin" ? realRole : tourRole;
+  const effectiveRole = realRole === "super_admin" ? realRole : tourRole;
   const assignableRoles = useMemo(
     () => (effectiveRole ? assignableIntranetRoles(effectiveRole) : []),
     [effectiveRole],
@@ -71,12 +73,12 @@ export function IntranetUsersManager() {
     }
 
     const visibleUsers = ((data.users ?? []) as IntranetUserRecord[]).filter((user) =>
-      effectiveRole ? canViewerSeeIntranetAccount(effectiveRole, user.intranetRole) : false,
+      listViewerRole ? canViewerSeeIntranetAccount(listViewerRole, user.intranetRole) : false,
     );
 
     setUsers(visibleUsers);
     setLoading(false);
-  }, [effectiveRole]);
+  }, [listViewerRole]);
 
   useEffect(() => {
     void loadUsers();
@@ -199,24 +201,44 @@ export function IntranetUsersManager() {
           Genera un correo corporativo @{CORPORATE_EMAIL_DOMAIN} y credenciales en Supabase Auth para ingresar a la intranet.
         </p>
 
-        <form className="formStack intranetInlineForm" onSubmit={createUser}>
+        <form
+          className="formStack intranetInlineForm"
+          onSubmit={createUser}
+          autoComplete="off"
+          data-lpignore="true"
+          data-1p-ignore="true"
+        >
+          {/* Cebos vacíos: evitan que el navegador rellene con Gmail/cuenta personal. */}
+          <div className="autofillTrap" aria-hidden="true">
+            <input type="text" name="username" autoComplete="username" tabIndex={-1} defaultValue="" />
+            <input type="password" name="password" autoComplete="current-password" tabIndex={-1} defaultValue="" />
+          </div>
+
           <div className="intranetFormGrid">
             <label>
               Nombre
               <input
                 type="text"
+                name="zovit-intranet-first-name"
                 value={firstName}
                 onChange={(event) => setFirstName(event.target.value)}
-                placeholder="María"
+                placeholder="Ej: Camila"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
               />
             </label>
             <label>
               Apellido
               <input
                 type="text"
+                name="zovit-intranet-last-name"
                 value={lastName}
                 onChange={(event) => setLastName(event.target.value)}
-                placeholder="González"
+                placeholder="Ej: Rojas"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
               />
             </label>
           </div>
@@ -229,10 +251,19 @@ export function IntranetUsersManager() {
                   type="text"
                   required
                   value={emailLocalPart}
-                  autoComplete="off"
+                  autoComplete="one-time-code"
                   autoCorrect="off"
+                  autoCapitalize="off"
                   spellCheck={false}
+                  inputMode="text"
                   name="zovit-corporate-local"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-form-type="other"
+                  readOnly={!emailTouched && !emailLocalPart}
+                  onFocus={(event) => {
+                    event.currentTarget.removeAttribute("readonly");
+                  }}
                   onChange={(event) => {
                     setEmailTouched(true);
                     setEmailLocalPart(parseCorporateEmailLocalPart(event.target.value));
@@ -263,6 +294,10 @@ export function IntranetUsersManager() {
               minLength={PASSWORD_MIN_LENGTH}
               maxLength={PASSWORD_MAX_LENGTH}
               value={password}
+              name="zovit-intranet-new-password"
+              autoComplete="new-password"
+              data-lpignore="true"
+              data-1p-ignore="true"
               onChange={(event) => setPassword(event.target.value)}
               placeholder={PASSWORD_HINT}
             />

@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireAuthenticatedUser } from "@/lib/auth/requirePlatformAdmin";
 import { assertSameOrigin, csrfDeniedResponse } from "@/lib/security/csrf";
+import { isValidUuid } from "@/lib/security/validation";
 import {
   clientIpFromRequest,
   rateLimit,
   rateLimitResponse,
 } from "@/lib/security/rateLimit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  buildOperationalDocumentInsert,
+  registerOperationalDocument,
+  type OperationalDocumentKind,
+} from "@/lib/operations/documentRenewalPersistence";
 
 const BUCKET = "worker-credentials";
 const ALLOWED = new Set([
@@ -50,6 +56,15 @@ const EXT_BY_MIME: Record<string, string> = {
   "application/pdf": "pdf",
 };
 
+function documentKindFromFolder(folder: string): OperationalDocumentKind {
+  if (folder === "identity") return "identity";
+  if (folder === "licenses") return "license";
+  if (folder === "student" || folder === "training") return "student_enrollment";
+  if (folder === "background") return "background";
+  if (folder === "docs" || folder === "credentials") return "credential";
+  return "other";
+}
+
 export async function POST(request: Request) {
   try {
     const csrf = assertSameOrigin(request);
@@ -57,6 +72,9 @@ export async function POST(request: Request) {
 
     const auth = await requireAuthenticatedUser();
     if ("error" in auth) return auth.error;
+    if (!isValidUuid(auth.user.id)) {
+      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
+    }
 
     const ip = clientIpFromRequest(request);
     const limited = rateLimit(`upload:worker:${auth.user.id}:${ip}`, {
@@ -125,12 +143,34 @@ export async function POST(request: Request) {
       );
     }
 
+    const operationalDocument = buildOperationalDocumentInsert({
+      profileId: auth.user.id,
+      documentKind: documentKindFromFolder(folder || "docs"),
+      bucket: BUCKET,
+      path,
+      originalName: file.name,
+      mimeType: sniffed,
+      fileSizeBytes: file.size,
+    });
+    const operationalRegistration = await registerOperationalDocument({
+      supabase: admin,
+      document: operationalDocument,
+      actorId: auth.user.id,
+      actorType: "user",
+    });
+
     return NextResponse.json({
       ok: true,
       path,
       mime: sniffed,
       name: file.name,
       bucket: BUCKET,
+      operationalDocument: {
+        documentId: operationalRegistration.documentId,
+        eventId: operationalRegistration.eventId,
+        registered: !operationalRegistration.error,
+        warning: operationalRegistration.error,
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";

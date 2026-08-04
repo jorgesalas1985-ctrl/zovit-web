@@ -1,13 +1,18 @@
 import { confirmPaymentReceived } from "@/lib/payments/confirmPayment";
 import {
   calculateClientCharge,
+  estimateCheckoutProcessingFee,
   parseInstallmentOption,
 } from "@/lib/payments/mercadopagoFees";
 import { getPaymentProvider, isMockPaymentsAllowed } from "@/lib/payments/providers";
-import { validateMercadoPagoPublicUrl } from "@/lib/payments/providers/mercadopago";
+import {
+  MercadoPagoProvider,
+  validateMercadoPagoPublicUrl,
+} from "@/lib/payments/providers/mercadopago";
 import { mapPaymentRow } from "@/lib/payments/mappers";
 import type { PaymentProviderName } from "@/lib/payments/types";
 import { assertSameOrigin, csrfDeniedResponse } from "@/lib/security/csrf";
+import { isValidUuid } from "@/lib/security/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
@@ -20,6 +25,10 @@ export async function POST(request: Request, { params }: Params) {
     if (!csrf.ok) return csrfDeniedResponse(csrf.error);
 
     const { id } = await params;
+    if (!isValidUuid(id)) {
+      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
+    }
+
     const body = (await request.json().catch(() => ({}))) as {
       provider?: PaymentProviderName;
       installments?: number;
@@ -72,6 +81,36 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     const charge = calculateClientCharge(payment.amountGross, installments);
+    const existingPreferenceId =
+      (paymentRow as { provider_session_id?: string | null }).provider_session_id ?? null;
+    const sameInstallments =
+      payment.installmentCount == null || Number(payment.installmentCount) === charge.installments;
+    const sameCharge =
+      payment.clientChargedAmount == null ||
+      Number(payment.clientChargedAmount) === charge.clientChargedAmount;
+
+    // Idempotencia: reutilizar preferencia activa si el plan de cuotas no cambió.
+    if (
+      providerName === "mercadopago" &&
+      existingPreferenceId &&
+      sameInstallments &&
+      sameCharge
+    ) {
+      const mp = new MercadoPagoProvider();
+      const reused = await mp.getCheckoutPreference(existingPreferenceId);
+      if (reused?.redirectUrl) {
+        return NextResponse.json({
+          session: reused,
+          paymentPublicId: payment.publicId,
+          status: "esperando_pago",
+          charge,
+          reused: true,
+          message: "Reanudando checkout Mercado Pago…",
+        });
+      }
+    }
+
+    const processingFeeEstimated = estimateCheckoutProcessingFee(charge.clientChargedAmount);
 
     await admin
       .from("payments")
@@ -79,9 +118,12 @@ export async function POST(request: Request, { params }: Params) {
         client_charged_amount: charge.clientChargedAmount,
         installment_count: charge.installments,
         provider_financing_fee: charge.providerFinancingFee,
+        provider_processing_fee_estimated: processingFeeEstimated,
+        checkout_preference_id: null,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", payment.id);
+      .eq("id", payment.id)
+      .eq("status", "esperando_pago");
 
     const provider = getPaymentProvider(providerName);
     const session = await provider.createSession({
@@ -104,9 +146,11 @@ export async function POST(request: Request, { params }: Params) {
       .update({
         provider: providerName,
         provider_session_id: session.sessionId,
+        checkout_preference_id: providerName === "mercadopago" ? session.sessionId : null,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", payment.id);
+      .eq("id", payment.id)
+      .eq("status", "esperando_pago");
 
     if (providerName === "mock") {
       await confirmPaymentReceived({

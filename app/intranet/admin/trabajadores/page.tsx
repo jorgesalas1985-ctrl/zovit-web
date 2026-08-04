@@ -6,8 +6,12 @@ import {
   SERVICE_PROFILE_COPY,
   WORKER_STATUS_LABELS,
 } from "@/lib/worker/profiles";
+import {
+  OPERATIONAL_STATUS_LABELS,
+  type OperationalDecision,
+} from "@/lib/operational/status";
 import type { ServiceProfileType, WorkerRegistrationStatus } from "@/lib/worker/types";
-import { BriefcaseBusiness, Bot, ShieldCheck } from "lucide-react";
+import { BriefcaseBusiness, ClipboardCheck, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type WorkerRow = {
@@ -19,6 +23,7 @@ type WorkerRow = {
   ai_review_status?: string | null;
   ai_confidence?: number | null;
   ai_forgery_risk?: string | null;
+  operational_decision?: OperationalDecision | null;
   profiles: {
     id: string;
     first_name: string | null;
@@ -94,9 +99,7 @@ export default function IntranetWorkersReviewPage() {
     const response = await fetch("/api/intranet/workers/ai-validate", { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) {
-      if (data.code === "MIGRATION_REQUIRED") {
-        setMessage(data.error);
-      }
+      setAiStats({ pending: 0, dudosos: 0, openaiConfigured: false });
       return;
     }
     setAiStats({
@@ -122,7 +125,14 @@ export default function IntranetWorkersReviewPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setMessage(data.error ?? "No se pudo procesar la cola con IA.");
+        const missing = /SPRINT_12|worker_registrations|schema cache|does not exist/i.test(
+          String(data.error ?? ""),
+        );
+        setMessage(
+          missing
+            ? "La cola de trabajadores aún no está habilitada en la base de datos."
+            : (data.error ?? "No se pudo procesar la cola de revisión."),
+        );
         setAiBusy(false);
         await loadAiStats();
         return;
@@ -139,8 +149,8 @@ export default function IntranetWorkersReviewPage() {
     setLastAiBatch(total);
     setMessage(
       total.processed
-        ? `IA procesó ${total.processed}: ${total.approved} aprobados, ${total.rejected} rechazados, ${total.dudosos} dudosos.`
-        : "No hay solicitudes pendientes para validar con IA."
+        ? `Revisión procesó ${total.processed}: ${total.approved} aprobados, ${total.rejected} rechazados, ${total.dudosos} dudosos.`
+        : "No hay solicitudes pendientes para revisión."
     );
     setAiBusy(false);
     await loadWorkers();
@@ -157,6 +167,13 @@ export default function IntranetWorkersReviewPage() {
     });
     const data = await response.json();
     if (!response.ok) {
+      const missing = /worker_registrations|schema cache|does not exist/i.test(
+        String(data.error ?? ""),
+      );
+      if (missing) {
+        setWorkers([]);
+        return;
+      }
       setMessage(data.error ?? "No se pudo cargar la cola.");
       return;
     }
@@ -211,14 +228,13 @@ export default function IntranetWorkersReviewPage() {
       >
         <div className="workerAdminAiBar">
           <div>
-            <strong>Validación automática con IA</strong>
+            <strong>Validación local y revisión manual</strong>
             <p className="muted">
-              Procesa certificados y licencias, detecta indicios de manipulación (fotomontaje) y
-              aprueba/rechaza sin intervención. Los dudosos quedan en cola manual.
+              ZOVIT usa reglas locales gratuitas para ordenar la cola. Los documentos dudosos o
+              sensibles quedan para revisión humana, sin depender de IA pagada.
             </p>
             <p className="muted">
               Cola: {aiStats?.pending ?? "—"} pendientes · {aiStats?.dudosos ?? "—"} dudosos
-              {aiStats && !aiStats.openaiConfigured ? " · Falta OPENAI_API_KEY en Vercel" : ""}
               {lastAiBatch
                 ? ` · Último lote: ${lastAiBatch.processed} procesados`
                 : ""}
@@ -231,8 +247,8 @@ export default function IntranetWorkersReviewPage() {
               disabled={aiBusy}
               onClick={() => void processAiQueue(false)}
             >
-              <Bot size={18} />
-              {aiBusy ? "Procesando…" : "Procesar cola con IA"}
+              <ClipboardCheck size={18} />
+              {aiBusy ? "Procesando..." : "Procesar cola"}
             </button>
             <button
               type="button"
@@ -288,8 +304,11 @@ export default function IntranetWorkersReviewPage() {
                   </strong>
                   <small>
                     {WORKER_STATUS_LABELS[worker.status]}
-                    {worker.ai_review_status ? ` · IA: ${worker.ai_review_status}` : ""}
-                    {worker.ai_forgery_risk ? ` · fraude: ${worker.ai_forgery_risk}` : ""}
+                    {worker.operational_decision
+                      ? ` · ${OPERATIONAL_STATUS_LABELS[worker.operational_decision.status]}`
+                      : ""}
+                    {worker.ai_review_status ? ` · revisión: ${worker.ai_review_status}` : ""}
+                    {worker.ai_forgery_risk ? ` · riesgo: ${worker.ai_forgery_risk}` : ""}
                     {" · "}
                     {(worker.suggested_profiles ?? [])
                       .map((p) => SERVICE_PROFILE_COPY[p]?.title ?? p)

@@ -11,7 +11,9 @@ export async function GET() {
     const admin = createAdminClient();
     const { data: profiles, error } = await admin
       .from("profiles")
-      .select("id,first_name,last_name,rut,role,identity_submitted_at")
+      .select(
+        "id,first_name,last_name,rut,birth_date,birth_date_carnet_confirmed,role,identity_submitted_at",
+      )
       .eq("identity_status", "pending")
       .order("identity_submitted_at", { ascending: true });
 

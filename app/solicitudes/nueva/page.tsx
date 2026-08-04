@@ -112,6 +112,8 @@ export default function NewRequestPage() {
     }
 
     if (data?.id) {
+      // Invita profesionales al instante (no espera a que alguien mire la cola).
+      void fetch(`/api/requests/${data.id}/auto-match`, { method: "POST" }).catch(() => undefined);
       router.push(`/solicitudes/${data.id}`);
       return;
     }

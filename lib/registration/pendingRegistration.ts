@@ -20,6 +20,8 @@ export type PendingRegistration = {
   phone?: string;
   address?: string;
   commune?: string;
+  birthDate?: string;
+  birthDateCarnetConfirmed?: boolean;
   documents: StoredRegistrationDocument[];
   avatar: StoredRegistrationDocument | null;
   createdAt: string;
@@ -81,6 +83,8 @@ export type PendingProfileFields = {
   phone?: string;
   address?: string;
   commune?: string;
+  birthDate?: string;
+  birthDateCarnetConfirmed?: boolean;
 };
 
 export async function storeRegistrationDocuments(
@@ -112,6 +116,8 @@ export async function storeRegistrationDocuments(
     phone: profile?.phone,
     address: profile?.address,
     commune: profile?.commune,
+    birthDate: profile?.birthDate,
+    birthDateCarnetConfirmed: profile?.birthDateCarnetConfirmed,
     documents: await Promise.all(
       documents.map(async (doc) => ({
         document_type: doc.document_type,
@@ -164,6 +170,8 @@ export async function flushPendingRegistration(
       phone: pending.phone,
       address: pending.address,
       commune: pending.commune,
+      birthDate: pending.birthDate,
+      birthDateCarnetConfirmed: pending.birthDateCarnetConfirmed ?? Boolean(pending.birthDate),
     }
   );
   if (error) {

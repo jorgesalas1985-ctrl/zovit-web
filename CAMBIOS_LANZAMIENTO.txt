@@ -1,0 +1,15 @@
+=== LANZAMIENTO ZOVIT CHILE 2026 ===
+Fecha: 30/07/2026
+
+Archivos modificados:
+1. app/page.tsx
+   - Agregado banner sticky de lanzamiento (1 de octubre 2026, 10 comunas RM)
+   - Agregado texto flotante "Registro exclusivo para profesionales"
+   - Contador dinámico de días restantes
+   - Estado showBanner para cerrar el banner
+
+2. app/globals.css
+   - Estilos .launchBanner (sticky top, gradiente oscuro, púrpura/cyan)
+   - Estilos .floatingNotice (fixed bottom-right, glassmorphism)
+   - Responsive para móvil
+   - Animación floatIn

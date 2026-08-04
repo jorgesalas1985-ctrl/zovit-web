@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasUnrestrictedSuperAdminAccess } from "@/lib/auth/superAdminAccess";
 import { createClient } from "@/lib/supabase/server";
 
 export async function requirePlatformAdmin() {
@@ -11,11 +12,11 @@ export async function requirePlatformAdmin() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, intranet_role")
     .eq("id", authData.user.id)
     .maybeSingle();
 
-  if (profile?.role !== "admin") {
+  if (profile?.role !== "admin" && !hasUnrestrictedSuperAdminAccess(profile?.intranet_role)) {
     return { error: NextResponse.json({ error: "Acceso restringido." }, { status: 403 }) };
   }
 

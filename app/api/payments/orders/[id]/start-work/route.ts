@@ -1,10 +1,14 @@
+import { assertSameOrigin, csrfDeniedResponse } from "@/lib/security/csrf";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function POST(_request: Request, { params }: Params) {
+export async function POST(request: Request, { params }: Params) {
   try {
+    const csrf = assertSameOrigin(request);
+    if (!csrf.ok) return csrfDeniedResponse(csrf.error);
+
     const { id } = await params;
     const supabase = await createClient();
     const { error } = await supabase.rpc("start_paid_work", { p_payment_id: id });

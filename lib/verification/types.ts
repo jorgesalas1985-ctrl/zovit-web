@@ -36,13 +36,28 @@ export type IdentityVerificationState = {
   documents: IdentityDocument[];
 };
 
+export type IdentityAiStatus =
+  | "pending"
+  | "processing"
+  | "approved"
+  | "rejected"
+  | "dudoso";
+
 export type PendingVerificationUser = {
   id: string;
   first_name: string | null;
   last_name: string | null;
   rut: string | null;
+  birth_date: string | null;
+  birth_date_carnet_confirmed?: boolean | null;
   role: UserRole;
   identity_submitted_at: string | null;
+  identity_ai_status?: IdentityAiStatus | null;
+  identity_ai_summary?: string | null;
+  identity_ai_confidence?: number | null;
+  identity_ai_forgery_risk?: "low" | "medium" | "high" | null;
+  identity_ai_extracted_rut?: string | null;
+  identity_ai_extracted_birth_date?: string | null;
   documents: IdentityDocument[];
 };
 

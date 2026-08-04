@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/security/validation";
 import { mapPaymentRow } from "@/lib/payments/mappers";
 import type { PaymentEvent, PaymentStatus } from "@/lib/payments/types";
 import { NextResponse } from "next/server";
@@ -9,6 +10,10 @@ export async function GET() {
     const supabase = await createClient();
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
+
+    if (!isValidUuid(authData.user.id)) {
+      return NextResponse.json({ error: "Identificador de usuario inválido." }, { status: 400 });
+    }
 
     // Lectura con service role: en prod faltan GRANT de tabla a authenticated.
     const admin = createAdminClient();

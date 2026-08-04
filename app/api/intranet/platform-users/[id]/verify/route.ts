@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 type VerifyBody = {
   action?: "approve" | "reject";
   reason?: string;
+  carnetBirthDateMatches?: boolean;
 };
 
 export async function POST(
@@ -33,11 +34,15 @@ export async function POST(
       return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
     }
 
-    await reviewPlatformUserVerification(id, body.action, body.reason);
+    await reviewPlatformUserVerification(id, body.action, body.reason, {
+      carnetBirthDateMatches: body.carnetBirthDateMatches === true,
+      reviewerId: auth.manager.userId,
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes("corroborar") || message.includes("carnet") ? 400 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

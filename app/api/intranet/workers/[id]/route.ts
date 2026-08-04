@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/security/validation";
 import { isIntranetRole } from "@/lib/auth/intranetRoles";
 import type { ServiceProfileType, WorkerRegistrationStatus } from "@/lib/worker/types";
 
@@ -31,6 +32,9 @@ export async function GET(_request: Request, context: RouteContext) {
     const auth = await requireHrReviewer();
     if ("error" in auth) return auth.error;
     const { id } = await context.params;
+    if (!isValidUuid(id)) {
+      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
+    }
 
     const registrationResponse = await auth.supabase
       .from("worker_registrations")
@@ -81,6 +85,7 @@ export async function POST(request: Request, context: RouteContext) {
         | "approve"
         | "reject"
         | "request_info"
+        | "clear"
         | "set_primary_profile"
         | "review_credential"
         | "authorize_service"
@@ -103,7 +108,19 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Acción requerida." }, { status: 400 });
     }
 
-    if (action === "approve" || action === "reject" || action === "request_info") {
+    if (action === "approve" || action === "reject" || action === "request_info" || action === "clear") {
+      if (action === "clear") {
+        // Elimina el registro de trabajador: el panel no debe mostrar aviso.
+        await auth.supabase.from("worker_registrations").delete().eq("profile_id", id);
+        await auth.supabase
+          .from("profiles")
+          .update({
+            worker_registration_status: "draft",
+            primary_service_profile: null,
+            updated_at: now,
+          })
+          .eq("id", id);
+      } else {
       const status: WorkerRegistrationStatus =
         action === "approve"
           ? "verified"
@@ -130,6 +147,7 @@ export async function POST(request: Request, context: RouteContext) {
           updated_at: now,
         })
         .eq("id", id);
+      }
 
       if (action === "approve") {
         await auth.supabase.from("worker_public_badges").upsert(

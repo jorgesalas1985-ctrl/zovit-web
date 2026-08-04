@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { parseServiceQuery } from "@/lib/ai/parseQuery";
+import { enrichServiceNeedWithAi } from "@/lib/ai/deepseek";
 import type { AiRecommendResponse, RecommendedProfessional } from "@/lib/ai/types";
 
 type SearchRow = {
@@ -23,11 +24,13 @@ export async function recommendProfessionals(
   commune?: string,
 ): Promise<AiRecommendResponse> {
   const parsed = parseServiceQuery(query);
+  const aiEnhancement = await enrichServiceNeedWithAi(query, parsed);
+  const parsedWithAi = { ...parsed, ...aiEnhancement };
   const supabase = await createClient();
 
   const { data, error } = await supabase.rpc("search_professionals", {
-    p_category: parsed.category,
-    p_specialty: parsed.specialty,
+    p_category: parsedWithAi.category,
+    p_specialty: parsedWithAi.specialty,
     p_commune: commune?.trim() || null,
     p_limit: 6,
   });
@@ -36,7 +39,7 @@ export async function recommendProfessionals(
     if (error.message.includes("search_professionals")) {
       return {
         query,
-        parsed,
+        parsed: parsedWithAi,
         professionals: [],
         fallbackToRequest: true,
       };
@@ -64,7 +67,7 @@ export async function recommendProfessionals(
 
   return {
     query,
-    parsed,
+    parsed: parsedWithAi,
     professionals,
     fallbackToRequest: professionals.length === 0,
   };

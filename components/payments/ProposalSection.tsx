@@ -3,6 +3,7 @@
 import { MercadoPagoFeeNotice } from "@/components/payments/MercadoPagoFeeNotice";
 import { calculateBreakdown, formatCLP, type ServiceProposal } from "@/lib/payments/types";
 import { AlertCircle, ArrowRight, HandCoins } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export function ProposalSection({ requestId, requestStatus, isClient, isProfessional }: Props) {
+  const router = useRouter();
   const [proposals, setProposals] = useState<ServiceProposal[]>([]);
   const [amount, setAmount] = useState("45000");
   const [description, setDescription] = useState("");
@@ -79,14 +81,18 @@ export function ProposalSection({ requestId, requestStatus, isClient, isProfessi
     const response = await fetch(`/api/payments/proposals/${proposalId}/accept`, { method: "POST" });
     const data = (await response.json()) as { error?: string; paymentPublicId?: string };
 
-    setBusy(false);
     if (!response.ok) {
+      setBusy(false);
       setMessage(data.error ?? "No se pudo aceptar la propuesta.");
       return;
     }
 
-    setMessage(`Propuesta aceptada. Orden de pago ${data.paymentPublicId ?? ""} creada.`);
-    await loadProposals();
+    const payUrl = data.paymentPublicId
+      ? `/pagos?payment=${encodeURIComponent(data.paymentPublicId)}`
+      : "/pagos";
+    setMessage("Propuesta aceptada. Te llevamos a pagar con protección ZOVIT…");
+    router.push(payUrl);
+    router.refresh();
   }
 
   if (requestStatus !== "publicada" && proposals.length === 0 && !loading) {

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadWorkerDraftFallback } from "@/lib/worker/registrationFallback";
+import { isValidStoragePathForUser } from "@/lib/security/validation";
 import type { WorkerRegistrationDraft } from "@/lib/worker/types";
 
 const WORKER_BUCKET = "worker-credentials";
@@ -25,7 +26,7 @@ export async function listWorkerCertificateSources(
 
   if (!credentialsError) {
     for (const cred of credentials ?? []) {
-      if (!cred.storage_path) continue;
+      if (!isValidStoragePathForUser(cred.storage_path, userId)) continue;
       sources.push({
         label: cred.credential_name || "Certificado profesional",
         storagePath: cred.storage_path,
@@ -50,7 +51,7 @@ export async function listWorkerCertificateSources(
 
   if (draft?.credentials?.length) {
     for (const cred of draft.credentials) {
-      if (!cred.storagePath) continue;
+      if (!isValidStoragePathForUser(cred.storagePath, userId)) continue;
       if (sources.some((s) => s.storagePath === cred.storagePath)) continue;
       sources.push({
         label: cred.credentialName || cred.documentName || "Certificado profesional",
@@ -60,13 +61,16 @@ export async function listWorkerCertificateSources(
     }
   }
 
-  if (draft?.training?.enrollmentStoragePath) {
-    const path = draft.training.enrollmentStoragePath;
-    if (!sources.some((s) => s.storagePath === path)) {
+  if (!draft) return sources;
+
+  const training = draft.training;
+  const enrollmentPath = training?.enrollmentStoragePath;
+  if (isValidStoragePathForUser(enrollmentPath, userId)) {
+    if (!sources.some((s) => s.storagePath === enrollmentPath)) {
       sources.push({
         label: draft.training.enrollmentDocName || "Certificado de alumno regular / matrícula",
-        storagePath: path,
-        mime: draft.training.enrollmentMime,
+        storagePath: enrollmentPath,
+        mime: training?.enrollmentMime,
       });
     }
   }
@@ -107,7 +111,7 @@ export async function importWorkerCertificatesToStudyVerification(params: {
 
   // Limpiar previos de este tipo para dejar una carga limpia desde el registro.
   for (const doc of existing ?? []) {
-    if (doc.storage_path) {
+    if (doc.storage_path && isValidStoragePathForUser(doc.storage_path, userId)) {
       await admin.storage.from(IDENTITY_BUCKET).remove([doc.storage_path]);
     }
     await supabase.from("identity_documents").delete().eq("id", doc.id);
@@ -116,6 +120,8 @@ export async function importWorkerCertificatesToStudyVerification(params: {
   const imported: string[] = [];
 
   for (const source of sources) {
+    if (!isValidStoragePathForUser(source.storagePath, userId)) continue;
+
     const { data: file, error: downloadError } = await admin.storage
       .from(WORKER_BUCKET)
       .download(source.storagePath);

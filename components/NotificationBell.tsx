@@ -68,6 +68,12 @@ export function NotificationBell() {
     setOpen(false);
     if (item.request_id) {
       router.push(`/solicitudes/${item.request_id}`);
+      return;
+    }
+
+    const destination = notificationDestination(item);
+    if (destination) {
+      router.push(destination);
     }
   };
 
@@ -104,4 +110,15 @@ export function NotificationBell() {
       )}
     </div>
   );
+}
+
+function notificationDestination(item: Notification): string | null {
+  if (
+    item.title === "Renueva tus documentos ZOVIT" ||
+    item.title === "Cuenta pendiente por documentos"
+  ) {
+    return "/registro/trabajador";
+  }
+
+  return null;
 }

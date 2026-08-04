@@ -3,8 +3,8 @@
 import { AlertCircle, ArrowRight, FileUp, ScanFace, Upload } from "lucide-react";
 import { FormEvent, useRef } from "react";
 import { BiometricWizard } from "@/components/verification/BiometricWizard";
-import { MobileDocumentCaptureButton } from "@/components/verification/MobileDocumentCaptureButton";
 import type { RegistrationDocument } from "@/lib/registration/finishRegistration";
+import { validateCarnetBirthDateDeclaration, CARNET_BIRTH_DATE_HINT } from "@/lib/registration/carnetBirthDate";
 import { isValidChileanRut } from "@/lib/registration/validateRegistration";
 import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
 import {
@@ -20,7 +20,11 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pd
 type PendingBiometricFormProps = {
   documents: RegistrationDocument[];
   rut: string;
-  onRutChange?: (value: string) => void;
+  onRutChange: (value: string) => void;
+  birthDate: string;
+  onBirthDateChange: (value: string) => void;
+  carnetBirthDateConfirmed: boolean;
+  onCarnetBirthDateConfirmedChange: (value: boolean) => void;
   onAddDocument: (
     type: IdentityDocumentType,
     file: File,
@@ -29,7 +33,6 @@ type PendingBiometricFormProps = {
   onSubmit: (event: FormEvent) => void;
   busy: boolean;
   message: string;
-  hideRutSection?: boolean;
 };
 
 function carnetHint() {
@@ -40,11 +43,14 @@ export function PendingBiometricForm({
   documents,
   rut,
   onRutChange,
+  birthDate,
+  onBirthDateChange,
+  carnetBirthDateConfirmed,
+  onCarnetBirthDateConfirmedChange,
   onAddDocument,
   onSubmit,
   busy,
   message,
-  hideRutSection,
 }: PendingBiometricFormProps) {
   const fileInputs = useRef<Partial<Record<IdentityDocumentType, HTMLInputElement | null>>>({});
 
@@ -53,20 +59,28 @@ export function PendingBiometricForm({
   const hasSelfie = documents.some((doc) => doc.document_type === "selfie");
   const hasLiveness = documents.some((doc) => doc.document_type === "liveness_proof");
   const biometricDone = hasBiometricDocuments(localState);
-  const canContinue = isValidChileanRut(rut) && hasAllBiometricDocuments(localState);
+  const carnetBirthOk =
+    validateCarnetBirthDateDeclaration({
+      birthDate,
+      confirmed: carnetBirthDateConfirmed,
+    }) === null;
+  const canContinue =
+    isValidChileanRut(rut) && hasAllBiometricDocuments(localState) && carnetBirthOk;
 
   return (
     <>
       <div className="verificationInfoBox">
         <h2>Verificación biométrica ZOVIT</h2>
         <ul>
-          {!hideRutSection && <li><strong>RUT:</strong> requerido para validar tu identidad.</li>}
+          <li><strong>RUT:</strong> requerido para validar tu identidad.</li>
+          <li><strong>Fecha de nacimiento:</strong> la misma impresa en tu carnet (mayores de 18).</li>
           <li><strong>Carnet:</strong> cédula frontal y reverso.</li>
           <li><strong>Selfie:</strong> captura en vivo con cámara frontal.</li>
           <li><strong>Prueba de vida:</strong> instrucción dinámica + código en pantalla.</li>
         </ul>
         <p className="muted">
           Protege a clientes y profesionales en la plataforma. Los archivos biométricos son privados y solo los revisa ZOVIT.
+          Un revisor corroborará tu fecha de nacimiento con la imagen del carnet.
         </p>
       </div>
 
@@ -77,24 +91,48 @@ export function PendingBiometricForm({
       )}
 
       <form className="verificationUploadGrid" onSubmit={onSubmit}>
-        {!hideRutSection && (
-          <>
-            <div className="verificationSectionLabel">RUT</div>
-            <article className="verificationUploadCard">
-              <label>
-                RUT
-                <input
-                  required
-                  value={rut}
-                  onChange={(event) => onRutChange?.(event.target.value)}
-                  placeholder={FIELD_PLACEHOLDERS.rut}
-                  autoComplete="off"
-                />
-                <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
-              </label>
-            </article>
-          </>
-        )}
+        <div className="verificationSectionLabel">RUT</div>
+        <article className="verificationUploadCard">
+          <label>
+            RUT
+            <input
+              required
+              value={rut}
+              onChange={(event) => onRutChange(event.target.value)}
+              placeholder={FIELD_PLACEHOLDERS.rut}
+              autoComplete="off"
+            />
+            <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
+          </label>
+        </article>
+
+        <div className="verificationSectionLabel">Fecha del carnet</div>
+        <article className="verificationUploadCard">
+          <label>
+            Fecha de nacimiento (como aparece en tu carnet)
+            <input
+              required
+              type="text"
+              inputMode="numeric"
+              autoComplete="bday"
+              value={birthDate}
+              onChange={(event) => onBirthDateChange(event.target.value)}
+              placeholder={FIELD_PLACEHOLDERS.birthDate}
+            />
+            <small className="fieldHint">{CARNET_BIRTH_DATE_HINT}</small>
+          </label>
+          <label className="checkboxRow">
+            <input
+              type="checkbox"
+              checked={carnetBirthDateConfirmed}
+              onChange={(event) => onCarnetBirthDateConfirmedChange(event.target.checked)}
+            />
+            <span>
+              Confirmo que esta fecha es exactamente la impresa en mi carnet de identidad y que soy
+              mayor de 18 años.
+            </span>
+          </label>
+        </article>
 
         <div className="verificationSectionLabel">Carnet</div>
         {carnetDocuments.map((type) => {
@@ -131,15 +169,6 @@ export function PendingBiometricForm({
                   <Upload size={16} />
                   {uploaded ? "Reemplazar archivo" : "Subir carnet"}
                 </button>
-                <MobileDocumentCaptureButton
-                  documentType={type}
-                  label={IDENTITY_DOCUMENT_LABELS[type]}
-                  busy={busy}
-                  disabled={busy}
-                  onCaptured={async (file, metadata) => {
-                    onAddDocument(type, file, metadata);
-                  }}
-                />
                 {uploaded && <span className="verificationUploadedTag">Archivo cargado</span>}
               </div>
             </article>
@@ -167,10 +196,7 @@ export function PendingBiometricForm({
           {biometricDone && <span className="verificationUploadedTag">Biometría completa</span>}
         </article>
 
-        <button
-          className={`primaryButton wide verificationContinueButton ${canContinue ? "verificationContinueButton--ready" : ""}`}
-          disabled={!canContinue || busy}
-        >
+        <button className="primaryButton wide" disabled={!canContinue || busy}>
           {busy ? "Procesando…" : <>Continuar a crear cuenta <ArrowRight size={18} /></>}
         </button>
       </form>

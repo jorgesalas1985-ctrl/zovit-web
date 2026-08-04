@@ -40,9 +40,16 @@ export async function GET() {
 
     const payments = (paymentsResult.data ?? []).map((row) => mapPaymentRow(row as never));
     const commissionFlags = commissionFlagsResult.data ?? [];
+    const totalFees = payments.reduce((sum, p) => sum + p.platformFee + p.taxAmount, 0);
+    const totalMpFees = payments.reduce((sum, p) => {
+      const actual = p.providerProcessingFee || p.providerProcessingFeeEstimated;
+      return sum + actual;
+    }, 0);
     const stats = {
       totalVolume: payments.reduce((sum, p) => sum + p.amountGross, 0),
-      totalFees: payments.reduce((sum, p) => sum + p.platformFee + p.taxAmount, 0),
+      totalFees,
+      totalMpFees,
+      netPlatformFees: Math.max(0, totalFees - totalMpFees),
       heldCount: payments.filter((p) =>
         ["pago_retenido", "trabajo_en_ejecucion", "esperando_aprobacion_cliente", "en_disputa"].includes(
           p.status,

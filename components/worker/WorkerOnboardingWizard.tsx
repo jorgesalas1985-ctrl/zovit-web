@@ -71,6 +71,25 @@ type Props = {
   requireAuth?: boolean;
 };
 
+type OwnDocumentCompliance = {
+  status: "complete" | "open" | "due_soon" | "pending_review" | "suspension_ready";
+  period: {
+    year: number;
+    code: "S1" | "S2";
+    startsAt: string;
+    endsAt: string;
+  };
+  missingKinds: string[];
+  pendingKinds: string[];
+  rejectedKinds: string[];
+  expiredKinds: string[];
+  deadlineAt: string;
+  daysUntilDeadline: number;
+  summary: string;
+  actionLabel: string;
+  nextStep: "none" | "upload_documents" | "wait_review" | "replace_documents";
+};
+
 export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   const { user, profile, loading } = useAuth();
   const [step, setStep] = useState(1);
@@ -80,6 +99,8 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [busy, setBusy] = useState(false);
   const [missingFieldId, setMissingFieldId] = useState<WorkerFieldId | null>(null);
+  const [documentCompliance, setDocumentCompliance] = useState<OwnDocumentCompliance | null>(null);
+  const [documentComplianceError, setDocumentComplianceError] = useState("");
 
   const showToast = useCallback((text: string, tone: "error" | "success" | "info" = "error") => {
     setToastTone(tone);
@@ -179,6 +200,33 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   useEffect(() => {
     if (!loading) void hydrate();
   }, [hydrate, loading]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/worker/document-compliance", { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) {
+          setDocumentComplianceError(data.error ?? "No se pudo cargar tu estado documental.");
+          return;
+        }
+        setDocumentCompliance(
+          data.compliance
+            ? {
+                ...data.compliance,
+                actionLabel: data.actionLabel ?? "",
+                nextStep: data.nextStep ?? "upload_documents",
+              }
+            : null,
+        );
+        setDocumentComplianceError(data.error ?? "");
+      } catch {
+        setDocumentComplianceError("No se pudo cargar tu estado documental.");
+      }
+    })();
+  }, [user]);
 
   useEffect(() => {
     saveLocalWorkerDraft(draft);
@@ -414,6 +462,33 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
       <h1 id="worker-wizard-title">{WORKER_COPY.title}</h1>
       <p className="muted">{WORKER_COPY.subtitle}</p>
 
+      {documentCompliance ? (
+        <div className="notice workerPanelNotice">
+          <strong>{documentCompliance.summary}</strong>
+          <span>{documentCompliance.actionLabel}</span>
+          <span>
+            Semestre {documentCompliance.period.year}-{documentCompliance.period.code} · Plazo{" "}
+            {documentCompliance.deadlineAt} · {documentCompliance.daysUntilDeadline} dias.
+          </span>
+          {documentCompliance.missingKinds.length ? (
+            <span>Faltan: {documentCompliance.missingKinds.join(", ")}.</span>
+          ) : null}
+          {documentCompliance.pendingKinds.length ? (
+            <span>En revision: {documentCompliance.pendingKinds.join(", ")}.</span>
+          ) : null}
+          {documentCompliance.rejectedKinds.length ? (
+            <span>Rechazados: {documentCompliance.rejectedKinds.join(", ")}.</span>
+          ) : null}
+          {documentCompliance.expiredKinds.length ? (
+            <span>Vencidos: {documentCompliance.expiredKinds.join(", ")}.</span>
+          ) : null}
+        </div>
+      ) : documentComplianceError ? (
+        <div className="notice workerPanelNotice">
+          Estado documental pendiente: {documentComplianceError}
+        </div>
+      ) : null}
+
       <ol className="workerProgress" aria-label="Progreso del registro">
         {STEPS.map((label, index) => {
           const number = index + 1;
@@ -513,6 +588,9 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
             />
             <small className="fieldHint">{FIELD_PLACEHOLDERS.birthDateHint}</small>
           </label>
+          <p className="muted full">
+            Solo mayores de 18 años pueden registrarse como profesionales en ZOVIT.
+          </p>
           <label>
             Teléfono
             <input

@@ -3,20 +3,44 @@ import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { IdentityStatus } from "@/lib/verification/types";
 
+const PLATFORM_USERS_SELECT =
+  "id, first_name, last_name, rut, phone, address, role, account_kind, intranet_role, identity_status, identity_verified, created_at";
+const PLATFORM_USERS_LEGACY_SELECT =
+  "id, first_name, last_name, rut, phone, address, role, intranet_role, identity_status, identity_verified, created_at";
+
+type PlatformProfileRow = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  rut: string | null;
+  phone: string | null;
+  address: string | null;
+  role: string;
+  account_kind?: string | null;
+  intranet_role: string | null;
+  identity_status: string | null;
+  identity_verified: boolean | null;
+  created_at: string;
+};
+
 export type PlatformUserRecord = {
   id: string;
   email: string;
+  emailConfirmed: boolean;
   firstName: string | null;
   lastName: string | null;
   rut: string | null;
   phone: string | null;
   address: string | null;
   role: UserRole;
+  accountKind: string | null;
   intranetRole: IntranetRole | null;
   identityStatus: IdentityStatus;
   identityVerified: boolean;
   createdAt: string;
 };
+
+export type PlatformAccountKind = "client" | "professional" | "student" | "company" | "institution";
 
 export type UpdatePlatformUserInput = {
   firstName?: string;
@@ -25,7 +49,10 @@ export type UpdatePlatformUserInput = {
   phone?: string;
   address?: string;
   role?: UserRole;
+  accountKind?: PlatformAccountKind;
   intranetRole?: IntranetRole | null;
+  confirmEmailManually?: boolean;
+  emailConfirmationTicket?: string | null;
 };
 
 export function canDeletePlatformUser(
@@ -37,28 +64,46 @@ export function canDeletePlatformUser(
   return true;
 }
 
-export function canVerifyPlatformUser(user: Pick<PlatformUserRecord, "role">): boolean {
+export function canVerifyPlatformUser(user: Pick<PlatformUserRecord, "role" | "intranetRole">): boolean {
+  // El super admin no entra en la cola de rechazo/aprobación de identidad.
+  if (user.intranetRole === "super_admin") return false;
   return user.role === "client" || user.role === "professional";
+}
+
+export function isSuperAdminAccount(
+  user: Pick<PlatformUserRecord, "intranetRole">,
+): boolean {
+  return user.intranetRole === "super_admin";
 }
 
 export async function listPlatformUsers(): Promise<PlatformUserRecord[]> {
   const admin = createAdminClient();
 
-  const { data: profiles, error } = await admin
+  const result = await admin
     .from("profiles")
-    .select(
-      "id, first_name, last_name, rut, phone, address, role, intranet_role, identity_status, identity_verified, created_at"
-    )
+    .select(PLATFORM_USERS_SELECT)
     .order("created_at", { ascending: false });
 
-  if (error) throw error;
+  const effectiveResult = result.error && /account_kind/i.test(result.error.message)
+    ? await admin
+      .from("profiles")
+      .select(PLATFORM_USERS_LEGACY_SELECT)
+      .order("created_at", { ascending: false })
+    : result;
 
+  if (effectiveResult.error) throw new Error(effectiveResult.error.message);
+  const profiles = (effectiveResult.data ?? []) as PlatformProfileRow[];
+
+  // Super admin: listar todas las cuentas aunque Auth falle en una fila.
   const rows = await Promise.all(
     (profiles ?? []).map(async (profile) => {
-      const { data: authData, error: authError } = await admin.auth.admin.getUserById(profile.id);
-      if (authError) throw authError;
-
-      return mapProfileRow(profile, authData.user?.email ?? "");
+      try {
+        const { data: authData, error: authError } = await admin.auth.admin.getUserById(profile.id);
+        if (authError) return mapProfileRow(profile, "", false);
+        return mapProfileRow(profile, authData.user?.email ?? "", Boolean(authData.user?.email_confirmed_at));
+      } catch {
+        return mapProfileRow(profile, "", false);
+      }
     })
   );
 
@@ -66,20 +111,9 @@ export async function listPlatformUsers(): Promise<PlatformUserRecord[]> {
 }
 
 function mapProfileRow(
-  profile: {
-    id: string;
-    first_name: string | null;
-    last_name: string | null;
-    rut: string | null;
-    phone: string | null;
-    address: string | null;
-    role: string;
-    intranet_role: string | null;
-    identity_status: string | null;
-    identity_verified: boolean | null;
-    created_at: string;
-  },
-  email: string
+  profile: PlatformProfileRow,
+  email: string,
+  emailConfirmed: boolean,
 ): PlatformUserRecord {
   const role = profile.role as UserRole;
   const intranetRole = isIntranetRole(profile.intranet_role) ? profile.intranet_role : null;
@@ -87,12 +121,14 @@ function mapProfileRow(
   return {
     id: profile.id,
     email,
+    emailConfirmed,
     firstName: profile.first_name,
     lastName: profile.last_name,
     rut: profile.rut,
     phone: profile.phone,
     address: profile.address,
     role,
+    accountKind: profile.account_kind ?? null,
     intranetRole,
     identityStatus: (profile.identity_status as IdentityStatus) ?? "none",
     identityVerified: profile.identity_verified ?? false,
@@ -103,21 +139,28 @@ function mapProfileRow(
 export async function getPlatformUser(userId: string): Promise<PlatformUserRecord | null> {
   const admin = createAdminClient();
 
-  const { data: profile, error } = await admin
+  const result = await admin
     .from("profiles")
-    .select(
-      "id, first_name, last_name, rut, phone, address, role, intranet_role, identity_status, identity_verified, created_at"
-    )
+    .select(PLATFORM_USERS_SELECT)
     .eq("id", userId)
     .maybeSingle();
 
-  if (error) throw error;
+  const effectiveResult = result.error && /account_kind/i.test(result.error.message)
+    ? await admin
+      .from("profiles")
+      .select(PLATFORM_USERS_LEGACY_SELECT)
+      .eq("id", userId)
+      .maybeSingle()
+    : result;
+
+  if (effectiveResult.error) throw new Error(effectiveResult.error.message);
+  const profile = effectiveResult.data as PlatformProfileRow | null;
   if (!profile) return null;
 
   const { data: authData, error: authError } = await admin.auth.admin.getUserById(userId);
   if (authError) throw authError;
 
-  return mapProfileRow(profile, authData.user?.email ?? "");
+  return mapProfileRow(profile, authData.user?.email ?? "", Boolean(authData.user?.email_confirmed_at));
 }
 
 export async function updatePlatformUser(userId: string, input: UpdatePlatformUserInput) {
@@ -139,10 +182,32 @@ export async function updatePlatformUser(userId: string, input: UpdatePlatformUs
   if (input.phone !== undefined) payload.phone = input.phone.trim() || null;
   if (input.address !== undefined) payload.address = input.address.trim() || null;
   if (input.role !== undefined) payload.role = input.role;
+  if (input.accountKind !== undefined) {
+    payload.account_kind = input.accountKind;
+    payload.primary_service_profile = input.accountKind === "student" ? "in_training" : null;
+  }
   if (input.intranetRole !== undefined) payload.intranet_role = input.intranetRole;
 
   const { error } = await admin.from("profiles").update(payload).eq("id", userId);
   if (error) throw error;
+
+  if (input.confirmEmailManually) {
+    const ticket = input.emailConfirmationTicket?.trim();
+    if (!ticket) throw new Error("Debes registrar un ticket o motivo para confirmar el correo manualmente.");
+
+    const { data: authUserData } = await admin.auth.admin.getUserById(userId);
+    const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+      email_confirm: true,
+      app_metadata: {
+        ...(authUserData.user?.app_metadata ?? {}),
+        zovit_manual_email_confirmation: {
+          ticket,
+          confirmed_at: new Date().toISOString(),
+        },
+      },
+    });
+    if (authError) throw authError;
+  }
 
   if (input.firstName !== undefined || input.lastName !== undefined) {
     await admin.auth.admin.updateUserById(userId, {
@@ -168,6 +233,10 @@ export function getPlatformUserErrorMessage(error: unknown): string {
 
   if (/Could not find the function public\.clear_platform_user_references/i.test(raw)) {
     return "Falta la función de limpieza en Supabase. Ejecuta supabase/FIX_PLATFORM_USER_DELETE.sql en el SQL Editor y vuelve a intentar.";
+  }
+
+  if (/account_kind|primary_service_profile/i.test(raw)) {
+    return "Falta aplicar la migracion de tipos de cuenta en Supabase. Ejecuta supabase/SPRINT_28_ECOSYSTEM_ACCOUNT_KIND.sql y vuelve a intentar.";
   }
 
   if (raw) return raw;
@@ -219,19 +288,30 @@ export async function deletePlatformUser(userId: string) {
 export async function reviewPlatformUserVerification(
   userId: string,
   action: "approve" | "reject",
-  rejectionReason?: string
+  rejectionReason?: string,
+  options?: { carnetBirthDateMatches?: boolean; reviewerId?: string }
 ) {
   const admin = createAdminClient();
   const current = await getPlatformUser(userId);
   if (!current) throw new Error("Usuario no encontrado.");
 
-  if (!canVerifyPlatformUser(current)) {
+  if (isSuperAdminAccount(current) && action === "reject") {
+    throw new Error("No se puede rechazar la verificación del super administrador.");
+  }
+
+  if (!canVerifyPlatformUser(current) && !(isSuperAdminAccount(current) && action === "approve")) {
     throw new Error("Solo puedes verificar clientes y profesionales.");
   }
 
   const now = new Date().toISOString();
 
   if (action === "approve") {
+    if (!options?.carnetBirthDateMatches) {
+      throw new Error(
+        "Debes corroborar que la fecha de nacimiento coincide con el carnet antes de aprobar.",
+      );
+    }
+
     const { error: profileError } = await admin
       .from("profiles")
       .update({
@@ -240,6 +320,9 @@ export async function reviewPlatformUserVerification(
         biometric_verified: true,
         identity_verified_at: now,
         identity_rejection_reason: null,
+        birth_date_admin_corroborated: true,
+        birth_date_admin_corroborated_at: now,
+        birth_date_admin_corroborated_by: options.reviewerId ?? null,
         updated_at: now,
       })
       .eq("id", userId)

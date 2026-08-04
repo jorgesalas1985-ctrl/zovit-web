@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
+
 /**
- * Historia en loop (CSS puro): pared dañada → solicitud → match → trabajo →
- * pago protegido → aprobación → liberación al profesional.
+ * Historia en loop: necesidad → búsqueda en mapa → match → trabajo →
+ * pago protegido → aprobación → liberación.
  */
 export function HomeHeroStory() {
   return (
@@ -34,6 +36,36 @@ export function HomeHeroStory() {
             </div>
           </div>
 
+          {/* Búsqueda en mapa (IA visual) */}
+          <div className="homeStoryMapPanel">
+            <Image
+              src="/home/story-map-search.png"
+              alt=""
+              fill
+              sizes="(max-width: 900px) 90vw, 520px"
+              className="homeStoryMapImage"
+              priority
+            />
+            <div className="homeStoryMapOverlay">
+              <span className="homeStoryMapPulse" />
+              <span className="homeStoryMapPin homeStoryMapPin--1" />
+              <span className="homeStoryMapPin homeStoryMapPin--2" />
+              <span className="homeStoryMapPin homeStoryMapPin--3" />
+            </div>
+            <div className="homeStoryMapBadge">Mapa · cerca de ti</div>
+          </div>
+
+          <div className="homeStoryNearbyShot">
+            <Image
+              src="/home/story-pro-nearby.png"
+              alt=""
+              fill
+              sizes="(max-width: 900px) 70vw, 280px"
+              className="homeStoryNearbyImage"
+            />
+            <span className="homeStoryNearbyTag">Profesional en camino</span>
+          </div>
+
           {/* Cliente + teléfono */}
           <div className="homeStoryClient">
             <div className="homeStoryPerson">
@@ -46,6 +78,12 @@ export function HomeHeroStory() {
                 <span className="homeStoryPhoneBrand">ZOVIT</span>
                 <p className="homeStoryPhoneHint">Pintura · Living</p>
                 <div className="homeStoryPhoneBtn">Solicitar pintor</div>
+                <div className="homeStoryPhoneMap">
+                  <span className="homeStoryPhoneMapGrid" />
+                  <span className="homeStoryPhoneMapDot" />
+                  <span className="homeStoryPhoneMapPin" />
+                  <em>Mapa en vivo</em>
+                </div>
                 <div className="homeStoryPhoneApprove">Trabajo aprobado</div>
               </div>
             </div>
@@ -86,14 +124,14 @@ export function HomeHeroStory() {
               <span className="homeStoryProAvatar homeStoryProAvatar--a" />
               <div>
                 <strong>Carlos R.</strong>
-                <span>Pintor · 4.8</span>
+                <span>Pintor · 4.8 · 1.2 km</span>
               </div>
             </div>
             <div className="homeStoryProCard homeStoryProCard--highlight">
               <span className="homeStoryProAvatar homeStoryProAvatar--b" />
               <div>
                 <strong>María L.</strong>
-                <span>Pintora · 4.9</span>
+                <span>Pintora · 4.9 · 800 m</span>
               </div>
               <em className="homeStoryProBadge">Trabajo aceptado</em>
             </div>
@@ -101,7 +139,7 @@ export function HomeHeroStory() {
               <span className="homeStoryProAvatar homeStoryProAvatar--c" />
               <div>
                 <strong>Andrés P.</strong>
-                <span>Pintor · 4.7</span>
+                <span>Pintor · 4.7 · 2.1 km</span>
               </div>
             </div>
           </div>
@@ -132,7 +170,8 @@ export function HomeHeroStory() {
 
         <p className="homeStoryCaption">
           <span className="homeStoryCaptionText homeStoryCaptionText--1">Necesitas un servicio</span>
-          <span className="homeStoryCaptionText homeStoryCaptionText--2">Profesionales responden</span>
+          <span className="homeStoryCaptionText homeStoryCaptionText--map">Buscas en el mapa</span>
+          <span className="homeStoryCaptionText homeStoryCaptionText--2">Profesionales cercanos responden</span>
           <span className="homeStoryCaptionText homeStoryCaptionText--3">Trabajo en curso · pago seguro</span>
           <span className="homeStoryCaptionText homeStoryCaptionText--4">Tú apruebas · el pago se libera</span>
         </p>

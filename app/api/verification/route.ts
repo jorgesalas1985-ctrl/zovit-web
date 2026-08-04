@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAuthenticatedUser } from "@/lib/auth/requirePlatformAdmin";
+import { isValidStoragePathForUser, isValidUuid } from "@/lib/security/validation";
 import type { IdentityVerificationState } from "@/lib/verification/types";
+import { processIdentityAiReview } from "@/lib/verification/processIdentityAiReview";
 
 export async function GET() {
   try {
@@ -8,6 +10,9 @@ export async function GET() {
     if ("error" in auth) return auth.error;
 
     const { supabase, user, profile } = auth;
+    if (!isValidUuid(user.id)) {
+      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
+    }
 
     const { data: documents, error } = await supabase
       .from("identity_documents")
@@ -30,7 +35,9 @@ export async function GET() {
       study_verified: profile.study_verified ?? false,
       study_submitted_at: profile.study_submitted_at ?? null,
       study_rejection_reason: profile.study_rejection_reason ?? null,
-      documents: documents ?? [],
+      documents: (documents ?? []).filter((doc) =>
+        isValidStoragePathForUser(doc.storage_path, user.id),
+      ),
     };
 
     return NextResponse.json(payload);
@@ -45,14 +52,19 @@ export async function POST() {
     const auth = await requireAuthenticatedUser();
     if ("error" in auth) return auth.error;
 
-    const { supabase } = auth;
+    const { supabase, user } = auth;
     const { error } = await supabase.rpc("submit_identity_verification");
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true });
+    // OCR automático del carnet: aprueba/rechaza o deja dudoso para humano.
+    void processIdentityAiReview(user.id).catch((err) => {
+      console.error("[identity-ai] post-submit failed", err);
+    });
+
+    return NextResponse.json({ ok: true, ocrQueued: true, aiQueued: false });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -9,12 +9,14 @@ export type UserProfile = {
   first_name: string | null;
   last_name: string | null;
   role: UserRole;
+  account_kind: string | null;
   can_act_as_client: boolean;
   can_act_as_professional: boolean;
   active_mode: RoleMode;
   intranet_role: string | null;
   identity_status: "none" | "pending" | "approved" | "rejected";
   identity_verified: boolean;
+  biometric_verified: boolean;
   avatar_url: string | null;
 };
 
@@ -32,7 +34,9 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const PROFILE_SELECT =
-  "first_name,last_name,role,can_act_as_client,can_act_as_professional,active_mode,intranet_role,identity_status,identity_verified,avatar_url" as const;
+  "first_name,last_name,role,can_act_as_client,can_act_as_professional,active_mode,intranet_role,identity_status,identity_verified,biometric_verified,avatar_url" as const;
+const PROFILE_SELECT_WITH_ECOSYSTEM =
+  "first_name,last_name,role,account_kind,can_act_as_client,can_act_as_professional,active_mode,intranet_role,identity_status,identity_verified,biometric_verified,avatar_url" as const;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -56,11 +60,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await sleep(250 * attempt);
       }
 
-      const { data, error } = await supabase
+      const profileResult = await supabase
         .from("profiles")
-        .select(PROFILE_SELECT)
+        .select(PROFILE_SELECT_WITH_ECOSYSTEM)
         .eq("id", userId)
         .maybeSingle();
+      let data = profileResult.data as Record<string, unknown> | null;
+      let error = profileResult.error;
+
+      if (error && error.message.includes("account_kind")) {
+        const legacy = await supabase
+          .from("profiles")
+          .select(PROFILE_SELECT)
+          .eq("id", userId)
+          .maybeSingle();
+        data = legacy.data as Record<string, unknown> | null;
+        error = legacy.error;
+      }
 
       if (error) {
         lastError = error;
@@ -105,12 +121,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       first_name: (lastData.first_name as string | null) ?? null,
       last_name: (lastData.last_name as string | null) ?? null,
       role: registrationRole,
+      account_kind: (lastData.account_kind as string | null) ?? null,
       can_act_as_client: canActAsClient,
       can_act_as_professional: canActAsProfessional,
       active_mode: activeMode,
       intranet_role: (lastData.intranet_role as string | null) ?? null,
       identity_status: (lastData.identity_status as UserProfile["identity_status"]) ?? "none",
       identity_verified: (lastData.identity_verified as boolean) ?? false,
+      biometric_verified: (lastData.biometric_verified as boolean) ?? false,
       avatar_url: (lastData.avatar_url as string | null) ?? null,
     });
     setProfileError(null);

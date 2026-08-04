@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/security/validation";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -8,6 +9,9 @@ export async function GET(request: Request) {
     const requestId = searchParams.get("requestId");
     if (!requestId) {
       return NextResponse.json({ error: "Falta requestId." }, { status: 400 });
+    }
+    if (!isValidUuid(requestId)) {
+      return NextResponse.json({ error: "requestId inválido." }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -85,8 +89,14 @@ export async function POST(request: Request) {
       estimatedHours?: number;
     };
 
-    if (!body.requestId || !body.amount || !body.description) {
+    if (!body.requestId || body.amount == null || !body.description) {
       return NextResponse.json({ error: "Faltan campos obligatorios." }, { status: 400 });
+    }
+    if (!isValidUuid(body.requestId)) {
+      return NextResponse.json({ error: "requestId inválido." }, { status: 400 });
+    }
+    if (Number(body.amount) <= 0 || Number(body.amount) > 1000000000) {
+      return NextResponse.json({ error: "Monto inválido." }, { status: 400 });
     }
 
     const supabase = await createClient();

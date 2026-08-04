@@ -5,6 +5,7 @@ import {
   getMercadoPagoWebhookUrl,
 } from "@/lib/payments/appUrl";
 import type { MercadoPagoPaymentDetails } from "@/lib/payments/confirmPayment";
+import { extractMpProcessingFee } from "@/lib/payments/mercadopagoFees";
 import type {
   CreatePaymentSessionInput,
   PaymentProviderAdapter,
@@ -26,6 +27,8 @@ type MercadoPagoPaymentResponse = {
   payment_method_id?: string;
   transaction_amount?: number;
   currency_id?: string;
+  fee_details?: Array<{ type?: string; amount?: number }>;
+  transaction_details?: { net_received_amount?: number; total_paid_amount?: number };
 };
 
 type MercadoPagoMerchantOrderResponse = {
@@ -270,6 +273,31 @@ export class MercadoPagoProvider implements PaymentProviderAdapter {
     return (await response.json()) as MercadoPagoMerchantOrderResponse;
   }
 
+  async getCheckoutPreference(preferenceId: string): Promise<PaymentSession | null> {
+    const token = this.getAccessToken();
+    const id = preferenceId.trim();
+    if (!id) return null;
+
+    const response = await fetch(`https://api.mercadopago.com/checkout/preferences/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return null;
+
+    const preference = (await response.json()) as MercadoPagoPreferenceResponse;
+    const isTestToken = token.startsWith("TEST-");
+    const redirectUrl = isTestToken
+      ? preference.sandbox_init_point ?? preference.init_point
+      : preference.init_point ?? preference.sandbox_init_point;
+    if (!redirectUrl) return null;
+
+    return {
+      provider: "mercadopago",
+      sessionId: preference.id,
+      reference: preference.id,
+      redirectUrl,
+    };
+  }
+
   async fetchPayment(paymentId: string): Promise<MercadoPagoPaymentResponse> {
     const token = this.getAccessToken();
     const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
@@ -290,6 +318,7 @@ function toMercadoPagoPaymentDetails(payment: MercadoPagoPaymentResponse): Merca
     external_reference: payment.external_reference,
     transaction_amount: payment.transaction_amount,
     currency_id: payment.currency_id,
+    provider_processing_fee: extractMpProcessingFee(payment),
   };
 }
 

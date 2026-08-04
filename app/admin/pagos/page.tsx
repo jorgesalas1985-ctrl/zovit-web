@@ -13,6 +13,8 @@ import { useCallback, useEffect, useState } from "react";
 type AdminStats = {
   totalVolume: number;
   totalFees: number;
+  totalMpFees?: number;
+  netPlatformFees?: number;
   heldCount: number;
   releasedCount: number;
   disputedCount: number;
@@ -252,7 +254,15 @@ export default function AdminPaymentsPage() {
               </article>
               <article className="walletCard">
                 <strong>{formatCLP(stats.totalFees)}</strong>
-                <span>Comisiones</span>
+                <span>Comisiones brutas</span>
+              </article>
+              <article className="walletCard">
+                <strong>{formatCLP(stats.totalMpFees ?? 0)}</strong>
+                <span>Costo Mercado Pago</span>
+              </article>
+              <article className="walletCard">
+                <strong>{formatCLP(stats.netPlatformFees ?? stats.totalFees)}</strong>
+                <span>Comisión neta ZOVIT</span>
               </article>
               <article className="walletCard">
                 <strong>{stats.heldCount}</strong>

@@ -11,7 +11,7 @@ export const ZOVIT_ISSUER = {
   rutDigits: "770576369",
   address: "GETSEMANI 0301 J. DE NAZARET LT D, PUENTE ALTO",
   commune: "Puente Alto",
-  email: "jorge_salas1985@hotmail.com",
+  email: "facturacion@zovit.cl",
   taxRegime: "REGIMEN PRO PYME GENERAL (14D)",
   /** Máquina / pasarela de boleta electrónica que usan hoy. */
   posProvider: "haulmer",

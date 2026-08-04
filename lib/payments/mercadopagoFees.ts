@@ -49,6 +49,29 @@ export function estimateMpProcessingWithIva(amount: number, ratePct: number): nu
   return fee + iva;
 }
 
+/** Estimación conservadora Checkout Pro (liberación inmediata) + IVA. */
+export function estimateCheckoutProcessingFee(amount: number): number {
+  return estimateMpProcessingWithIva(amount, MP_CHECKOUT_PROCESSING.immediateReleasePct);
+}
+
+/** Extrae comisión MP (+IVA) desde la respuesta de un pago aprobado. */
+export function extractMpProcessingFee(payment: {
+  fee_details?: Array<{ type?: string; amount?: number }>;
+  transaction_details?: { net_received_amount?: number; total_paid_amount?: number };
+  transaction_amount?: number;
+}): number {
+  const details = payment.fee_details ?? [];
+  const fromDetails = details.reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
+  if (fromDetails > 0) return Math.round(fromDetails);
+
+  const gross = Number(
+    payment.transaction_details?.total_paid_amount ?? payment.transaction_amount ?? 0,
+  );
+  const net = Number(payment.transaction_details?.net_received_amount ?? 0);
+  if (gross > 0 && net > 0 && gross >= net) return Math.round(gross - net);
+  return 0;
+}
+
 export function creditInstallmentTotalPct(installments: number): number | null {
   const row = MP_CREDIT_INSTALLMENT_SURCHARGE.find((r) => r.installments === installments);
   if (!row) return null;
