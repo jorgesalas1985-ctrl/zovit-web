@@ -151,7 +151,10 @@ export function PendingBiometricForm({
           {biometricDone && <span className="verificationUploadedTag">Biometría completa</span>}
         </article>
 
-        <button className="primaryButton wide" disabled={!canContinue || busy}>
+        <button
+          className={`primaryButton wide verificationContinueButton ${canContinue ? "verificationContinueButton--ready" : ""}`}
+          disabled={!canContinue || busy}
+        >
           {busy ? "Procesando…" : <>Continuar a crear cuenta <ArrowRight size={18} /></>}
         </button>
       </form>

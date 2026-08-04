@@ -4,7 +4,7 @@ import { ProfessionalBrowseCard } from "@/components/services/ProfessionalBrowse
 import { ServiceBrowseShell } from "@/components/services/ServiceBrowseShell";
 import { ServiceFilters } from "@/components/services/ServiceFilters";
 import { useAuth } from "@/components/AuthProvider";
-import { canPublishServiceRequest, shouldShowPublishUI } from "@/lib/auth/roles";
+import { canPublishServiceRequest, getRequestServiceHref, shouldShowPublishUI } from "@/lib/auth/roles";
 import type { RecommendedProfessional } from "@/lib/ai/types";
 import type { CategoryBrowseDefinition, SubcategoryDefinition } from "@/lib/services/catalog";
 import {
@@ -111,7 +111,7 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
     saveManualSelection(selection);
 
     if (!user) {
-      router.push("/seguridad");
+      router.push(getRequestServiceHref(false));
       return;
     }
 
@@ -178,7 +178,7 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
             Solicitar sin elegir profesional <ArrowRight size={16} />
           </button>
         ) : !user ? (
-          <Link className="primaryButton" href="/seguridad">
+          <Link className="primaryButton" href={getRequestServiceHref(false)}>
             Regístrate para solicitar <ArrowRight size={16} />
           </Link>
         ) : null}
@@ -201,7 +201,7 @@ export function SubcategoryBrowsePage({ category, subcategory }: Props) {
               Publicar solicitud <ArrowRight size={16} />
             </button>
           ) : !user ? (
-            <Link className="primaryButton" href="/seguridad">
+            <Link className="primaryButton" href={getRequestServiceHref(false)}>
               Regístrate para solicitar <ArrowRight size={16} />
             </Link>
           ) : null}

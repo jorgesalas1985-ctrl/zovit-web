@@ -164,7 +164,7 @@ export function shouldShowPublishUI(
 /** Destino al pedir un servicio: explicación de seguridad + registro si no hay sesión. */
 export function getRequestServiceHref(isLoggedIn: boolean): string {
   if (!isLoggedIn) {
-    return "/seguridad";
+    return `/registro?next=${encodeURIComponent("/solicitudes/nueva")}`;
   }
   return "/solicitudes/nueva";
 }

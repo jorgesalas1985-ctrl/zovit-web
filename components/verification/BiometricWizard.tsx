@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, CheckCircle2, ScanFace } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   blobToFile,
   captureVideoFrame,
@@ -30,6 +30,7 @@ export function BiometricWizard({
   busy,
   onUpload,
 }: BiometricWizardProps) {
+  const sectionRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [step, setStep] = useState<Step>(hasSelfie && hasLiveness ? "done" : "intro");
@@ -37,6 +38,7 @@ export function BiometricWizard({
   const [cameraReady, setCameraReady] = useState(false);
   const [message, setMessage] = useState("");
   const [localBusy, setLocalBusy] = useState(false);
+  const [autoStartAttempted, setAutoStartAttempted] = useState(false);
 
   useEffect(() => {
     if (hasSelfie && hasLiveness) setStep("done");
@@ -44,13 +46,44 @@ export function BiometricWizard({
   }, [hasSelfie, hasLiveness]);
 
   useEffect(() => {
+    if (step !== "liveness" || hasLiveness || session) return;
+    setSession(createBiometricSession());
+  }, [hasLiveness, session, step]);
+
+  useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
-  async function startCamera() {
+  useEffect(() => {
+    if (disabled || autoStartAttempted || step !== "intro" || hasSelfie || hasLiveness) return;
+    setAutoStartAttempted(true);
+    void (async () => {
+      setStep("selfie");
+      const started = await startCamera();
+      if (!started) {
+        setStep("intro");
+      }
+    })();
+  }, [autoStartAttempted, disabled, hasLiveness, hasSelfie, startCamera, step]);
+
+  useEffect(() => {
+    sectionRef.current?.scrollIntoView({
+      block: "center",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  }, [step]);
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setCameraReady(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
     setMessage("");
+    stopCamera();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -62,16 +95,20 @@ export function BiometricWizard({
         await videoRef.current.play();
       }
       setCameraReady(true);
+      return true;
     } catch {
       setMessage("No pudimos acceder a la cámara. Revisa permisos del navegador.");
       setCameraReady(false);
+      return false;
     }
-  }
+  }, [stopCamera]);
 
-  function stopCamera() {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    setCameraReady(false);
+  async function beginSelfieCapture() {
+    setStep("selfie");
+    const started = await startCamera();
+    if (!started) {
+      setStep("intro");
+    }
   }
 
   async function captureSelfie() {
@@ -119,7 +156,7 @@ export function BiometricWizard({
   const isBusy = busy || localBusy;
 
   return (
-    <section className="biometricWizard">
+    <section ref={sectionRef} className={`biometricWizard biometricWizard--${step}`}>
       <div className="verificationUploadHead">
         <ScanFace size={18} />
         <div>
@@ -128,29 +165,45 @@ export function BiometricWizard({
         </div>
       </div>
 
+      <div className="biometricProgress" aria-label="Progreso biométrico">
+        <div
+          className={`biometricProgressStep ${
+            step === "selfie" ? "biometricProgressStep--active" : hasSelfie || step === "liveness" || step === "done" ? "biometricProgressStep--done" : ""
+          }`}
+        >
+          <span>1</span>
+          <strong>Selfie</strong>
+        </div>
+        <div
+          className={`biometricProgressStep ${
+            step === "liveness" ? "biometricProgressStep--active" : hasLiveness || step === "done" ? "biometricProgressStep--done" : ""
+          }`}
+        >
+          <span>2</span>
+          <strong>Prueba de vida</strong>
+        </div>
+      </div>
+
       {step === "intro" && (
         <div className="biometricStep">
           <p className="muted">
-            Usaremos tu cámara frontal para confirmar que eres la misma persona del carnet.
-            Nadie más verá estas imágenes: solo el equipo de revisión ZOVIT.
+            Estamos preparando la cámara automáticamente para comenzar la validación.
+            Si el navegador pide permiso, acéptalo para seguir.
           </p>
           <button
             type="button"
-            className="primaryButton"
+            className="primaryButton biometricCaptureButton"
             disabled={disabled || isBusy}
-            onClick={() => {
-              setStep("selfie");
-              void startCamera();
-            }}
+            onClick={() => void beginSelfieCapture()}
           >
-            <Camera size={16} /> Iniciar captura biométrica
+            <Camera size={16} /> {message ? "Reintentar cámara" : "Abrir cámara ahora"}
           </button>
         </div>
       )}
 
       {(step === "selfie" || step === "liveness") && (
         <div className="biometricStep">
-          <div className="biometricCameraWrap">
+          <div className={`biometricCameraWrap ${cameraReady ? "biometricCameraWrap--active" : ""}`}>
             <video ref={videoRef} className="biometricVideo" playsInline muted />
             {!cameraReady && <div className="biometricCameraOverlay">Activando cámara…</div>}
             {step === "liveness" && session && (
@@ -167,7 +220,7 @@ export function BiometricWizard({
               <p className="muted">Paso 1: centra tu rostro y captura una selfie clara, sin lentes ni gorros.</p>
               <button
                 type="button"
-                className="primaryButton"
+                className="primaryButton biometricCaptureButton"
                 disabled={disabled || isBusy || !cameraReady}
                 onClick={() => void captureSelfie()}
               >
@@ -184,7 +237,7 @@ export function BiometricWizard({
               </p>
               <button
                 type="button"
-                className="primaryButton"
+                className="primaryButton biometricCaptureButton"
                 disabled={disabled || isBusy || !cameraReady}
                 onClick={() => void captureLiveness()}
               >
@@ -209,6 +262,7 @@ export function BiometricWizard({
               disabled={isBusy}
               onClick={() => {
                 setSession(null);
+                setAutoStartAttempted(false);
                 setStep("intro");
               }}
             >
