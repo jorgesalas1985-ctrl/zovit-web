@@ -382,6 +382,7 @@ function ClientMapExperience() {
               source: "search",
             });
           }}
+          inputId="map-address-input"
         />
 
         <CoverageRadiusControl
@@ -445,6 +446,7 @@ function ClientMapExperience() {
                   source: "search",
                 });
               }}
+              inputId="map-address-input-mobile"
             />
             <div className="mapChipRow mapChipRowScroll">
               <CoverageRadiusControl

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { parseCoordinate } from "@/lib/geo/coordinates";
+import { resolveAvailabilityCoordinates } from "@/lib/map/resolveAvailabilityCoordinates";
 import { assertSameOrigin, csrfDeniedResponse } from "@/lib/security/csrf";
 import {
   clientIpFromRequest,
@@ -30,7 +30,9 @@ export async function GET() {
       .maybeSingle();
 
     if (error || !data) {
-      return NextResponse.json({ error: "No se pudo cargar tu disponibilidad." }, { status: 500 });
+      const hint = "No se pudo cargar tu disponibilidad.";
+      const detail = error && process.env.NODE_ENV !== "production" ? ` ${error.message}` : "";
+      return NextResponse.json({ error: `${hint}${detail}` }, { status: 500 });
     }
 
     const canPublish =
@@ -76,7 +78,7 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, can_act_as_professional, availability_status")
+      .select("role, can_act_as_professional, availability_status, latitude, longitude")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -136,11 +138,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, availabilityStatus: "offline" });
     }
 
-    const latitude = parseCoordinate(body.latitude);
-    const longitude = parseCoordinate(body.longitude);
-    if (latitude === null || longitude === null) {
+    const resolved = resolveAvailabilityCoordinates({
+      requestedLatitude: body.latitude,
+      requestedLongitude: body.longitude,
+      savedLatitude: profile?.latitude,
+      savedLongitude: profile?.longitude,
+    });
+    if (!resolved) {
       return NextResponse.json(
-        { error: "Activa tu ubicación GPS para aparecer en el mapa." },
+        {
+          error:
+            "Activa tu ubicación GPS o busca tu comuna para aparecer en el mapa.",
+        },
         { status: 400 }
       );
     }
@@ -151,8 +160,8 @@ export async function POST(request: Request) {
     const { error } = await supabase
       .from("profiles")
       .update({
-        latitude,
-        longitude,
+        latitude: resolved.latitude,
+        longitude: resolved.longitude,
         availability_status: nextStatus,
         location_sharing_enabled: true,
         location_updated_at: new Date().toISOString(),
@@ -160,8 +169,14 @@ export async function POST(request: Request) {
       .eq("id", user.id);
 
     if (error) {
+      const hint = "No se pudo activar. ¿Aplicaste supabase/SPRINT_MAP_CLIENT_NEARBY.sql?";
       return NextResponse.json(
-        { error: "No se pudo activar. ¿Aplicaste la migración del mapa?" },
+        {
+          error:
+            process.env.NODE_ENV === "production"
+              ? hint
+              : `${hint} ${error.message}`,
+        },
         { status: 500 }
       );
     }
@@ -169,8 +184,13 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       availabilityStatus: nextStatus,
-      latitude,
-      longitude,
+      latitude: resolved.latitude,
+      longitude: resolved.longitude,
+      usedSavedLocation: resolved.source === "saved",
+      message:
+        resolved.source === "saved"
+          ? "Te mostramos con tu última ubicación. Permite el GPS cuando puedas para actualizarla."
+          : undefined,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error de disponibilidad.";

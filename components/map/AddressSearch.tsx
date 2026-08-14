@@ -11,6 +11,8 @@ type AddressSearchProps = {
   onSelect: (suggestion: GeocodeSuggestion) => void;
   placeholder?: string;
   disabled?: boolean;
+  label?: string;
+  inputId?: string;
 };
 
 export function AddressSearch({
@@ -19,6 +21,8 @@ export function AddressSearch({
   onSelect,
   placeholder = "Buscar calle, comuna o ciudad…",
   disabled,
+  label = "Dirección del servicio",
+  inputId = "map-address-input",
 }: AddressSearchProps) {
   const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
   const [busy, setBusy] = useState(false);
@@ -59,17 +63,17 @@ export function AddressSearch({
     };
   }, [value]);
 
-  const listId = useMemo(() => "zovit-address-suggestions", []);
+  const listId = useMemo(() => `${inputId}-suggestions`, [inputId]);
 
   return (
     <div className="mapAddressSearch">
-      <label className="mapFieldLabel" htmlFor="map-address-input">
-        Dirección del servicio
+      <label className="mapFieldLabel" htmlFor={inputId}>
+        {label}
       </label>
       <div className="mapAddressInputWrap">
         <Search size={16} aria-hidden />
         <input
-          id="map-address-input"
+          id={inputId}
           type="search"
           value={value}
           disabled={disabled}

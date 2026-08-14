@@ -501,7 +501,7 @@ button.roleModeBadge {
 .requestRow h3 { margin: 9px 0 5px; }
 .requestRow p { margin: 0; color: var(--muted); }
 .requestRow time { color: var(--muted); white-space: nowrap; }
-.statusPill { display: inline-block; padding: 5px 9px; border-radius: 999px; background: rgba(37, 99, 235, 0.12); color: var(--blue-bright); font-size: 11px; font-weight: 900; text-transform: capitalize; }
+.statusPill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; background: rgba(37, 99, 235, 0.12); color: var(--blue-bright); font-size: 11px; font-weight: 900; text-transform: capitalize; }
 .emptyState { min-height: 250px; display: grid; place-items: center; align-content: center; text-align: center; gap: 8px; color: var(--muted); border: 1px dashed var(--line); border-radius: 22px; background: var(--surface); }
 .emptyState h3 { color: var(--ink); margin: 4px 0; }
 .centerState { min-height: calc(100vh - 74px); display: grid; place-items: center; color: var(--muted); }
@@ -4464,4 +4464,547 @@ html[data-theme="dark"] .homeStoryWallPeel {
 .superAdminFabItem:disabled:not(.isActive) {
   opacity: 0.6;
   cursor: wait;
+}
+
+/* ——— Mapa cliente / disponibilidad profesional ——— */
+.statusPill--green { background: rgba(16, 185, 129, 0.16); color: var(--green); }
+.statusPill--yellow { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+.statusPill--blue { background: rgba(14, 165, 233, 0.16); color: var(--blue-bright); }
+.statusPill--muted { background: rgba(148, 163, 184, 0.16); color: var(--muted); }
+
+.proAvailabilityCard {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-small);
+}
+.proAvailabilityCard--compact { padding: 16px 18px; }
+.proAvailabilityHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.proAvailabilityHead h2 { margin: 4px 0 6px; font-size: 22px; letter-spacing: -0.4px; }
+.proAvailabilityActions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.proLiveShareCard {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--line-blue);
+  background: var(--surface-soft);
+}
+.proLiveShareHead { display: flex; align-items: center; gap: 12px; }
+.proLiveShareHead h3 { margin: 0; font-size: 16px; }
+
+.clientMapPage {
+  display: grid;
+  grid-template-columns: minmax(320px, 400px) 1fr;
+  min-height: calc(100vh - 74px);
+  background: var(--bg);
+}
+.clientMapSidebar {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 22px 20px 32px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  overflow: auto;
+  max-height: calc(100vh - 74px);
+}
+.clientMapSidebarHead h1 {
+  margin: 6px 0 8px;
+  font-size: clamp(26px, 3vw, 34px);
+  letter-spacing: -1px;
+}
+.clientMapMain {
+  position: relative;
+  min-height: calc(100vh - 74px);
+}
+.clientMapMobileTop { display: none; }
+
+.mapCanvasWrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 74px);
+  background: #0b1220;
+}
+.mapCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+}
+.mapCanvas .maplibregl-map,
+.mapCanvas .maplibregl-canvas,
+.mapCanvas .maplibregl-canvas-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+.mapSkeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 88%, #050816);
+}
+.mapSkeletonPulse {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 3px solid rgba(124, 58, 237, 0.25);
+  border-top-color: var(--purple-bright);
+  animation: spin 0.9s linear infinite;
+}
+.mapErrorState {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  background: color-mix(in srgb, var(--surface) 92%, #050816);
+}
+.mapFabStack {
+  position: absolute;
+  right: 16px;
+  bottom: 88px;
+  z-index: 4;
+  display: grid;
+  gap: 8px;
+}
+.mapFabButton {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-small);
+  cursor: pointer;
+}
+.mapFabButton:disabled { opacity: 0.45; cursor: not-allowed; }
+.mapLoadingBadge {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mapMarkerClient,
+.mapMarkerPro,
+.mapMarkerLive {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+.mapMarkerClient { background: transparent; }
+.mapMarkerClientDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--blue-bright);
+  border: 3px solid #fff;
+  z-index: 1;
+}
+.mapMarkerClientPulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(14, 165, 233, 0.28);
+  animation: mapPulse 1.8s ease-out infinite;
+}
+.mapMarkerPro {
+  background: var(--surface);
+  border: 2px solid var(--blue-bright);
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 900;
+}
+.mapMarkerPro img { width: 100%; height: 100%; object-fit: cover; }
+.mapMarkerPro.isSelected { transform: scale(1.12); border-width: 3px; }
+.mapMarkerStatus {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  background: var(--muted);
+}
+.mapTone-green { border-color: var(--green); }
+.mapTone-green .mapMarkerStatus,
+.mapAvailPill.mapTone-green { background: var(--green); color: #042f22; }
+.mapTone-yellow { border-color: #f59e0b; }
+.mapTone-yellow .mapMarkerStatus,
+.mapAvailPill.mapTone-yellow { background: #f59e0b; color: #3b2503; }
+.mapTone-blue { border-color: var(--blue-bright); }
+.mapTone-blue .mapMarkerStatus,
+.mapAvailPill.mapTone-blue { background: var(--blue-bright); color: #042c49; }
+.mapTone-muted { border-color: #64748b; }
+.mapMarkerLive {
+  background: var(--purple);
+  border: 3px solid #fff;
+}
+@keyframes mapPulse {
+  0% { transform: scale(0.55); opacity: 0.8; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+.mapAddressSearch { display: grid; gap: 8px; position: relative; }
+.mapFieldLabel {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mapAddressInputWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+.mapAddressInputWrap input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 12px 0;
+  outline: none;
+}
+.mapIconGhost {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 4px;
+}
+.mapSuggestList {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 8;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-small);
+  max-height: 240px;
+  overflow: auto;
+}
+.mapSuggestItem {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 10px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.mapSuggestItem:hover { background: var(--surface-soft); }
+.mapHint { margin: 0; font-size: 13px; color: var(--muted); }
+.mapHintDanger { color: var(--danger); }
+.mapUseLocationBtn { width: 100%; }
+.mapPermissionNotice {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line-blue);
+  background: rgba(14, 165, 233, 0.08);
+}
+.mapPermissionActions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.mapFilters { display: grid; gap: 10px; }
+.mapFiltersHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+}
+.mapChipRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.mapChipRowScroll { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+.mapChip {
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mapChip.isActive {
+  border-color: var(--blue);
+  background: rgba(37, 99, 235, 0.16);
+}
+.mapChip.isStatic { cursor: default; }
+.mapToggleRow { display: grid; gap: 8px; }
+.mapToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.mapRadiusControl { display: flex; flex-wrap: wrap; gap: 8px; }
+.mapRadiusBtn {
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.mapRadiusBtn.isActive {
+  border-color: var(--blue);
+  background: rgba(37, 99, 235, 0.16);
+}
+.mapFilters select,
+.mapFilters input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--ink);
+  padding: 10px 12px;
+}
+
+.mapSummary {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  font-size: 14px;
+}
+.mapSummary strong { display: block; }
+.mapSummary p { margin: 4px 0 0; color: var(--muted); }
+.mapSummaryEmpty {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.mapProCard {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--surface-elevated);
+}
+.mapProClose {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.mapProHeader { display: flex; gap: 12px; align-items: center; padding-right: 22px; }
+.mapProHeader h3 { margin: 0 0 4px; font-size: 18px; }
+.mapProAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--blue-bright);
+  background: var(--surface-soft);
+  font-weight: 900;
+}
+.mapProAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.mapAvailPill {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mapProMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.mapProMeta li { display: inline-flex; align-items: center; gap: 4px; }
+.mapProBadges { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; font-weight: 800; }
+.mapBottomSheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  padding: 8px 12px 16px;
+  border-radius: 22px 22px 0 0;
+  background: var(--surface);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
+}
+.mapBottomSheetHandle {
+  width: 42px;
+  height: 4px;
+  margin: 6px auto 10px;
+  border-radius: 99px;
+  background: var(--line);
+}
+
+.mapModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(2, 6, 23, 0.62);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+.mapModal {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: min(88vh, 820px);
+  overflow: auto;
+  padding: 24px;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.mapModal h2 { margin: 0 0 8px; }
+.mapModalActions { display: flex; flex-wrap: wrap; gap: 10px; }
+.mapRequestSuccess { display: grid; gap: 10px; text-align: center; padding: 12px 0; }
+.mapConfirmBox {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+.mapConfirmBox ul { margin: 8px 0 0; padding-left: 18px; }
+
+.mapLivePanel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--line-blue);
+  background: var(--surface-soft);
+}
+.mapLiveHead { display: flex; justify-content: space-between; gap: 8px; }
+.mapLiveHead h3 { margin: 4px 0 0; }
+.mapLiveStats { display: flex; flex-wrap: wrap; gap: 10px; font-weight: 800; }
+.mapLiveActions { display: grid; gap: 8px; }
+.mapArrivalBanner {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--green);
+  font-weight: 800;
+  font-size: 13px;
+}
+.mapStatusTimeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.mapStatusTimeline li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.mapStatusTimeline li.isDone { color: var(--ink); }
+.mapStatusTimeline li.isDanger { color: var(--danger); }
+.mapStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.mapStatusTimeline li.isDone .mapStatusDot { background: var(--green); }
+
+@media (max-width: 900px) {
+  .clientMapPage {
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - 74px);
+  }
+  .clientMapSidebar { display: none; }
+  .clientMapMain { min-height: calc(100vh - 74px); }
+  .clientMapMobileTop {
+    display: grid;
+    gap: 10px;
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    z-index: 5;
+    padding: 12px;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    border: 1px solid var(--line);
+  }
+  .mapCanvasWrap,
+  .clientMapMain { min-height: calc(100vh - 74px); }
+  .mapFabStack { bottom: 120px; }
 }
