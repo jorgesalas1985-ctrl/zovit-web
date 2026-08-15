@@ -101,7 +101,7 @@ export function ensureStudentTraining(
 
   const participations = getParticipations(draft);
   if (participations.includes("unsure")) {
-    const suggested = draft.suggestedProfiles.includes("in_training")
+    const suggested: ServiceProfileType[] = draft.suggestedProfiles.includes("in_training")
       ? draft.suggestedProfiles
       : [...draft.suggestedProfiles, "in_training"];
     return {
