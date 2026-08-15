@@ -2,6 +2,8 @@ import type { IntranetRole } from "@/lib/auth/intranetRoles";
 import { intranetHomeForRole } from "@/lib/auth/intranetRoles";
 
 export const SUPER_ADMIN_VIEW_KEY = "zovit-superadmin-view";
+export const SUPER_ADMIN_TOUR_COOKIE = "zovit-sa-tour";
+export const SUPER_ADMIN_TOUR_EVENT = "zovit-superadmin-tour";
 
 /** Cuentas que el superadmin puede recorrer en modo vista. */
 export type SuperAdminTourAccount =
@@ -61,14 +63,27 @@ export function readStoredTourAccount(): SuperAdminTourAccount | null {
   }
 }
 
+function writeTourCookie(account: SuperAdminTourAccount | null) {
+  if (typeof document === "undefined") return;
+  if (!account || account === "super_admin") {
+    document.cookie = `${SUPER_ADMIN_TOUR_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0`;
+    return;
+  }
+  document.cookie = `${SUPER_ADMIN_TOUR_COOKIE}=${encodeURIComponent(account)}; Path=/; SameSite=Lax; Max-Age=86400`;
+}
+
 export function writeStoredTourAccount(account: SuperAdminTourAccount | null): void {
   if (typeof window === "undefined") return;
   try {
     if (!account || account === "super_admin") {
       window.sessionStorage.removeItem(SUPER_ADMIN_VIEW_KEY);
-      return;
+    } else {
+      window.sessionStorage.setItem(SUPER_ADMIN_VIEW_KEY, account);
     }
-    window.sessionStorage.setItem(SUPER_ADMIN_VIEW_KEY, account);
+    writeTourCookie(account);
+    window.dispatchEvent(
+      new CustomEvent(SUPER_ADMIN_TOUR_EVENT, { detail: account ?? "super_admin" }),
+    );
   } catch {
     // ignore
   }

@@ -19,6 +19,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { FloatingToast } from "@/components/ui/FloatingToast";
+import { MobileDocumentCaptureButton } from "@/components/verification/MobileDocumentCaptureButton";
 import { DocumentAttachField } from "@/components/worker/DocumentAttachField";
 import { CHILE_SERVICE_ZONES, SPANISH_MONTHS } from "@/lib/geo/rmCommunes";
 import { listWorkerSpecialtyOptions } from "@/lib/worker/catalog";
@@ -207,9 +208,20 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
         },
       };
     }
-    const prepared = normalizeWorkerDraft(
+    let prepared = normalizeWorkerDraft(
       ensureStudentTraining(next, profile?.account_kind === "student"),
     );
+    if (local?.training?.enrollmentStoragePath && !prepared.training.enrollmentStoragePath) {
+      prepared = {
+        ...prepared,
+        training: {
+          ...prepared.training,
+          enrollmentDocName: local.training.enrollmentDocName,
+          enrollmentStoragePath: local.training.enrollmentStoragePath,
+          enrollmentMime: local.training.enrollmentMime,
+        },
+      };
+    }
     setDraft(prepared);
     if (getMissingDocumentIssue(prepared)) {
       setStep(3);
@@ -318,6 +330,18 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   }
 
   function reviewMissingDocuments() {
+    const box = document.getElementById("worker-missing-study-doc");
+    if (box) {
+      setMissingFieldId("training.enrollment");
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+      const focusable = box.querySelector<HTMLElement>("input, textarea, select, button");
+      focusable?.focus({ preventScroll: true });
+      showToast(
+        `Falta: ${completion.missingDocumentLabel}. Súbelo desde el PC o con el QR del celular.`,
+        "info",
+      );
+      return;
+    }
     const target = completion.target;
     if (!target) {
       showToast("No hay documentos pendientes por ahora.", "info");
@@ -325,6 +349,30 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     }
     showToast(target.message, "info");
     focusMissingField(target.fieldId, target.step);
+  }
+
+  async function attachEnrollment(file: File) {
+    setBusy(true);
+    const uploaded = await uploadWorkerDocument(file, "enrollment");
+    if (!uploaded) {
+      setBusy(false);
+      return;
+    }
+    const next = {
+      ...draft,
+      training: {
+        ...draft.training,
+        enrollmentDocName: uploaded.name,
+        enrollmentStoragePath: uploaded.path,
+        enrollmentMime: uploaded.mime,
+      },
+    };
+    setDraft(next);
+    saveLocalWorkerDraft(next);
+    setBusy(false);
+    showToast("Documento de estudios subido. Ese era el 14% que faltaba.", "success");
+    await persistDraft(next, { quiet: true });
+    void loadDocumentCompliance();
   }
 
   function toggleParticipation(choice: ParticipationChoice) {
@@ -563,6 +611,78 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
           <span style={{ width: `${completion.percent}%` }} />
         </div>
         {completion.warning ? <p className="workerCompletionWarning">{completion.warning}</p> : null}
+        {!completion.documentsComplete ? (
+          <div
+            id="worker-missing-study-doc"
+            className={`workerMissingDocBox ${
+              missingFieldId === "training.enrollment" ? "isMissingField" : ""
+            }`}
+          >
+            <h3>Archivo que falta para el {completion.remainingPercent}%</h3>
+            <p>
+              <strong>{completion.missingDocumentLabel}</strong>. Sin este archivo el certificado
+              ZOVIT permanece cerrado.
+            </p>
+            {!draft.training.institution.trim() || !draft.training.career.trim() ? (
+              <div className="formGrid">
+                <label>
+                  Institución educacional
+                  <input
+                    value={draft.training.institution}
+                    placeholder={FIELD_PLACEHOLDERS.institution}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        training: { ...draft.training, institution: e.target.value },
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Carrera, especialidad o curso
+                  <input
+                    value={draft.training.career}
+                    placeholder={FIELD_PLACEHOLDERS.career}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        training: { ...draft.training, career: e.target.value },
+                      })
+                    }
+                  />
+                </label>
+              </div>
+            ) : null}
+            <DocumentAttachField
+              label="1. Subir desde este computador"
+              fileName={draft.training.enrollmentDocName}
+              busy={busy}
+              highlight={missingFieldId === "training.enrollment"}
+              hint="Pulsa + y elige un JPG, PNG, WEBP o PDF. Máximo 10 MB."
+              onPick={(file) => void attachEnrollment(file)}
+              onClear={() =>
+                setDraft({
+                  ...draft,
+                  training: {
+                    ...draft.training,
+                    enrollmentDocName: "",
+                    enrollmentStoragePath: "",
+                    enrollmentMime: "",
+                  },
+                })
+              }
+            />
+            <div className="workerMissingDocQr">
+              <p>2. O escanear un QR y subirlo desde el celular</p>
+              <MobileDocumentCaptureButton
+                documentType="certificado_estudios"
+                label={completion.missingDocumentLabel}
+                busy={busy}
+                onCaptured={(file) => void attachEnrollment(file)}
+              />
+            </div>
+          </div>
+        ) : null}
         <ul className="workerCompletionList">
           {completion.items.map((item) => (
             <li key={item.id} className={`workerCompletionItem is-${item.status}`}>
@@ -1273,23 +1393,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                 fieldId="training.enrollment"
                 highlight={missingFieldId === "training.enrollment"}
                 hint="Pulsa + para adjuntar el certificado (JPG, PNG, WEBP o PDF)"
-                onPick={async (file) => {
-                  setBusy(true);
-                  const uploaded = await uploadWorkerDocument(file, "enrollment");
-                  setBusy(false);
-                  if (!uploaded) return;
-                  setDraft({
-                    ...draft,
-                    training: {
-                      ...draft.training,
-                      enrollmentDocName: uploaded.name,
-                      enrollmentStoragePath: uploaded.path,
-                      enrollmentMime: uploaded.mime,
-                    },
-                  });
-                  showToast("Certificado de matrícula adjuntado. Ese era el 14% que faltaba.", "success");
-                  void loadDocumentCompliance();
-                }}
+                onPick={(file) => void attachEnrollment(file)}
                 onClear={() =>
                   setDraft({
                     ...draft,

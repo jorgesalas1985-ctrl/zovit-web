@@ -2,7 +2,13 @@
 
 import { Session, User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { applySuperAdminTourProfile } from "@/lib/auth/applyTourProfile";
 import { isRoleMode, isUserRole, type RoleMode, type UserRole } from "@/lib/auth/roles";
+import {
+  readStoredTourAccount,
+  SUPER_ADMIN_TOUR_EVENT,
+  type SuperAdminTourAccount,
+} from "@/lib/auth/superAdminView";
 import { supabase } from "@/lib/supabase";
 
 export type UserProfile = {
@@ -24,6 +30,7 @@ type AuthContextValue = {
   session: Session | null;
   user: User | null;
   profile: UserProfile | null;
+  realProfile: UserProfile | null;
   profileError: string | null;
   profileLoading: boolean;
   loading: boolean;
@@ -44,7 +51,8 @@ function sleep(ms: number) {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [realProfile, setRealProfile] = useState<UserProfile | null>(null);
+  const [tourAccount, setTourAccount] = useState<SuperAdminTourAccount>("super_admin");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -89,14 +97,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (lastError) {
-      setProfile(null);
+      setRealProfile(null);
       setProfileError("perfil-incompleto");
       setProfileLoading(false);
       return;
     }
 
     if (!lastData || !isUserRole(lastData.role as string | null | undefined)) {
-      setProfile(null);
+      setRealProfile(null);
       setProfileError("perfil-incompleto");
       setProfileLoading(false);
       return;
@@ -117,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ? "professional"
         : "client";
 
-    setProfile({
+    setRealProfile({
       first_name: (lastData.first_name as string | null) ?? null,
       last_name: (lastData.last_name as string | null) ?? null,
       role: registrationRole,
@@ -141,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setProfile(null);
+      setRealProfile(null);
       setProfileError(null);
       setProfileLoading(false);
       return;
@@ -169,7 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await loadProfile(currentUser.id);
       } else {
         setSession(null);
-        setProfile(null);
+        setRealProfile(null);
         setProfileError(null);
         setProfileLoading(false);
       }
@@ -193,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setProfile(null);
+      setRealProfile(null);
       setProfileError(null);
       setProfileLoading(false);
       setLoading(false);
@@ -205,23 +213,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadProfile]);
 
+  useEffect(() => {
+    setTourAccount(readStoredTourAccount() ?? "super_admin");
+    function onTourChange(event: Event) {
+      const next = (event as CustomEvent<SuperAdminTourAccount>).detail;
+      setTourAccount(next ?? readStoredTourAccount() ?? "super_admin");
+    }
+    window.addEventListener(SUPER_ADMIN_TOUR_EVENT, onTourChange);
+    return () => window.removeEventListener(SUPER_ADMIN_TOUR_EVENT, onTourChange);
+  }, []);
+
+  const profile = useMemo(
+    () => applySuperAdminTourProfile(realProfile, tourAccount),
+    [realProfile, tourAccount],
+  );
+
   const value = useMemo(
     () => ({
       session,
       user: session?.user ?? null,
       profile,
+      realProfile,
       profileError,
       profileLoading,
       loading,
       signOut: async () => {
         await supabase.auth.signOut();
-        setProfile(null);
+        setRealProfile(null);
         setProfileError(null);
         setProfileLoading(false);
       },
       refreshProfile,
     }),
-    [session, profile, profileError, profileLoading, loading, refreshProfile]
+    [session, profile, realProfile, profileError, profileLoading, loading, refreshProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

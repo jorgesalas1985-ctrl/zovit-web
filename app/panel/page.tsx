@@ -45,7 +45,7 @@ type RequestItem = {
 };
 
 function PanelContent() {
-  const { user, profile } = useAuth();
+  const { user, profile, realProfile } = useAuth();
   const searchParams = useSearchParams();
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [requestCount, setRequestCount] = useState(0);
@@ -62,7 +62,7 @@ function PanelContent() {
   const isProfessionalView = panelView === "professional";
   const isClientView = panelView === "client";
   const isAdmin = role === "admin";
-  const isSuperAdmin = isSuperAdminRole(profile?.intranet_role);
+  const isSuperAdmin = isSuperAdminRole(realProfile?.intranet_role) && profile?.intranet_role === "super_admin";
   // Certificado solo para dual cliente-profesional o vista profesional (no clientes puros).
   const canShowCertificate = Boolean(user && (hasDualMode(profile) || isProfessionalView));
 

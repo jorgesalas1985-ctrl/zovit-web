@@ -4373,6 +4373,29 @@ html[data-theme="dark"] .homeStoryWallPeel {
 .workerCompletionAction {
   margin-top: 10px;
 }
+.workerMissingDocBox {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(217, 119, 6, 0.45);
+  background: color-mix(in srgb, var(--surface) 86%, rgba(245, 158, 11, 0.12));
+}
+.workerMissingDocBox h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.workerMissingDocBox p {
+  margin: 0;
+  line-height: 1.45;
+}
+.workerMissingDocQr {
+  display: grid;
+  gap: 8px;
+}
+.workerMissingDocQr p {
+  font-weight: 700;
+}
 .workerPublicBadges {
   display: flex;
   flex-wrap: wrap;

@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test lib/worker/**/*.test.ts"
+    "test": "tsx --test lib/worker/**/*.test.ts lib/auth/**/*.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

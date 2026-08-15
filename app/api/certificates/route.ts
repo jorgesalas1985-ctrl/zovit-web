@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
+import { applySuperAdminTourProfile, readTourAccountFromCookie } from "@/lib/auth/applyTourProfile";
 import { requireAuthenticatedUser } from "@/lib/auth/requirePlatformAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ensureStudentTraining } from "@/lib/worker/classify";
+import { createEmptyWorkerDraft, normalizeWorkerDraft } from "@/lib/worker/draft";
+import { buildWorkerProfileCompletion } from "@/lib/worker/profileCompletion";
+import type { WorkerRegistrationDraft } from "@/lib/worker/types";
 import { deliverIssuedCertificate } from "@/lib/certificates/deliverCertificate";
 import {
   issueExperienceCertificate,
@@ -50,6 +55,49 @@ export async function POST(request: Request) {
   try {
     const auth = await requireAuthenticatedUser();
     if ("error" in auth) return auth.error;
+
+    const tour = readTourAccountFromCookie(request.headers.get("cookie"));
+    const { data: authProfile } = await auth.supabase
+      .from("profiles")
+      .select("role, account_kind, intranet_role, can_act_as_client, can_act_as_professional, active_mode")
+      .eq("id", auth.user.id)
+      .maybeSingle();
+    const effective = applySuperAdminTourProfile(
+      {
+        role: (authProfile?.role as "client" | "professional" | "admin") ?? "client",
+        account_kind: (authProfile?.account_kind as string | null) ?? null,
+        can_act_as_client: Boolean(authProfile?.can_act_as_client),
+        can_act_as_professional: Boolean(authProfile?.can_act_as_professional),
+        active_mode: authProfile?.active_mode === "professional" ? "professional" : "client",
+        intranet_role: (authProfile?.intranet_role as string | null) ?? null,
+      },
+      tour,
+    );
+    const { data: registration } = await auth.supabase
+      .from("worker_registrations")
+      .select("draft")
+      .eq("profile_id", auth.user.id)
+      .maybeSingle();
+    const draft = normalizeWorkerDraft(
+      ensureStudentTraining(
+        (registration?.draft as WorkerRegistrationDraft | undefined) ?? createEmptyWorkerDraft(),
+        effective?.account_kind === "student",
+      ),
+    );
+    const completion = buildWorkerProfileCompletion({
+      draft,
+      isStudent: effective?.account_kind === "student",
+    });
+    if (!completion.certificateUnlocked) {
+      return NextResponse.json(
+        {
+          error: `El certificado está cerrado hasta completar el 100% del perfil. Falta: ${completion.missingDocumentLabel}.`,
+          missingDocumentLabel: completion.missingDocumentLabel,
+          remainingPercent: completion.remainingPercent,
+        },
+        { status: 403 },
+      );
+    }
 
     const body = (await request.json().catch(() => ({}))) as {
       reissue?: boolean;

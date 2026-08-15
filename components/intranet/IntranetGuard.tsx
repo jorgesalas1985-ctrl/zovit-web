@@ -25,11 +25,11 @@ type IntranetGuardProps = {
 };
 
 export function IntranetGuard({ allowedRoles, permission, children }: IntranetGuardProps) {
-  const { profile, loading, user } = useAuth();
+  const { realProfile, loading, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { isRealSuperAdmin, tourAccount } = useSuperAdminView();
-  const realRole = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
+  const realRole = isIntranetRole(realProfile?.intranet_role) ? realProfile.intranet_role : null;
   const bannerRole = useEffectiveIntranetRole() ?? realRole;
   const simulatedRole = isRealSuperAdmin ? tourAccountToIntranetRole(tourAccount) : null;
   const roleForAccess: IntranetRole | null = simulatedRole ?? realRole;

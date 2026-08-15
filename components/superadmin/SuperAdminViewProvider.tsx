@@ -27,8 +27,8 @@ type SuperAdminViewContextValue = {
 const SuperAdminViewContext = createContext<SuperAdminViewContextValue | null>(null);
 
 export function SuperAdminViewProvider({ children }: { children: ReactNode }) {
-  const { profile } = useAuth();
-  const isRealSuperAdmin = profile?.intranet_role === "super_admin";
+  const { realProfile } = useAuth();
+  const isRealSuperAdmin = realProfile?.intranet_role === "super_admin";
   const [tourAccount, setTourAccountState] = useState<SuperAdminTourAccount>("super_admin");
 
   useEffect(() => {
@@ -76,12 +76,12 @@ export function useSuperAdminView() {
 
 /** Rol intranet efectivo para banners y simulación de permisos. */
 export function useEffectiveIntranetRole() {
-  const { profile } = useAuth();
+  const { realProfile } = useAuth();
   const { isRealSuperAdmin, tourAccount } = useSuperAdminView();
-  const real = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
+  const real = isIntranetRole(realProfile?.intranet_role) ? realProfile.intranet_role : null;
 
   if (!isRealSuperAdmin || !real) return real;
+  if (tourAccount === "super_admin") return real;
 
-  const mapped = tourAccountToIntranetRole(tourAccount);
-  return mapped ?? real;
+  return tourAccountToIntranetRole(tourAccount);
 }
