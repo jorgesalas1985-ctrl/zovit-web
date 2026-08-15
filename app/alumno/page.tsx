@@ -32,7 +32,7 @@ export default function StudentHomePage() {
               <h3>Pasaporte Digital</h3>
               <p>Ver identidad, formacion, competencias y trazabilidad.</p>
             </Link>
-            <Link href="/registro/trabajador" className="intranetCard">
+            <Link href="/registro/trabajador?focus=documents" className="intranetCard">
               <ArrowRight size={24} />
               <h3>Completar formacion</h3>
               <p>Subir alumno regular, certificados y antecedentes.</p>

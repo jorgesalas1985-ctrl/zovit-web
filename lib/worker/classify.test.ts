@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  ensureStudentTraining,
   pickPrimaryProfile,
   suggestFromGuidedAssistant,
   suggestProfilesFromParticipation,
@@ -49,6 +50,12 @@ describe("worker classification", () => {
     assert.ok(profiles.includes("experience_verified"));
     assert.ok(profiles.includes("in_training"));
     assert.ok(profiles.includes("community_collaborator"));
+  });
+
+  it("keeps student drafts on the training path so the study document is reachable", () => {
+    const draft = ensureStudentTraining(createEmptyWorkerDraft(), true);
+    assert.deepEqual(draft.participations, ["training"]);
+    assert.deepEqual(draft.suggestedProfiles, ["in_training"]);
   });
 
   it("picks a primary profile without implying superiority ranking beyond priority", () => {

@@ -184,13 +184,8 @@ function getAntecedentsIssue(draft: WorkerRegistrationDraft): ValidationIssue | 
         step: 3,
       };
     }
-    if (!filled(t.enrollmentStoragePath ?? "")) {
-      return {
-        message: "Sube el certificado de alumno regular o matrícula (JPG, PNG, WEBP o PDF).",
-        fieldId: "training.enrollment",
-        step: 3,
-      };
-    }
+    const documentIssue = getTrainingDocumentIssue(draft);
+    if (documentIssue) return documentIssue;
   }
 
   if (profiles.includes("community_collaborator")) {
@@ -316,4 +311,141 @@ export function isStepComplete(step: number, draft: WorkerRegistrationDraft): bo
 
 export function activeProfileSet(draft: WorkerRegistrationDraft): ServiceProfileType[] {
   return deriveSuggestedProfiles(draft);
+}
+
+function getTrainingDocumentIssue(draft: WorkerRegistrationDraft): ValidationIssue | null {
+  if (filled(draft.training.enrollmentStoragePath ?? "")) return null;
+  return {
+    message: "Sube el certificado de alumno regular o matrícula (JPG, PNG, WEBP o PDF).",
+    fieldId: "training.enrollment",
+    step: 3,
+  };
+}
+
+function getAntecedentsNonDocumentIssue(draft: WorkerRegistrationDraft): ValidationIssue | null {
+  const profiles = deriveSuggestedProfiles(draft);
+
+  if (profiles.includes("certified")) {
+    if (!draft.credentials.length) {
+      return {
+        message: "Agrega al menos un título, licencia o certificación.",
+        fieldId: "credentials",
+        step: 3,
+      };
+    }
+    for (const cred of draft.credentials) {
+      if (!filled(cred.profession) || !filled(cred.credentialName) || !filled(cred.institution)) {
+        return {
+          message: "Completa profesión, institución y nombre del título/certificación.",
+          fieldId: "credentials",
+          step: 3,
+        };
+      }
+    }
+  }
+
+  if (profiles.includes("experience_verified")) {
+    const e = draft.experience;
+    if (!filled(e.trade) || !filled(e.yearsExperience) || !filled(e.description)) {
+      return {
+        message: "Completa oficio, años de experiencia y descripción laboral.",
+        fieldId: "experience",
+        step: 3,
+      };
+    }
+  }
+
+  if (profiles.includes("in_training")) {
+    const t = draft.training;
+    if (!filled(t.institution) || !filled(t.career)) {
+      return {
+        message: "Completa institución y carrera/especialidad.",
+        fieldId: "training.institution",
+        step: 3,
+      };
+    }
+  }
+
+  if (profiles.includes("community_collaborator")) {
+    const c = draft.community;
+    if (!filled(c.availability) || !filled(c.communes)) {
+      return {
+        message: "Indica disponibilidad y comuna/zona de atención.",
+        fieldId: "community.availability",
+        step: 3,
+      };
+    }
+    if (!c.taskTypes.length) {
+      return {
+        message: "Selecciona al menos un tipo de tarea de apoyo.",
+        fieldId: "community.tasks",
+        step: 3,
+      };
+    }
+    if (!filled(c.emergencyContact)) {
+      return {
+        message: "Ingresa un contacto de emergencia.",
+        fieldId: "community.emergency",
+        step: 3,
+      };
+    }
+    if (!c.safetyAccepted) {
+      return {
+        message: "Debes aceptar las normas de seguridad.",
+        fieldId: "community.safety",
+        step: 3,
+      };
+    }
+  }
+
+  return null;
+}
+
+/** Campos del formulario sin contar archivos adjuntos. */
+export function getRegistrationFormIssue(draft: WorkerRegistrationDraft): ValidationIssue | null {
+  return (
+    getPersonalIssue(draft) ||
+    getParticipationIssue(draft) ||
+    getAntecedentsNonDocumentIssue(draft) ||
+    getServicesIssue(draft) ||
+    getAvailabilityIssue(draft) ||
+    (draft.consentAccepted
+      ? null
+      : {
+          message: "Debes aceptar el consentimiento informado para enviar tus antecedentes.",
+          fieldId: "review.consent" as const,
+          step: 6,
+        })
+  );
+}
+
+/** Primer documento faltante para el botón "Revisar documentos". */
+export function getMissingDocumentIssue(draft: WorkerRegistrationDraft): ValidationIssue | null {
+  const profiles = deriveSuggestedProfiles(draft);
+
+  if (profiles.includes("in_training")) {
+    const trainingIssue = getTrainingDocumentIssue(draft);
+    if (trainingIssue) return trainingIssue;
+  }
+
+  if (profiles.includes("certified")) {
+    if (!draft.credentials.length) {
+      return {
+        message: "Agrega y sube al menos un título, licencia o certificación.",
+        fieldId: "credentials",
+        step: 3,
+      };
+    }
+    for (const cred of draft.credentials) {
+      if (!filled(cred.storagePath ?? "")) {
+        return {
+          message: "Sube el archivo del título, licencia o certificación (JPG, PNG, WEBP o PDF).",
+          fieldId: "credentials.document",
+          step: 3,
+        };
+      }
+    }
+  }
+
+  return null;
 }

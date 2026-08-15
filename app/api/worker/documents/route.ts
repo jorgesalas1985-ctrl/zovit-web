@@ -11,8 +11,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildOperationalDocumentInsert,
   registerOperationalDocument,
-  type OperationalDocumentKind,
 } from "@/lib/operations/documentRenewalPersistence";
+import { documentKindFromFolder } from "@/lib/worker/documentKind";
 
 const BUCKET = "worker-credentials";
 const ALLOWED = new Set([
@@ -55,15 +55,6 @@ const EXT_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
   "application/pdf": "pdf",
 };
-
-function documentKindFromFolder(folder: string): OperationalDocumentKind {
-  if (folder === "identity") return "identity";
-  if (folder === "licenses") return "license";
-  if (folder === "student" || folder === "training") return "student_enrollment";
-  if (folder === "background") return "background";
-  if (folder === "docs" || folder === "credentials") return "credential";
-  return "other";
-}
 
 export async function POST(request: Request) {
   try {

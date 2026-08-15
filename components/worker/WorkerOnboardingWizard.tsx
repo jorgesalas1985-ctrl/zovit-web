@@ -8,7 +8,9 @@ import {
   CheckCircle2,
   CheckSquare,
   ChevronDown,
+  FileUp,
   HelpCircle,
+  Lock,
   Plus,
   Save,
   Square,
@@ -21,12 +23,14 @@ import { DocumentAttachField } from "@/components/worker/DocumentAttachField";
 import { CHILE_SERVICE_ZONES, SPANISH_MONTHS } from "@/lib/geo/rmCommunes";
 import { listWorkerSpecialtyOptions } from "@/lib/worker/catalog";
 import {
+  ensureStudentTraining,
   getParticipations,
   pickPrimaryProfile,
   suggestFromGuidedAssistant,
   suggestProfilesFromParticipations,
   type GuidedAnswers,
 } from "@/lib/worker/classify";
+import { buildWorkerProfileCompletion } from "@/lib/worker/profileCompletion";
 import {
   clearLocalWorkerDraft,
   createEmptyWorkerDraft,
@@ -48,6 +52,8 @@ import type {
   WorkerRegistrationDraft,
 } from "@/lib/worker/types";
 import {
+  getMissingDocumentIssue,
+  getRegistrationFormIssue,
   getStepValidationIssue,
   type WorkerFieldId,
 } from "@/lib/worker/validate";
@@ -128,6 +134,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   });
 
   const specialties = useMemo(() => listWorkerSpecialtyOptions(), []);
+  const isStudent = profile?.account_kind === "student";
   const selectedParticipations = getParticipations(draft);
   const activeProfiles = useMemo(() => {
     if (selectedParticipations.includes("unsure")) {
@@ -136,6 +143,17 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     const fromChoices = suggestProfilesFromParticipations(selectedParticipations);
     return fromChoices.length ? fromChoices : draft.suggestedProfiles;
   }, [draft.suggestedProfiles, selectedParticipations]);
+  const showTrainingBlock = activeProfiles.includes("in_training") || isStudent;
+  const completion = useMemo(
+    () =>
+      buildWorkerProfileCompletion({
+        draft,
+        isStudent,
+        documentCompliance,
+        documentComplianceError,
+      }),
+    [documentCompliance, documentComplianceError, draft, isStudent],
+  );
 
   const hydrate = useCallback(async () => {
     const local = loadLocalWorkerDraft();
@@ -151,11 +169,6 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
             ...(data.registration.draft as WorkerRegistrationDraft),
             status: serverStatus || data.registration.draft.status,
           };
-          if (serverStatus === "submitted" || serverStatus === "verified") {
-            setStep(7);
-          } else {
-            setStep(1);
-          }
         } else if (data.profile) {
           next = createEmptyWorkerDraft({
             firstName: data.profile.first_name ?? "",
@@ -194,39 +207,61 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
         },
       };
     }
-    setDraft(normalizeWorkerDraft(next));
+    const prepared = normalizeWorkerDraft(
+      ensureStudentTraining(next, profile?.account_kind === "student"),
+    );
+    setDraft(prepared);
+    if (getMissingDocumentIssue(prepared)) {
+      setStep(3);
+    } else if (prepared.status === "submitted" || prepared.status === "verified") {
+      setStep(7);
+    } else if (getRegistrationFormIssue(prepared)) {
+      setStep(getRegistrationFormIssue(prepared)?.step ?? 1);
+    } else {
+      setStep(1);
+    }
   }, [profile, user]);
 
   useEffect(() => {
     if (!loading) void hydrate();
   }, [hydrate, loading]);
 
-  useEffect(() => {
+  const loadDocumentCompliance = useCallback(async () => {
     if (!user) return;
-
-    void (async () => {
-      try {
-        const response = await fetch("/api/worker/document-compliance", { cache: "no-store" });
-        const data = await response.json();
-        if (!response.ok) {
-          setDocumentComplianceError(data.error ?? "No se pudo cargar tu estado documental.");
-          return;
-        }
-        setDocumentCompliance(
-          data.compliance
-            ? {
-                ...data.compliance,
-                actionLabel: data.actionLabel ?? "",
-                nextStep: data.nextStep ?? "upload_documents",
-              }
-            : null,
-        );
-        setDocumentComplianceError(data.error ?? "");
-      } catch {
-        setDocumentComplianceError("No se pudo cargar tu estado documental.");
+    try {
+      const response = await fetch("/api/worker/document-compliance", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) {
+        setDocumentComplianceError(data.error ?? "No se pudo cargar tu estado documental.");
+        return;
       }
-    })();
+      setDocumentCompliance(
+        data.compliance
+          ? {
+              ...data.compliance,
+              actionLabel: data.actionLabel ?? "",
+              nextStep: data.nextStep ?? "upload_documents",
+            }
+          : null,
+      );
+      setDocumentComplianceError(data.error ?? "");
+    } catch {
+      setDocumentComplianceError("No se pudo cargar tu estado documental.");
+    }
   }, [user]);
+
+  useEffect(() => {
+    void loadDocumentCompliance();
+  }, [loadDocumentCompliance]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const focus = new URLSearchParams(window.location.search).get("focus");
+    if (focus !== "documents" && focus !== "documentos") return;
+    const target = completion.target;
+    if (!target) return;
+    focusMissingField(target.fieldId, target.step);
+  }, [completion.target, focusMissingField]);
 
   useEffect(() => {
     saveLocalWorkerDraft(draft);
@@ -282,7 +317,21 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     return true;
   }
 
+  function reviewMissingDocuments() {
+    const target = completion.target;
+    if (!target) {
+      showToast("No hay documentos pendientes por ahora.", "info");
+      return;
+    }
+    showToast(target.message, "info");
+    focusMissingField(target.fieldId, target.step);
+  }
+
   function toggleParticipation(choice: ParticipationChoice) {
+    if (isStudent && choice === "training" && selectedParticipations.includes("training")) {
+      showToast("Como alumno debes mantener el certificado de estudios en tu perfil.", "info");
+      return;
+    }
     setDraft((current) => {
       const currentChoices = getParticipations(current);
       let nextChoices: ParticipationChoice[];
@@ -488,6 +537,66 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
           Estado documental pendiente: {documentComplianceError}
         </div>
       ) : null}
+
+      <section className="workerCompletionCard" aria-labelledby="worker-completion-title">
+        <div className="workerCompletionHead">
+          <div>
+            <p className="kicker">{completion.percent === 100 ? "PERFIL LISTO" : "PERFIL INCOMPLETO"}</p>
+            <h2 id="worker-completion-title">
+              {completion.percent}% completado
+            </h2>
+          </div>
+          {completion.remainingPercent > 0 ? (
+            <strong>Te falta {completion.remainingPercent}% para completar tu perfil</strong>
+          ) : (
+            <strong>Ya puedes obtener tu certificado</strong>
+          )}
+        </div>
+        <div
+          className="workerCompletionBar"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={completion.percent}
+          aria-label="Progreso del perfil"
+        >
+          <span style={{ width: `${completion.percent}%` }} />
+        </div>
+        {completion.warning ? <p className="workerCompletionWarning">{completion.warning}</p> : null}
+        <ul className="workerCompletionList">
+          {completion.items.map((item) => (
+            <li key={item.id} className={`workerCompletionItem is-${item.status}`}>
+              <span className="workerCompletionIcon" aria-hidden>
+                {item.status === "complete" ? (
+                  <CheckCircle2 size={18} />
+                ) : item.status === "locked" ? (
+                  <Lock size={18} />
+                ) : (
+                  <AlertCircle size={18} />
+                )}
+              </span>
+              <div>
+                <strong>{item.title}</strong>
+                <p>{item.description}</p>
+                {item.actionLabel ? (
+                  <button
+                    type="button"
+                    className="primaryButton workerCompletionAction"
+                    onClick={reviewMissingDocuments}
+                  >
+                    <FileUp size={16} /> {item.actionLabel}
+                  </button>
+                ) : null}
+                {item.id === "certificate" && completion.certificateUnlocked ? (
+                  <Link href="/certificado-experiencia" className="primaryButton workerCompletionAction">
+                    Ver certificado <ArrowRight size={16} />
+                  </Link>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <ol className="workerProgress" aria-label="Progreso del registro">
         {STEPS.map((label, index) => {
@@ -894,6 +1003,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                       };
                       setDraft({ ...draft, credentials });
                       showToast("Documento adjuntado correctamente.", "success");
+                      void loadDocumentCompliance();
                     }}
                     onClear={() => {
                       const credentials = [...draft.credentials];
@@ -1047,7 +1157,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
             </div>
           )}
 
-          {activeProfiles.includes("in_training") && (
+          {showTrainingBlock && (
             <div
               className={`workerBlock formGrid ${
                 missingFieldId === "training.institution" ||
@@ -1177,7 +1287,8 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                       enrollmentMime: uploaded.mime,
                     },
                   });
-                  showToast("Certificado de matrícula adjuntado.", "success");
+                  showToast("Certificado de matrícula adjuntado. Ese era el 14% que faltaba.", "success");
+                  void loadDocumentCompliance();
                 }}
                 onClear={() =>
                   setDraft({

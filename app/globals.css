@@ -4284,6 +4284,95 @@ html[data-theme="dark"] .homeStoryWallPeel {
   align-items: center;
   justify-content: space-between;
 }
+.workerCompletionCard {
+  margin: 18px 0 8px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  background:
+    linear-gradient(180deg, rgba(217, 119, 6, 0.08), transparent 42%),
+    color-mix(in srgb, var(--surface) 92%, var(--bg));
+  display: grid;
+  gap: 14px;
+}
+.workerCompletionHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.workerCompletionHead h2 {
+  margin: 4px 0 0;
+  font-size: 22px;
+}
+.workerCompletionHead strong {
+  color: #d97706;
+  font-size: 14px;
+}
+.workerCompletionBar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.28);
+  overflow: hidden;
+}
+.workerCompletionBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b45309, #d97706 55%, #f59e0b);
+}
+.workerCompletionWarning {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.5;
+  font-size: 14px;
+}
+.workerCompletionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.workerCompletionItem {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line-blue);
+  background: var(--surface);
+}
+.workerCompletionItem.is-complete {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: color-mix(in srgb, var(--surface) 88%, rgba(16, 185, 129, 0.12));
+}
+.workerCompletionItem.is-pending,
+.workerCompletionItem.is-error {
+  border-color: rgba(245, 158, 11, 0.55);
+}
+.workerCompletionItem.is-locked {
+  opacity: 0.78;
+}
+.workerCompletionItem p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+  font-size: 14px;
+}
+.workerCompletionIcon {
+  display: grid;
+  place-items: start center;
+  padding-top: 2px;
+}
+.workerCompletionItem.is-complete .workerCompletionIcon { color: var(--green); }
+.workerCompletionItem.is-pending .workerCompletionIcon,
+.workerCompletionItem.is-error .workerCompletionIcon { color: #d97706; }
+.workerCompletionItem.is-locked .workerCompletionIcon { color: var(--muted); }
+.workerCompletionAction {
+  margin-top: 10px;
+}
 .workerPublicBadges {
   display: flex;
   flex-wrap: wrap;
