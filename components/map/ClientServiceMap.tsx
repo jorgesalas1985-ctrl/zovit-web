@@ -98,6 +98,7 @@ export function ClientServiceMap({
       const markersAtMount = proMarkersRef.current;
 
       map.on("load", () => {
+        map.resize();
         setReady(true);
         if (!map.getSource("coverage")) {
           map.addSource("coverage", {
@@ -130,7 +131,16 @@ export function ClientServiceMap({
         setInitError("No fue posible cargar el mapa. Revisa tu conexión e intenta de nuevo.");
       });
 
+      const resizeObserver =
+        typeof ResizeObserver !== "undefined"
+          ? new ResizeObserver(() => {
+              map.resize();
+            })
+          : null;
+      resizeObserver?.observe(containerRef.current);
+
       return () => {
+        resizeObserver?.disconnect();
         markersAtMount.forEach((m) => m.remove());
         markersAtMount.clear();
         clientMarkerRef.current?.remove();
@@ -171,6 +181,7 @@ export function ClientServiceMap({
       zoom: radiusKm <= 2 ? 14 : radiusKm <= 5 ? 12.5 : radiusKm <= 10 ? 11.5 : 10.5,
       duration: 600,
     });
+    map.resize();
 
     if (!clientMarkerRef.current) {
       clientMarkerRef.current = new maplibregl.Marker({ element: createClientEl() })

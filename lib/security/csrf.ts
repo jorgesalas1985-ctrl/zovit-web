@@ -32,6 +32,8 @@ export function assertSameOrigin(request: Request): { ok: true } | { ok: false; 
     if (/^https:\/\/([a-z0-9-]+\.)+vercel\.app$/i.test(origin) && origin === new URL(request.url).origin) {
       return { ok: true };
     }
+    // Local/LAN: el Host del request a veces no coincide 1:1 con Origin (localhost vs 127.0.0.1 / IP de red).
+    if (isLocalDevPair(origin, request.url)) return { ok: true };
     return { ok: false, error: "Origen no permitido." };
   }
 
@@ -52,4 +54,25 @@ export function assertSameOrigin(request: Request): { ok: true } | { ok: false; 
 
 export function csrfDeniedResponse(error: string) {
   return Response.json({ error }, { status: 403 });
+}
+
+function isLocalHostname(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  return /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(host);
+}
+
+/** Same-machine / LAN origins talking to a local Next server. */
+export function isLocalDevPair(origin: string, requestUrl: string): boolean {
+  if (process.env.NODE_ENV === "production") return false;
+  try {
+    const originUrl = new URL(origin);
+    const reqUrl = new URL(requestUrl);
+    if (originUrl.protocol !== "http:" || reqUrl.protocol !== "http:") return false;
+    return isLocalHostname(originUrl.hostname) && isLocalHostname(reqUrl.hostname);
+  } catch {
+    return false;
+  }
 }

@@ -44,7 +44,7 @@ Deben cumplir:
 - `latitude` / `longitude` no nulos
 - `availability_status` distinto de `offline` (`available`, `busy`, `on_the_way`)
 
-**En producción:** el profesional activa “Estoy disponible” en `/panel` o `/trabajos` (pide GPS y llama a `POST /api/map/availability`). Mientras está disponible, hay heartbeat cada ~45s.
+**En producción y en local:** el profesional activa “Estoy disponible” en `/panel` o `/trabajos`. El navegador pide GPS; si el GPS no está disponible (escritorio, HTTP en LAN, permiso denegado), ZOVIT reutiliza la última ubicación guardada o permite buscar la comuna. Mientras está disponible, hay heartbeat cada ~45s.
 
 Durante un servicio activo (`aceptada` / `en_camino` / `en_ejecucion`), el detalle `/solicitudes/[id]` publica GPS automáticamente vía `POST /api/map/live-location`.
 
@@ -66,7 +66,7 @@ No hay seeds automáticos en producción.
 ## Cómo probar
 
 1. Aplicar el SQL del sprint (RPC debe ser `SECURITY DEFINER`).
-2. Como profesional: `/panel` → “Estoy disponible” → permitir ubicación.
+2. Como profesional: `/panel` → “Estoy disponible” → permitir ubicación (o buscar comuna si el GPS no responde).
 3. Como cliente: `/cliente/mapa` → ver marcador → solicitar → confirmar (pantalla de éxito).
 4. Al aceptar el servicio, el profesional abre `/solicitudes/[id]` y el GPS en vivo se publica solo.
 5. El cliente ve el seguimiento en el mapa cuando el estado entra a `aceptada`+.
