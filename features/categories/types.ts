@@ -14,3 +14,18 @@ export const SERVICE_CATEGORIES = [
 ] as const;
 
 export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
+
+export type CategoryNode = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  summary?: string;
+  icon?: string;
+  featured?: boolean;
+  requiresLegalNotice?: boolean;
+  searchCategory?: string;
+  searchSpecialty?: string;
+  referencePrice?: string;
+  children?: CategoryNode[];
+};

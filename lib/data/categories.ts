@@ -1,20 +1,8 @@
+import type { CategoryNode } from "@/features/categories/types";
 import { SERVICE_CATALOG } from "@/lib/ai/serviceCatalog";
 import { slugify } from "@/lib/utils/slugify";
 
-export type CategoryNode = {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  summary?: string;
-  icon?: string;
-  featured?: boolean;
-  requiresLegalNotice?: boolean;
-  searchCategory?: string;
-  searchSpecialty?: string;
-  referencePrice?: string;
-  children?: CategoryNode[];
-};
+export type { CategoryNode } from "@/features/categories/types";
 
 const SHARED_INSTITUTION_SPECIALTIES = [
   "Recursos administrativos",
