@@ -1,4 +1,8 @@
 import type { CategoryNode } from "@/features/categories/types";
+import {
+  getCanonicalCategoryByName,
+  getCanonicalSpecialty,
+} from "@/features/categories/catalog";
 import { SERVICE_CATALOG } from "@/lib/ai/serviceCatalog";
 import { slugify } from "@/lib/utils/slugify";
 
@@ -20,15 +24,20 @@ function specialtyLeaf(
   searchCategory: string,
   description?: string,
 ): CategoryNode {
+  const specialty = getCanonicalSpecialty(id);
+  if (!specialty || specialty.name !== label) {
+    throw new Error(`Identidad canónica inválida para la especialidad ${id}.`);
+  }
+
   return {
-    id,
-    name: label,
-    slug: id,
+    id: specialty.id,
+    name: specialty.name,
+    slug: specialty.slug,
     description:
       description ??
-      `Encuentra profesionales con experiencia en ${label.toLowerCase()} y perfiles verificados en ZOVIT.`,
+      `Encuentra profesionales con experiencia en ${specialty.name.toLowerCase()} y perfiles verificados en ZOVIT.`,
     searchCategory,
-    searchSpecialty: label,
+    searchSpecialty: specialty.name,
     referencePrice: "Precio referencial a confirmar con el profesional",
   };
 }
@@ -106,23 +115,28 @@ function legacyRootFromCatalog(
   featured: boolean,
   groups: { id: string; name: string; specialties: { id: string; label: string }[] }[],
 ): CategoryNode {
+  const category = getCanonicalCategoryByName(name);
+  if (!category || category.slug !== slug) {
+    throw new Error(`Identidad canónica inválida para la categoría ${name}.`);
+  }
+
   const catalog = SERVICE_CATALOG.find((item) => item.category === name);
   const fallbackSpecialties = catalog?.specialties ?? [];
 
   const children =
     groups.length > 0
-      ? buildLegacyGroups(name, groups)
-      : fallbackSpecialties.map((specialty) => specialtyLeaf(specialty.id, specialty.label, name));
+      ? buildLegacyGroups(category.name, groups)
+      : fallbackSpecialties.map((specialty) => specialtyLeaf(specialty.id, specialty.label, category.name));
 
   return {
-    id: slug,
-    name,
-    slug,
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
     summary,
     description,
     icon,
     featured,
-    searchCategory: name,
+    searchCategory: category.name,
     children,
   };
 }

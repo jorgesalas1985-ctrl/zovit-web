@@ -1,4 +1,8 @@
 import type { ServiceCategory } from "@/lib/categories";
+import {
+  getCanonicalCategoryByName,
+  getCanonicalSpecialty,
+} from "@/features/categories/catalog";
 
 export type SpecialtyDefinition = {
   id: string;
@@ -12,7 +16,7 @@ export type CategoryDefinition = {
   generalKeywords: string[];
 };
 
-export const SERVICE_CATALOG: CategoryDefinition[] = [
+const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
   {
     category: "Automotriz",
     generalKeywords: [
@@ -319,6 +323,34 @@ export const SERVICE_CATALOG: CategoryDefinition[] = [
     ],
   },
 ];
+
+function canonicalizeServiceCatalog(definitions: CategoryDefinition[]): CategoryDefinition[] {
+  return definitions.map((definition) => {
+    const category = getCanonicalCategoryByName(definition.category);
+    if (!category) {
+      throw new Error(`Identidad canónica inválida para la categoría ${definition.category}.`);
+    }
+
+    return {
+      category: category.name as ServiceCategory,
+      generalKeywords: definition.generalKeywords,
+      specialties: definition.specialties.map((specialty) => {
+        const canonicalSpecialty = getCanonicalSpecialty(specialty.id);
+        if (!canonicalSpecialty || canonicalSpecialty.name !== specialty.label) {
+          throw new Error(`Identidad canónica inválida para la especialidad ${specialty.id}.`);
+        }
+
+        return {
+          id: canonicalSpecialty.id,
+          label: canonicalSpecialty.name,
+          keywords: specialty.keywords,
+        };
+      }),
+    };
+  });
+}
+
+export const SERVICE_CATALOG: CategoryDefinition[] = canonicalizeServiceCatalog(SERVICE_CATALOG_SOURCE);
 
 export function getSpecialtyLabel(category: ServiceCategory, specialtyId: string): string {
   const match = SERVICE_CATALOG.find((item) => item.category === category);
