@@ -1,6 +1,6 @@
 import type { ServiceCategory } from "@/lib/categories";
 import {
-  getCanonicalCategoryByName,
+  getCanonicalCategoryById,
   getCanonicalSpecialty,
 } from "@/features/categories/catalog";
 
@@ -16,9 +16,15 @@ export type CategoryDefinition = {
   generalKeywords: string[];
 };
 
-const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
+type ServiceCatalogProfile = {
+  categoryId: string;
+  specialties: Array<Pick<SpecialtyDefinition, "id" | "keywords">>;
+  generalKeywords: string[];
+};
+
+const SERVICE_CATALOG_SOURCE: ServiceCatalogProfile[] = [
   {
-    category: "Automotriz",
+    categoryId: "automotriz",
     generalKeywords: [
       "auto", "automovil", "automóvil", "vehiculo", "vehículo", "carro", "camioneta",
       "motor", "mecanico", "mecánico", "taller", "patente", "bateria", "batería",
@@ -26,7 +32,6 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
     specialties: [
       {
         id: "electricidad-automotriz",
-        label: "Electricidad automotriz",
         keywords: [
           "luz", "luces", "farol", "faroles", "alternador", "arranque", "encendido",
           "tablero", "fusible", "cortocircuito", "bateria", "batería", "no enciende",
@@ -36,7 +41,6 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
       },
       {
         id: "mecanica-general",
-        label: "Mecánica general",
         keywords: [
           "ruido", "vibracion", "vibración", "freno", "frenos", "embrague", "correa",
           "aceite", "revisión técnica", "revision tecnica", "no parte", "no arranca",
@@ -45,7 +49,6 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
       },
       {
         id: "scanner-motocicletas",
-        label: "Scanner motocicletas",
         keywords: [
           "scanner", "moto", "motocicleta", "motos", "check engine", "luz motor",
           "falla electronica", "falla electrónica", "codigo error", "código error", "obd",
@@ -53,7 +56,6 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
       },
       {
         id: "scanner-automotriz",
-        label: "Scanner automotriz",
         keywords: [
           "scanner", "auto", "automotriz", "automovil", "automóvil", "vehiculo", "vehículo",
           "check engine", "luz motor", "falla electronica", "falla electrónica",
@@ -62,7 +64,6 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
       },
       {
         id: "scanner-maquinaria-pesada",
-        label: "Scanner maquinaria pesada",
         keywords: [
           "scanner", "maquinaria pesada", "camion", "camión", "bus", "excavadora",
           "grua", "grúa", "check engine", "falla electronica", "falla electrónica", "obd",
@@ -70,13 +71,12 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
       },
       {
         id: "aire-acondicionado-auto",
-        label: "Aire acondicionado automotriz",
         keywords: ["aire acondicionado", "clima auto", "no enfría", "gas refrigerante"],
       },
     ],
   },
   {
-    category: "Hogar",
+    categoryId: "hogar",
     generalKeywords: [
       "casa", "hogar", "departamento", "depto", "baño", "bano", "cocina", "living",
       "ducha", "grifo", "enchufe", "interruptor",
@@ -84,7 +84,6 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
     specialties: [
       {
         id: "electricidad-domiciliaria",
-        label: "Electricidad domiciliaria",
         keywords: [
           "luz", "luces", "enchufe", "interruptor", "tablero", "cortocircuito",
           "se fue la luz", "no hay luz", "amperaje", "tomacorriente",
@@ -92,7 +91,6 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
       },
       {
         id: "gasfiteria",
-        label: "Gasfitería",
         keywords: [
           "agua", "filtracion", "filtración", "goteo", "gotea", "cañeria", "cañería",
           "gasfiter", "gasfíter", "desague", "desagüe", "inodoro", "llave paso",
@@ -101,7 +99,6 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
       },
       {
         id: "climatizacion",
-        label: "Climatización",
         keywords: [
           "calefaccion", "calefacción", "aire acondicionado", "split", "no calienta",
           "no enfría", "clima",
@@ -109,7 +106,6 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
       },
       {
         id: "cerrajeria",
-        label: "Cerrajería",
         keywords: [
           "cerradura", "llave", "puerta trabada", "no abre", "cerrojo", "chapa",
         ],
@@ -117,7 +113,7 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
     ],
   },
   {
-    category: "Construcción",
+    categoryId: "construccion",
     generalKeywords: [
       "obra", "construccion", "construcción", "muro", "pintura", "pintor", "terminaciones",
       "remodelacion", "remodelación", "techumbre", "techo",
@@ -125,23 +121,20 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
     specialties: [
       {
         id: "pintura",
-        label: "Pintura",
         keywords: ["pintar", "pintura", "brocha", "rodillo", "humeda", "húmeda", "filtracion pared"],
       },
       {
         id: "albanileria",
-        label: "Albañilería",
         keywords: ["muro", "ladrillo", "cemento", "radier", "loseta", "tabique"],
       },
       {
         id: "electricidad-obra",
-        label: "Instalaciones eléctricas en obra",
         keywords: ["canalizacion", "canalización", "tablero obra", "instalacion electrica"],
       },
     ],
   },
   {
-    category: "Tecnología",
+    categoryId: "tecnologia",
     generalKeywords: [
       "computador", "notebook", "laptop", "internet", "wifi", "red", "telefono", "teléfono",
       "impresora", "software", "programa",
@@ -149,62 +142,56 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
     specialties: [
       {
         id: "soporte-pc",
-        label: "Soporte técnico PC",
         keywords: ["lento", "virus", "pantalla azul", "no enciende pc", "formatear"],
       },
       {
         id: "redes",
-        label: "Redes e internet",
         keywords: ["wifi", "router", "modem", "sin internet", "cableado red", "switch"],
       },
     ],
   },
   {
-    category: "Jardinería",
+    categoryId: "jardineria",
     generalKeywords: ["jardin", "jardín", "pasto", "césped", "cesped", "arbol", "árbol", "planta"],
     specialties: [
       {
         id: "mantencion-jardines",
-        label: "Mantención de jardines",
         keywords: ["podar", "cortar pasto", "riego", "poda", "mantencion jardin"],
       },
     ],
   },
   {
-    category: "Limpieza",
+    categoryId: "limpieza",
     generalKeywords: ["limpieza", "aseo", "limpiar", "profunda", "oficina", "departamento"],
     specialties: [
       {
         id: "limpieza-profunda",
-        label: "Limpieza profunda",
         keywords: ["mudanza", "post obra", "desinfeccion", "desinfección", "alfombra"],
       },
     ],
   },
   {
-    category: "Transporte de carga",
+    categoryId: "transporte-de-carga",
     generalKeywords: ["flete", "mudanza", "camion", "camión", "carga", "transporte"],
     specialties: [
       {
         id: "fletes",
-        label: "Fletes y mudanzas",
         keywords: ["mudanza", "flete", "retiro", "traslado muebles"],
       },
     ],
   },
   {
-    category: "Salud",
+    categoryId: "salud",
     generalKeywords: ["salud", "enfermeria", "enfermería", "kinesiologia", "kinesiología"],
     specialties: [
       {
         id: "atencion-domiciliaria",
-        label: "Atención domiciliaria",
         keywords: ["enfermera", "curaciones", "adulto mayor", "post operatorio"],
       },
     ],
   },
   {
-    category: "Educación",
+    categoryId: "educacion",
     generalKeywords: [
       "clases",
       "profesor",
@@ -224,82 +211,66 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
     specialties: [
       {
         id: "tutorias-matematicas",
-        label: "Matemáticas",
         keywords: ["algebra", "calculo", "cálculo", "geometria", "geometría", "numeros", "números"],
       },
       {
         id: "tutorias-lenguaje",
-        label: "Lenguaje y comunicación",
         keywords: ["comprension lectora", "comprensión lectora", "redaccion", "redacción", "ortografia", "ortografía"],
       },
       {
         id: "tutorias-ciencias-naturales",
-        label: "Ciencias naturales",
         keywords: ["biologia", "biología", "fisica", "física", "quimica", "química", "ciencias"],
       },
       {
         id: "tutorias-historia",
-        label: "Historia y ciencias sociales",
         keywords: ["historia", "geografia", "geografía", "ciencias sociales", "formacion ciudadana"],
       },
       {
         id: "tutorias-ingles",
-        label: "Inglés",
         keywords: ["english", "toefl", "ielts", "speaking", "gramatica inglesa", "gramática inglesa"],
       },
       {
         id: "tutorias-paes",
-        label: "Preparación PAES",
         keywords: ["paes", "psu", "prueba de acceso", "preuniversitario", "preuniversitaria"],
       },
       {
         id: "tutorias-lectoescritura",
-        label: "Lectoescritura",
         keywords: ["leer", "escribir", "alfabetizacion", "alfabetización", "primero basico", "primero básico"],
       },
       {
         id: "tutorias-tareas",
-        label: "Apoyo con tareas escolares",
         keywords: ["tareas", "deberes", "guia", "guía", "refuerzo escolar", "apoyo escolar"],
       },
       {
         id: "ayudantias",
-        label: "Ayudantías",
         keywords: ["ayudante", "universidad", "ramo", "catedra", "cátedra", "guia universitaria", "guía universitaria"],
       },
       {
         id: "clases-online-matematicas",
-        label: "Matemáticas",
         keywords: ["clases online matematicas", "clases online matemáticas", "zoom matematicas", "zoom matemáticas"],
       },
       {
         id: "clases-online-lenguaje",
-        label: "Lenguaje y comunicación",
         keywords: ["clases online lenguaje", "clases online comprension lectora"],
       },
       {
         id: "clases-online-ciencias",
-        label: "Ciencias",
         keywords: ["clases online ciencias", "clases online biologia", "clases online biología"],
       },
       {
         id: "clases-online-ingles",
-        label: "Inglés",
         keywords: ["clases online ingles", "clases online inglés", "english online"],
       },
       {
         id: "clases-online-paes",
-        label: "Preparación PAES",
         keywords: ["paes online", "preuniversitario online", "clases online paes"],
       },
       {
         id: "clases-online-apoyo-escolar",
-        label: "Apoyo escolar general",
         keywords: ["apoyo escolar online", "clases online escolares", "refuerzo online"],
       },
       {
         id: "clases-particulares-docentes-profesionales",
-        label: "Clases particulares de docentes profesionales",
         keywords: [
           "docente titulado",
           "profesor particular",
@@ -312,23 +283,22 @@ const SERVICE_CATALOG_SOURCE: CategoryDefinition[] = [
     ],
   },
   {
-    category: "Profesionales",
+    categoryId: "profesionales",
     generalKeywords: ["abogado", "contador", "asesoria", "asesoría", "legal", "tributario"],
     specialties: [
       {
         id: "asesoria-legal",
-        label: "Asesoría legal",
         keywords: ["contrato", "demanda", "laboral", "divorcio", "herencia"],
       },
     ],
   },
 ];
 
-function canonicalizeServiceCatalog(definitions: CategoryDefinition[]): CategoryDefinition[] {
+function canonicalizeServiceCatalog(definitions: ServiceCatalogProfile[]): CategoryDefinition[] {
   return definitions.map((definition) => {
-    const category = getCanonicalCategoryByName(definition.category);
+    const category = getCanonicalCategoryById(definition.categoryId);
     if (!category) {
-      throw new Error(`Identidad canónica inválida para la categoría ${definition.category}.`);
+      throw new Error(`Identidad canónica inválida para la categoría ${definition.categoryId}.`);
     }
 
     return {
@@ -336,7 +306,7 @@ function canonicalizeServiceCatalog(definitions: CategoryDefinition[]): Category
       generalKeywords: definition.generalKeywords,
       specialties: definition.specialties.map((specialty) => {
         const canonicalSpecialty = getCanonicalSpecialty(specialty.id);
-        if (!canonicalSpecialty || canonicalSpecialty.name !== specialty.label) {
+        if (!canonicalSpecialty) {
           throw new Error(`Identidad canónica inválida para la especialidad ${specialty.id}.`);
         }
 
