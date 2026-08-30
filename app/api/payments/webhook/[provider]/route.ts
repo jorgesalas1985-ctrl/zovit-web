@@ -95,7 +95,8 @@ export async function POST(request: Request, { params }: Params) {
     if (error instanceof PaymentConfirmationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    const message = error instanceof Error ? error.message : "Webhook inválido.";
+    const message = error instanceof Error ? error.message : "Webhook invÃ¡lido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

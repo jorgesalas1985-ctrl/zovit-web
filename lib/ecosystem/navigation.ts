@@ -30,7 +30,7 @@ const NAV_ITEMS: EcosystemNavItem[] = [
     id: "client-requests",
     label: "Nueva solicitud",
     description: "Publicar una necesidad de servicio.",
-    href: "/solicitudes/nueva",
+    href: "/cliente/mapa?nueva=1",
     roles: ["client"],
     permission: "use_client_services",
     current: true,
@@ -100,10 +100,10 @@ const NAV_ITEMS: EcosystemNavItem[] = [
   },
   {
     id: "student-passport",
-    label: "Pasaporte Digital ZOVIT",
+    label: "Certificado Digital ZOVIT",
     description: "Identidad, formacion, competencias y estado operativo.",
     href: "/panel/pasaporte",
-    roles: ["student", "professional", "client"],
+    roles: ["student", "professional"],
     current: true,
   },
   {
@@ -127,11 +127,11 @@ const NAV_ITEMS: EcosystemNavItem[] = [
   {
     id: "superadmin-ai",
     label: "ZOVIT IA",
-    description: "Gobernanza futura de IA.",
+    description: "Entrenamiento y gobierno privado de IA.",
     href: "/intranet/superadmin/ia",
     roles: ["superadmin"],
     permission: "govern_ai",
-    current: false,
+    current: true,
   },
   {
     id: "superadmin-ocr",
@@ -155,15 +155,17 @@ const NAV_ITEMS: EcosystemNavItem[] = [
 
 export function getEcosystemNavigation(
   profile: EcosystemProfileInput | null | undefined,
-  options: { includeFuture?: boolean } = {},
+  options: { includeFuture?: boolean; forceRole?: EcosystemRole } = {},
 ): EcosystemNavItem[] {
-  const roles = ecosystemRolesFromProfile(profile);
+  const roles = options.forceRole ? [options.forceRole] : ecosystemRolesFromProfile(profile);
   const includeFuture = options.includeFuture ?? false;
 
   return NAV_ITEMS.filter((item) => {
     if (!includeFuture && !item.current) return false;
     if (!item.roles.some((role) => roles.includes(role))) return false;
-    if (item.permission && !hasEcosystemPermission(profile, item.permission)) return false;
+    // Durante el recorrido privado del superadministrador, la vista seleccionada
+    // define el menú. No se deben mezclar los permisos del perfil fundador real.
+    if (item.permission && !options.forceRole && !hasEcosystemPermission(profile, item.permission)) return false;
     return true;
   });
 }

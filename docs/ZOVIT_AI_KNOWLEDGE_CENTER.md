@@ -10,6 +10,13 @@ AI Knowledge Center.
 
 El AI Knowledge Center sera el Banco de Conocimiento de ZOVIT IA. Su objetivo es centralizar, versionar y aprobar el conocimiento que puede consultar la IA o, en fases posteriores, alimentar datasets oficiales.
 
+## Historia fundacional aprobada
+
+- Creador y fundador: Jorge Andres Salas Guzman.
+- Fecha de origen de la idea: 22 de mayo de 2024.
+- Origen: la idea nace despues de que Jorge salio a buscar trabajo y no encontro oportunidades, debido a que no contrataban personas sin experiencia.
+- Proposito derivado: ayudar a que las personas puedan demostrar identidad, formacion, competencias y experiencia verificable para acceder a oportunidades, y que los clientes contraten servicios con mayor confianza.
+
 ## Gobernanza
 
 El modulo sera manejado exclusivamente por el SUPERADMIN.
@@ -80,4 +87,3 @@ Cada cambio debe registrar:
 ## Relacion con documentos
 
 Los documentos completos son evidencia. El Banco de Conocimiento debe priorizar datos estructurados, reglas, resumos autorizados y contenido revisado.
-

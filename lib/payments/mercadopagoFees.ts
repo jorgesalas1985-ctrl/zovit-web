@@ -79,7 +79,7 @@ export function creditInstallmentTotalPct(installments: number): number | null {
 }
 
 export const MP_FEES_BUYER_NOTICE =
-  "Débito o contado: pagas el monto del servicio. Si eliges crédito en cuotas (3/6/9/12), ZOVIT suma al total las comisiones de financiamiento publicadas por Mercado Pago (p. ej. 12× +6,99% sobre la base de crédito) + IVA, para que ese costo lo pague el cliente y no el profesional.";
+  "ZOVIT acepta pagos electrónicos mediante Mercado Pago. El cliente asume el costo real de procesamiento del medio de pago; este cargo no corresponde a la comisión ZOVIT. Las cuotas e intereses bancarios son gestionados por Mercado Pago y la entidad emisora.";
 
 export type InstallmentOption = 1 | 3 | 6 | 9 | 12;
 
@@ -89,10 +89,25 @@ export type ClientChargeBreakdown = {
   financingFee: number;
   financingIva: number;
   providerFinancingFee: number;
+  processingFee: number;
   clientChargedAmount: number;
   ratePct: number;
   label: string;
 };
+
+/** Gross-up: el cliente cubre el procesamiento y ZOVIT conserva íntegro el subtotal. */
+export function grossUpCheckoutProcessing(serviceAmount: number, installmentExtraPct = 0): {
+  processingFee: number;
+  clientChargedAmount: number;
+} {
+  const amount = Math.max(0, Math.round(serviceAmount));
+  const totalRatePct = MP_CHECKOUT_PROCESSING.immediateReleasePct + installmentExtraPct;
+  const effectiveRate = (totalRatePct / 100) *
+    (1 + MP_CHECKOUT_PROCESSING.ivaPct / 100);
+  let charged = Math.ceil(amount / (1 - effectiveRate));
+  while (charged - estimateMpProcessingWithIva(charged, totalRatePct) < amount) charged += 1;
+  return { processingFee: charged - amount, clientChargedAmount: charged };
+}
 
 export function parseInstallmentOption(value: unknown): InstallmentOption {
   const n = Number(value);
@@ -100,43 +115,25 @@ export function parseInstallmentOption(value: unknown): InstallmentOption {
   return 1;
 }
 
-/** Calcula lo que paga el cliente: servicio + financiamiento de cuotas (si aplica). */
+/** Calcula subtotal + procesamiento MP. Cuotas/intereses los gestiona Mercado Pago. */
 export function calculateClientCharge(
   serviceAmount: number,
   installments: InstallmentOption,
 ): ClientChargeBreakdown {
   const amount = Math.max(0, Math.round(serviceAmount));
-
-  if (installments <= 1) {
-    return {
-      serviceAmount: amount,
-      installments: 1,
-      financingFee: 0,
-      financingIva: 0,
-      providerFinancingFee: 0,
-      clientChargedAmount: amount,
-      ratePct: 0,
-      label: "Débito / contado (sin financiamiento extra)",
-    };
-  }
-
-  const row = MP_CREDIT_INSTALLMENT_SURCHARGE.find((r) => r.installments === installments);
-  const creditBase = MP_POINT_SMART_BASE.creditImmediatePct;
-  const extra = row?.extraPct ?? 0;
-  // Base crédito + extra de cuotas (tarifas publicadas MP/ML).
-  const ratePct = creditBase + extra;
-  const financingFee = Math.round(amount * (ratePct / 100));
-  const financingIva = Math.round(financingFee * (MP_CHECKOUT_PROCESSING.ivaPct / 100));
-  const providerFinancingFee = financingFee + financingIva;
+  const installmentRow = MP_CREDIT_INSTALLMENT_SURCHARGE.find((row) => row.installments === installments);
+  const installmentExtraPct = installmentRow?.extraPct ?? 0;
+  const grossedUp = grossUpCheckoutProcessing(amount, installmentExtraPct);
 
   return {
     serviceAmount: amount,
     installments,
-    financingFee,
-    financingIva,
-    providerFinancingFee,
-    clientChargedAmount: amount + providerFinancingFee,
-    ratePct,
-    label: `Crédito ${installments}× (+${formatPct(ratePct)} + IVA)`,
+    financingFee: 0,
+    financingIva: 0,
+    providerFinancingFee: 0,
+    processingFee: grossedUp.processingFee,
+    clientChargedAmount: grossedUp.clientChargedAmount,
+    ratePct: MP_CHECKOUT_PROCESSING.immediateReleasePct + installmentExtraPct,
+    label: installments <= 1 ? "Débito / crédito" : `Crédito ${installments}×`,
   };
 }

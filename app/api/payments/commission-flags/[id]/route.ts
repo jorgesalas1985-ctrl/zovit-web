@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: Params) {
     const body = (await request.json()) as { status?: string; note?: string };
     const status = body.status?.trim();
     if (!status || !["revisada", "descartada", "sancionada"].includes(status)) {
-      return NextResponse.json({ error: "Estado inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Estado invÃ¡lido." }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -39,3 +39,4 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

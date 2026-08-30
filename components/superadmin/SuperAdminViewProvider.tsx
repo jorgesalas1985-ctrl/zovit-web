@@ -17,6 +17,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { isZovitSuperAdmin } from "@/lib/auth/superAdminOwner";
 
 type SuperAdminViewContextValue = {
   isRealSuperAdmin: boolean;
@@ -27,8 +28,8 @@ type SuperAdminViewContextValue = {
 const SuperAdminViewContext = createContext<SuperAdminViewContextValue | null>(null);
 
 export function SuperAdminViewProvider({ children }: { children: ReactNode }) {
-  const { realProfile } = useAuth();
-  const isRealSuperAdmin = realProfile?.intranet_role === "super_admin";
+  const { profile, user, session } = useAuth();
+  const isRealSuperAdmin = Boolean(session) && isZovitSuperAdmin(user?.email, profile?.intranet_role);
   const [tourAccount, setTourAccountState] = useState<SuperAdminTourAccount>("super_admin");
 
   useEffect(() => {
@@ -76,12 +77,12 @@ export function useSuperAdminView() {
 
 /** Rol intranet efectivo para banners y simulación de permisos. */
 export function useEffectiveIntranetRole() {
-  const { realProfile } = useAuth();
+  const { profile } = useAuth();
   const { isRealSuperAdmin, tourAccount } = useSuperAdminView();
-  const real = isIntranetRole(realProfile?.intranet_role) ? realProfile.intranet_role : null;
+  const real = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
 
   if (!isRealSuperAdmin || !real) return real;
-  if (tourAccount === "super_admin") return real;
 
-  return tourAccountToIntranetRole(tourAccount);
+  const mapped = tourAccountToIntranetRole(tourAccount);
+  return mapped ?? real;
 }

@@ -62,6 +62,7 @@ export function SiteFooter() {
       {
         title: "ZOVIT",
         links: [
+          { label: "Historia de ZOVIT", href: "/por-que-zovit" },
           { label: "¿Por qué ZOVIT?", href: "/por-que-zovit" },
           { label: "Seguridad", href: "/seguridad" },
           { label: "Profesionales", href: "/registro" },

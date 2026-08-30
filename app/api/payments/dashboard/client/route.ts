@@ -12,7 +12,7 @@ export async function GET() {
     if (!authData.user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
 
     if (!isValidUuid(authData.user.id)) {
-      return NextResponse.json({ error: "Identificador de usuario inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Identificador de usuario invÃ¡lido." }, { status: 400 });
     }
 
     // Lectura con service role: en prod faltan GRANT de tabla a authenticated.
@@ -75,3 +75,4 @@ export async function GET() {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

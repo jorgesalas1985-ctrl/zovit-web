@@ -1,158 +1,199 @@
 "use client";
 
-import { ArrowRight, ScanFace } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, BadgeCheck, BriefcaseBusiness, FileCheck2, FolderOpen, GraduationCap, IdCard, Printer, UserRound } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Protected } from "@/components/Protected";
 import { RoleModeBanner } from "@/components/RoleModeBanner";
-import { BiometricOnboardingForm } from "@/components/verification/BiometricOnboardingForm";
+import { CredentialAvatar } from "@/components/credential/CredentialAvatar";
 import { useAuth } from "@/components/AuthProvider";
 import { useIdentityVerification } from "@/hooks/useIdentityVerification";
-import { validateCarnetBirthDateDeclaration } from "@/lib/registration/carnetBirthDate";
-import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
-import { flushPendingRegistration } from "@/lib/registration/pendingRegistration";
 import { getActiveMode } from "@/lib/auth/roles";
-import { chileanDateToIso, isoToChileanDate } from "@/lib/ui/chileanDate";
-import { canAccessPanel } from "@/lib/verification/types";
+import { isoToChileanDate } from "@/lib/ui/chileanDate";
+import type { IdentityDocumentType } from "@/lib/verification/types";
 import { supabase } from "@/lib/supabase";
 
-export default function RegisterBiometricPage() {
-  const { user, profile, refreshProfile } = useAuth();
-  const { state, message, busyType, uploadDocument, submitBiometric, loadState, setMessage } =
-    useIdentityVerification();
-  const [rut, setRut] = useState("");
-  const [birthDate, setBirthDate] = useState("");
-  const [carnetBirthDateConfirmed, setCarnetBirthDateConfirmed] = useState(false);
-  const [navigating, setNavigating] = useState(false);
+type PersonalData = {
+  first_name: string | null;
+  last_name: string | null;
+  rut: string | null;
+  birth_date: string | null;
+  avatar_url: string | null;
+};
 
+type CredentialRow = {
+  id: string;
+  credential_name: string | null;
+  institution: string | null;
+  profession: string | null;
+  status: string;
+};
+
+const DOCUMENT_LABELS: Partial<Record<IdentityDocumentType, string>> = {
+  cedula_front: "Cédula de identidad · frontal",
+  cedula_back: "Cédula de identidad · reverso",
+  selfie: "Selfie de verificación",
+  liveness_proof: "Prueba de vida",
+  certificado_antecedentes: "Certificado de antecedentes",
+  certificado_estudios: "Certificado de estudios",
+};
+
+export default function DigitalPassportPage() {
+  const { user, profile } = useAuth();
+  const { state } = useIdentityVerification();
+  const [personalData, setPersonalData] = useState<PersonalData | null>(null);
+  const [credentials, setCredentials] = useState<CredentialRow[]>([]);
+  const [documentUrls, setDocumentUrls] = useState<Record<string, string>>({});
   const activeMode = profile ? getActiveMode(profile) : "client";
-  const isProfessional = activeMode === "professional";
-  const identityStatus = profile?.identity_status ?? state?.identity_status;
-
-  useEffect(() => {
-    if (!user?.email) return;
-
-    void flushPendingRegistration(user.email, user.id, completeRegistrationVerification)
-      .then((flushed) => {
-        if (flushed) {
-          void Promise.all([loadState(), refreshProfile()]);
-        }
-      })
-      .catch(() => {
-        // Si falla, el usuario puede completar manualmente el formulario.
-      });
-  }, [loadState, refreshProfile, user]);
+  const isStudent = profile?.account_kind === "student";
+  const fullName = [personalData?.first_name, personalData?.last_name].filter(Boolean).join(" ") || "Usuario ZOVIT";
 
   useEffect(() => {
     if (!user) return;
-    supabase
+    void supabase
       .from("profiles")
-      .select("rut,birth_date,birth_date_carnet_confirmed")
+      .select("first_name,last_name,rut,birth_date,avatar_url")
       .eq("id", user.id)
       .maybeSingle()
-      .then(({ data }) => {
-        if (data?.rut) setRut(data.rut);
-        if (data?.birth_date) setBirthDate(isoToChileanDate(String(data.birth_date)));
-        if (data?.birth_date_carnet_confirmed) setCarnetBirthDateConfirmed(true);
-      });
+      .then(({ data }) => setPersonalData(data as PersonalData | null));
+
+    void supabase
+      .from("worker_credentials")
+      .select("id,credential_name,institution,profession,status")
+      .eq("profile_id", user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setCredentials((data ?? []) as CredentialRow[]));
   }, [user]);
 
-  const goToPanel = useCallback(async () => {
-    setNavigating(true);
-    await refreshProfile();
-    window.location.assign("/panel");
-  }, [refreshProfile]);
-
   useEffect(() => {
-    if (!canAccessPanel(identityStatus)) return;
-    void goToPanel();
-  }, [goToPanel, identityStatus]);
+    if (!state?.documents.length) return;
+    void Promise.all(
+      state.documents.map(async (document) => {
+        const { data } = await supabase.storage
+          .from("identity-documents")
+          .createSignedUrl(document.storage_path, 60 * 10);
+        return [document.id, data?.signedUrl ?? ""] as const;
+      }),
+    ).then((entries) => setDocumentUrls(Object.fromEntries(entries.filter(([, url]) => url))));
+  }, [state?.documents]);
 
-  async function handleUpload(
-    type: Parameters<typeof uploadDocument>[1],
-    file: File,
-    metadata?: Record<string, unknown> | null
-  ) {
-    if (!user) return false;
-    return uploadDocument(user.id, type, file, metadata ?? null);
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!user || !rut.trim()) return;
-
-    const carnetError = validateCarnetBirthDateDeclaration({
-      birthDate,
-      confirmed: carnetBirthDateConfirmed,
-    });
-    if (carnetError) {
-      setMessage(carnetError);
-      return;
-    }
-
-    const birthIso = chileanDateToIso(birthDate);
-    await supabase
-      .from("profiles")
-      .update({
-        rut: rut.trim(),
-        birth_date: birthIso,
-        birth_date_carnet_confirmed: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
-
-    const ok = await submitBiometric();
-    if (ok) {
-      await Promise.all([loadState(), refreshProfile()]);
-      await goToPanel();
-    }
-  }
-
-  if (navigating || canAccessPanel(identityStatus)) {
+  function documentItem(type: IdentityDocumentType) {
+    const document = state?.documents.find((item) => item.document_type === type);
+    const url = document ? documentUrls[document.id] : "";
     return (
-      <Protected>
-        <div className="centerState">Ingresando al panel…</div>
-      </Protected>
+      <li key={type} className="passportDocumentItem">
+        <span>{DOCUMENT_LABELS[type]}</span>
+        {document && url ? (
+          <a href={url} target="_blank" rel="noreferrer" className="passportFolderButton">
+            <FolderOpen size={19} /> Ver archivo
+          </a>
+        ) : (
+          <span className="passportPending">Pendiente</span>
+        )}
+      </li>
     );
+  }
+
+  function printCertificate() {
+    document.body.classList.add("print-digital-passport");
+    window.setTimeout(() => {
+      window.print();
+      window.setTimeout(() => document.body.classList.remove("print-digital-passport"), 300);
+    }, 80);
   }
 
   return (
     <Protected>
-      <RoleModeBanner role={activeMode} />
+      {isStudent ? (
+        <div className="roleModeBanner roleModeBanner--dashboard" aria-label="Tipo de cuenta Alumno">
+          <span className="roleModeBadge roleModeBadge--student roleModeBadge--active">ALUMNO</span>
+        </div>
+      ) : (
+        <RoleModeBanner role={activeMode} />
+      )}
       <main className="simplePage">
         <section className="formPageCard verificationPage">
-          <div className="eyebrow">
-            <ScanFace size={16} /> Registro ZOVIT
-          </div>
-          <h1>Verificación biométrica</h1>
-          <p className="muted">
-            Completa este paso al crear tu cuenta para proteger a clientes y profesionales en la plataforma.
-          </p>
-
-          {!state || !user ? (
-            <div className="centerState">Cargando verificación…</div>
-          ) : (
-            <BiometricOnboardingForm
-              userId={user.id}
-              role={activeMode}
-              state={state}
-              rut={rut}
-              onRutChange={setRut}
-              birthDate={birthDate}
-              onBirthDateChange={setBirthDate}
-              carnetBirthDateConfirmed={carnetBirthDateConfirmed}
-              onCarnetBirthDateConfirmedChange={setCarnetBirthDateConfirmed}
-              busyType={busyType}
-              message={message}
-              onUpload={handleUpload}
-              onSubmit={handleSubmit}
-            />
-          )}
-
-          {canAccessPanel(identityStatus) && (
-            <button type="button" className="secondaryButton" disabled={navigating} onClick={() => void goToPanel()}>
-              Ir al panel <ArrowRight size={16} />
+          <div className="passportTopActions no-print">
+            <Link href="/alumno" className="secondaryButton">
+              <ArrowLeft size={18} /> Volver
+            </Link>
+            <button type="button" className="primaryButton" onClick={printCertificate}>
+              <Printer size={18} /> Imprimir certificado gratuito
             </button>
-          )}
+          </div>
+          <div className="eyebrow"><FileCheck2 size={16} /> PERFIL ZOVIT</div>
+          <h1>Certificado Digital</h1>
+          <p className="muted">Toda tu información y documentos organizados en un solo lugar.</p>
+
+          <div className="passportCategoryGrid passportCategoryGrid-main">
+            <article className="passportCategoryCard passportPersonalCard">
+              <UserRound size={24} />
+              <h2>Datos personales</h2>
+              {user && (
+                <CredentialAvatar
+                  profileId={user.id}
+                  avatarUrl={personalData?.avatar_url ?? null}
+                  name={fullName}
+                />
+              )}
+              <ul>
+                <li>Nombre: {fullName}</li>
+                <li>Correo: {user?.email ?? "Pendiente"}</li>
+                <li>RUT: {personalData?.rut || "Pendiente"}</li>
+                <li>Fecha de nacimiento: {personalData?.birth_date ? isoToChileanDate(personalData.birth_date) : "Pendiente"}</li>
+              </ul>
+              <Link href="/perfil">Ver o editar datos <ArrowRight size={15} /></Link>
+            </article>
+
+            <article className="passportCategoryCard">
+              <IdCard size={24} />
+              <h2>Identidad</h2>
+              <ul className="passportDocumentList">
+                {documentItem("cedula_front")}
+                {documentItem("cedula_back")}
+                {documentItem("selfie")}
+                {documentItem("liveness_proof")}
+                {documentItem("certificado_antecedentes")}
+              </ul>
+              <p className="passportStatus">Estado: {state?.identity_verified ? "Verificada" : state?.identity_status === "pending" ? "En revisión" : "Pendiente"}</p>
+            </article>
+
+            <article className="passportCategoryCard">
+              <GraduationCap size={24} />
+              <h2>Datos académicos</h2>
+              <ul className="passportDocumentList">{documentItem("certificado_estudios")}</ul>
+              {credentials.filter((item) => item.institution).map((item) => (
+                <p key={item.id}>{item.credential_name || item.profession || "Certificado"} · {item.institution} · {item.status}</p>
+              ))}
+              <Link href="/registro/trabajador">Agregar antecedentes <ArrowRight size={15} /></Link>
+            </article>
+
+            <article className="passportCategoryCard">
+              <BriefcaseBusiness size={24} />
+              <h2>Datos laborales</h2>
+              {credentials.length ? credentials.map((item) => (
+                <p key={item.id}>{item.profession || item.credential_name || "Antecedente laboral"} · {item.status}</p>
+              )) : <p>Sin antecedentes laborales cargados.</p>}
+              <Link href="/registro/trabajador">Completar experiencia <ArrowRight size={15} /></Link>
+            </article>
+          </div>
+
+          <article className="digitalPassportCertificate" aria-label="Certificado imprimible ZOVIT">
+            <div className="digitalPassportCertificateBrand">ZOVIT</div>
+            <BadgeCheck size={54} />
+            <p className="kicker">CERTIFICADO DIGITAL GRATUITO</p>
+            <h2>Certificado de perfil {isStudent ? "Alumno" : activeMode === "professional" ? "Profesional" : "Cliente"}</h2>
+            <p>Se certifica que</p>
+            <h3>{fullName}</h3>
+            <dl>
+              <div><dt>RUT</dt><dd>{personalData?.rut || "Pendiente"}</dd></div>
+              <div><dt>Tipo de perfil</dt><dd>{isStudent ? "Alumno" : activeMode === "professional" ? "Profesional" : "Cliente"}</dd></div>
+              <div><dt>Identidad</dt><dd>{state?.identity_verified ? "Verificada" : state?.identity_status === "pending" ? "En revisión" : "Pendiente"}</dd></div>
+              <div><dt>Antecedentes académicos</dt><dd>{state?.study_verified ? "Verificados" : state?.study_verification_status === "pending" ? "En revisión" : "Pendientes"}</dd></div>
+              <div><dt>Credenciales cargadas</dt><dd>{credentials.length}</dd></div>
+            </dl>
+            <p className="digitalPassportCertificateFoot">Documento emitido gratuitamente desde el Certificado Digital ZOVIT.</p>
+          </article>
         </section>
       </main>
     </Protected>

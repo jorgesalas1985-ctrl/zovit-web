@@ -1,4 +1,3 @@
-import { extractMpProcessingFee } from "@/lib/payments/mercadopagoFees";
 import { getPaymentProvider } from "@/lib/payments/providers";
 import { createAdminClient } from "@/lib/payments/server";
 import type { PaymentProviderName } from "@/lib/payments/types";

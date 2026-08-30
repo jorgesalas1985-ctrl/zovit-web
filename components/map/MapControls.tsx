@@ -40,22 +40,22 @@ export function UseMyLocationButton({
 
 export function LocationPermissionNotice({
   message,
-  onUseLocation,
   onDismiss,
 }: {
   message: string;
-  onUseLocation?: () => void;
   onDismiss?: () => void;
 }) {
   return (
     <div className="mapPermissionNotice" role="status">
       <p>{message}</p>
       <div className="mapPermissionActions">
-        {onUseLocation && (
-          <button type="button" className="primaryButton" onClick={onUseLocation}>
-            Usar mi ubicación
-          </button>
-        )}
+        <a
+          className="primaryButton"
+          href="ms-settings:privacy-location"
+          aria-label="Abrir configuración de ubicación de Windows"
+        >
+          Abrir ubicación de Windows
+        </a>
         {onDismiss && (
           <button type="button" className="secondaryButton" onClick={onDismiss}>
             Continuar con dirección

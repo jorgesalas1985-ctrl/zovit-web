@@ -2,13 +2,7 @@
 
 import { Session, User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { applySuperAdminTourProfile } from "@/lib/auth/applyTourProfile";
 import { isRoleMode, isUserRole, type RoleMode, type UserRole } from "@/lib/auth/roles";
-import {
-  readStoredTourAccount,
-  SUPER_ADMIN_TOUR_EVENT,
-  type SuperAdminTourAccount,
-} from "@/lib/auth/superAdminView";
 import { supabase } from "@/lib/supabase";
 
 export type UserProfile = {
@@ -30,7 +24,6 @@ type AuthContextValue = {
   session: Session | null;
   user: User | null;
   profile: UserProfile | null;
-  realProfile: UserProfile | null;
   profileError: string | null;
   profileLoading: boolean;
   loading: boolean;
@@ -49,10 +42,18 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function withTimeout<T>(promise: PromiseLike<T>, ms = 4_000): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new Error("Tiempo de espera agotado al conectar con ZOVIT.")), ms);
+    }),
+  ]);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [realProfile, setRealProfile] = useState<UserProfile | null>(null);
-  const [tourAccount, setTourAccount] = useState<SuperAdminTourAccount>("super_admin");
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -63,25 +64,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let lastError: { code?: string; message?: string } | null = null;
     let lastData: Record<string, unknown> | null = null;
 
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    // Nunca bloqueamos la interfaz por una consulta de perfil que no responde.
+    // El usuario puede volver a intentar ingresar en lugar de quedar esperando.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
       if (attempt > 0) {
         await sleep(250 * attempt);
       }
 
-      const profileResult = await supabase
-        .from("profiles")
-        .select(PROFILE_SELECT_WITH_ECOSYSTEM)
-        .eq("id", userId)
-        .maybeSingle();
+      const profileResult = await withTimeout(
+        supabase
+          .from("profiles")
+          .select(PROFILE_SELECT_WITH_ECOSYSTEM)
+          .eq("id", userId)
+          .maybeSingle(),
+      ).catch((timeoutError) => ({ data: null, error: timeoutError as { code?: string; message?: string } }));
       let data = profileResult.data as Record<string, unknown> | null;
       let error = profileResult.error;
 
-      if (error && error.message.includes("account_kind")) {
-        const legacy = await supabase
-          .from("profiles")
-          .select(PROFILE_SELECT)
-          .eq("id", userId)
-          .maybeSingle();
+      if (error?.message?.includes("account_kind")) {
+        const legacy = await withTimeout(
+          supabase
+            .from("profiles")
+            .select(PROFILE_SELECT)
+            .eq("id", userId)
+            .maybeSingle(),
+        ).catch((timeoutError) => ({ data: null, error: timeoutError as { code?: string; message?: string } }));
         data = legacy.data as Record<string, unknown> | null;
         error = legacy.error;
       }
@@ -97,14 +104,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (lastError) {
-      setRealProfile(null);
+      setProfile(null);
       setProfileError("perfil-incompleto");
       setProfileLoading(false);
       return;
     }
 
     if (!lastData || !isUserRole(lastData.role as string | null | undefined)) {
-      setRealProfile(null);
+      setProfile(null);
       setProfileError("perfil-incompleto");
       setProfileLoading(false);
       return;
@@ -125,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ? "professional"
         : "client";
 
-    setRealProfile({
+    setProfile({
       first_name: (lastData.first_name as string | null) ?? null,
       last_name: (lastData.last_name as string | null) ?? null,
       role: registrationRole,
@@ -145,11 +152,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session: currentSession },
+    } = await withTimeout(supabase.auth.getSession());
+    const user = currentSession?.user;
 
     if (!user) {
-      setRealProfile(null);
+      setProfile(null);
       setProfileError(null);
       setProfileLoading(false);
       return;
@@ -163,21 +171,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function initAuth() {
       setLoading(true);
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
+      let currentSession: Session | null = null;
+      try {
+        const result = await withTimeout(supabase.auth.getSession());
+        currentSession = result.data.session;
+      } catch {
+        currentSession = null;
+      }
+      const currentUser = currentSession?.user ?? null;
 
       if (!active) return;
 
       if (currentUser) {
-        const {
-          data: { session: currentSession },
-        } = await supabase.auth.getSession();
         setSession(currentSession);
         await loadProfile(currentUser.id);
       } else {
         setSession(null);
-        setRealProfile(null);
+        setProfile(null);
         setProfileError(null);
         setProfileLoading(false);
       }
@@ -201,7 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setRealProfile(null);
+      setProfile(null);
       setProfileError(null);
       setProfileLoading(false);
       setLoading(false);
@@ -213,39 +223,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadProfile]);
 
-  useEffect(() => {
-    setTourAccount(readStoredTourAccount() ?? "super_admin");
-    function onTourChange(event: Event) {
-      const next = (event as CustomEvent<SuperAdminTourAccount>).detail;
-      setTourAccount(next ?? readStoredTourAccount() ?? "super_admin");
-    }
-    window.addEventListener(SUPER_ADMIN_TOUR_EVENT, onTourChange);
-    return () => window.removeEventListener(SUPER_ADMIN_TOUR_EVENT, onTourChange);
-  }, []);
-
-  const profile = useMemo(
-    () => applySuperAdminTourProfile(realProfile, tourAccount),
-    [realProfile, tourAccount],
-  );
-
   const value = useMemo(
     () => ({
       session,
       user: session?.user ?? null,
       profile,
-      realProfile,
       profileError,
       profileLoading,
       loading,
       signOut: async () => {
         await supabase.auth.signOut();
-        setRealProfile(null);
+        setProfile(null);
         setProfileError(null);
         setProfileLoading(false);
       },
       refreshProfile,
     }),
-    [session, profile, realProfile, profileError, profileLoading, loading, refreshProfile]
+    [session, profile, profileError, profileLoading, loading, refreshProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

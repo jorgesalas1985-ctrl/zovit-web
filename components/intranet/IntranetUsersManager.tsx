@@ -21,7 +21,7 @@ import {
   suggestAvailableCorporateEmail,
   validateCorporateEmail,
 } from "@/lib/intranet/corporateEmail";
-import { AlertCircle, CheckCircle2, Loader2, Mail, Trash2, UserPlus } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Mail, Trash2 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type IntranetUserRecord = {
@@ -62,22 +62,40 @@ export function IntranetUsersManager() {
     setLoading(true);
     setError("");
 
-    const response = await fetch("/api/intranet/users", { cache: "no-store" });
-    const data = await response.json();
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
 
-    if (!response.ok) {
-      setError(data.error ?? "No fue posible cargar los accesos.");
+    try {
+      const response = await fetch("/api/intranet/users", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      const data = contentType.includes("application/json")
+        ? await response.json()
+        : { error: "El servidor entregó una respuesta no válida." };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "No fue posible cargar los accesos.");
+      }
+
+      const visibleUsers = ((data.users ?? []) as IntranetUserRecord[]).filter((user) =>
+        listViewerRole ? canViewerSeeIntranetAccount(listViewerRole, user.intranetRole) : false,
+      );
+      setUsers(visibleUsers);
+    } catch (loadError) {
       setUsers([]);
+      setError(
+        loadError instanceof DOMException && loadError.name === "AbortError"
+          ? "La carga tardó demasiado. Revisa la conexión y vuelve a intentarlo."
+          : loadError instanceof Error
+            ? loadError.message
+            : "No fue posible cargar los accesos.",
+      );
+    } finally {
+      window.clearTimeout(timeout);
       setLoading(false);
-      return;
     }
-
-    const visibleUsers = ((data.users ?? []) as IntranetUserRecord[]).filter((user) =>
-      listViewerRole ? canViewerSeeIntranetAccount(listViewerRole, user.intranetRole) : false,
-    );
-
-    setUsers(visibleUsers);
-    setLoading(false);
   }, [listViewerRole]);
 
   useEffect(() => {
@@ -139,7 +157,7 @@ export function IntranetUsersManager() {
       return;
     }
 
-    setMessage(`Acceso creado para ${data.user.email}.`);
+    setMessage(`Correo corporativo y acceso interno creados para ${data.user.email}.`);
     setFirstName("");
     setLastName("");
     setEmailLocalPart("");
@@ -194,12 +212,14 @@ export function IntranetUsersManager() {
 
   return (
     <>
-      <article className="intranetCard intranetCardStatic intranetFormCard">
-        <UserPlus size={24} />
-        <h3>Crear acceso interno</h3>
-        <p className="muted">
-          Genera un correo corporativo @{CORPORATE_EMAIL_DOMAIN} y credenciales en Supabase Auth para ingresar a la intranet.
-        </p>
+      <article className="intranetCard intranetCardStatic intranetFormCard intranetUsersCreateCard">
+        <div className="intranetCompactHeading">
+          <span><Mail size={20} /></span>
+          <div>
+            <h3>Nuevo acceso</h3>
+            <p>Correo @zovit.cl y acceso interno en una sola acción.</p>
+          </div>
+        </div>
 
         <form
           className="formStack intranetInlineForm"
@@ -209,12 +229,12 @@ export function IntranetUsersManager() {
           data-1p-ignore="true"
         >
           {/* Cebos vacíos: evitan que el navegador rellene con Gmail/cuenta personal. */}
-          <div className="autofillTrap" aria-hidden="true">
+          <div className="autofillTrap" aria-hidden="true" inert>
             <input type="text" name="username" autoComplete="username" tabIndex={-1} defaultValue="" />
             <input type="password" name="password" autoComplete="current-password" tabIndex={-1} defaultValue="" />
           </div>
 
-          <div className="intranetFormGrid">
+          <div className="intranetFormGrid intranetUsersFormGrid">
             <label>
               Nombre
               <input
@@ -243,7 +263,7 @@ export function IntranetUsersManager() {
             </label>
           </div>
 
-          <label>
+          <label className="intranetUsersEmailField">
             Correo corporativo
             <div className="corporateEmailRow">
               <div className="corporateEmailField">
@@ -268,7 +288,7 @@ export function IntranetUsersManager() {
                     setEmailTouched(true);
                     setEmailLocalPart(parseCorporateEmailLocalPart(event.target.value));
                   }}
-                  placeholder="nombre.apellido"
+                placeholder="Ej: camila.rojas"
                 />
                 <span className="corporateEmailDomain">@{CORPORATE_EMAIL_DOMAIN}</span>
               </div>
@@ -281,44 +301,44 @@ export function IntranetUsersManager() {
                 <Mail size={16} /> Generar
               </button>
             </div>
-            <small className="fieldHint">
-              Siempre termina en @{CORPORATE_EMAIL_DOMAIN}. Ejemplo: maria.gonzalez@{CORPORATE_EMAIL_DOMAIN}
-            </small>
           </label>
 
-          <label>
-            Contraseña inicial
-            <input
-              type="password"
-              required
-              minLength={PASSWORD_MIN_LENGTH}
-              maxLength={PASSWORD_MAX_LENGTH}
-              value={password}
-              name="zovit-intranet-new-password"
-              autoComplete="new-password"
-              data-lpignore="true"
-              data-1p-ignore="true"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder={PASSWORD_HINT}
-            />
-          </label>
+          <div className="intranetFormGrid intranetUsersFormGrid">
+            <label>
+              Contraseña inicial
+              <input
+                type="password"
+                required
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={PASSWORD_MAX_LENGTH}
+                value={password}
+                name="zovit-intranet-new-password"
+                autoComplete="new-password"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder={`Ej: Zovit2026! · ${PASSWORD_HINT}`}
+              />
+            </label>
 
-          <label>
-            Perfil interno
-            <select
-              value={intranetRole}
-              onChange={(event) => setIntranetRole(event.target.value as IntranetRole)}
-            >
-              {assignableRoles.map((role) => (
-                <option key={role} value={role}>
-                  {INTRANET_LOGIN_PROFILE_LABELS[role]}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label>
+              Perfil interno
+              <select
+                value={intranetRole}
+                onChange={(event) => setIntranetRole(event.target.value as IntranetRole)}
+              >
+                {assignableRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {INTRANET_LOGIN_PROFILE_LABELS[role]}
+                  </option>
+                ))}
+              </select>
+              <small className="fieldHint">Define los permisos que tendrá en la intranet.</small>
+            </label>
+          </div>
 
           <button type="submit" className="primaryButton wide" disabled={busy || assignableRoles.length === 0}>
-            {busy ? "Creando acceso…" : "Crear credenciales"}
+            {busy ? "Creando acceso…" : "Crear acceso"}
           </button>
         </form>
       </article>
@@ -341,7 +361,14 @@ export function IntranetUsersManager() {
             <Loader2 size={20} className="spinIcon" /> Cargando accesos…
           </div>
         ) : users.length === 0 ? (
-          <div className="centerState intranetTableState">Aún no hay accesos internos creados.</div>
+          <div className="centerState intranetTableState">
+            <span>{error ? "No fue posible mostrar los accesos." : "Aún no hay accesos internos creados."}</span>
+            {error && (
+              <button type="button" className="button buttonSecondary" onClick={() => void loadUsers()}>
+                Reintentar
+              </button>
+            )}
+          </div>
         ) : (
           <table className="intranetTable">
             <thead>

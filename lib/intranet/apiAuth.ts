@@ -6,6 +6,7 @@ import {
   type IntranetRole,
 } from "@/lib/auth/intranetRoles";
 import { createClient } from "@/lib/supabase/server";
+import { isZovitSuperAdmin } from "@/lib/auth/superAdminOwner";
 
 export type IntranetManagerContext = {
   userId: string;
@@ -56,7 +57,7 @@ export async function requireIntranetSuperAdmin(): Promise<
   }
 
   const intranetRole = await loadIntranetRole(authData.user.id);
-  if (intranetRole !== "super_admin") {
+  if (!isZovitSuperAdmin(authData.user.email, intranetRole)) {
     return {
       ok: false,
       status: 403,
@@ -66,7 +67,7 @@ export async function requireIntranetSuperAdmin(): Promise<
 
   return {
     ok: true,
-    manager: { userId: authData.user.id, intranetRole },
+    manager: { userId: authData.user.id, intranetRole: "super_admin" },
   };
 }
 

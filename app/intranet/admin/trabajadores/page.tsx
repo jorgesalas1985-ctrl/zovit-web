@@ -12,7 +12,17 @@ import {
 } from "@/lib/operational/status";
 import type { ServiceProfileType, WorkerRegistrationStatus } from "@/lib/worker/types";
 import { BriefcaseBusiness, ClipboardCheck, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+const REJECTION_REASONS = [
+  "Documento equivocado",
+  "Documento ilegible o borroso",
+  "Documento incompleto",
+  "Documento vencido",
+  "Los datos no coinciden con el registro",
+  "Falta una cara o página del documento",
+  "No acredita la especialidad indicada",
+];
 
 type WorkerRow = {
   profile_id: string;
@@ -94,8 +104,10 @@ export default function IntranetWorkersReviewPage() {
   const [primaryProfile, setPrimaryProfile] = useState<ServiceProfileType>("experience_verified");
   const [aiStats, setAiStats] = useState<AiQueueStats | null>(null);
   const [lastAiBatch, setLastAiBatch] = useState<AiBatchResult | null>(null);
+  const [rejectionReason, setRejectionReason] = useState(REJECTION_REASONS[0]);
+  const [assessmentScores, setAssessmentScores] = useState<Record<string, string>>({});
 
-  async function loadAiStats() {
+  const loadAiStats = useCallback(async () => {
     const response = await fetch("/api/intranet/workers/ai-validate", { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) {
@@ -107,7 +119,7 @@ export default function IntranetWorkersReviewPage() {
       dudosos: data.dudosos ?? 0,
       openaiConfigured: Boolean(data.openaiConfigured),
     });
-  }
+  }, []);
 
   async function processAiQueue(includeDudosos = false) {
     setAiBusy(true);
@@ -158,7 +170,7 @@ export default function IntranetWorkersReviewPage() {
     if (selectedId) await loadDetail(selectedId);
   }
 
-  async function loadWorkers() {
+  const loadWorkers = useCallback(async () => {
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
     if (profileFilter) params.set("profile", profileFilter);
@@ -178,9 +190,13 @@ export default function IntranetWorkersReviewPage() {
       return;
     }
     setWorkers(data.workers ?? []);
-  }
+  }, [profileFilter, statusFilter]);
 
   async function loadDetail(id: string) {
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+      setMessage("No se pudo abrir el expediente porque su identificador no es válido.");
+      return;
+    }
     setSelectedId(id);
     const response = await fetch(`/api/intranet/workers/${id}`, { cache: "no-store" });
     const data = await response.json();
@@ -196,10 +212,10 @@ export default function IntranetWorkersReviewPage() {
   useEffect(() => {
     void loadWorkers();
     void loadAiStats();
-  }, [statusFilter, profileFilter]);
+  }, [loadAiStats, loadWorkers]);
 
   async function runAction(body: Record<string, unknown>) {
-    if (!selectedId) return;
+    if (!selectedId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(selectedId)) return;
     setBusy(true);
     setMessage("");
     const response = await fetch(`/api/intranet/workers/${selectedId}`, {
@@ -222,10 +238,16 @@ export default function IntranetWorkersReviewPage() {
     <IntranetGuard allowedRoles={["hr_admin", "super_admin"]}>
       <IntranetShell
         wide
-        title="Revisión de trabajadores"
-        description="Revisa antecedentes, asigna perfiles de servicio y autoriza especialidades."
-        kicker="RECURSOS HUMANOS"
+        title="Acreditación y evaluaciones"
+        description="Expediente centralizado: revisa cada documento, habilita pruebas por especialidad y activa el perfil solo cuando cumpla todo."
+        kicker="CHECKLIST ADMINISTRATIVO"
       >
+        <div className="accreditationWorkflow">
+          <strong>1. Registro completo</strong><span>→</span>
+          <strong>2. Documentos aprobados</strong><span>→</span>
+          <strong>3. Evaluación ≥ 4,0</strong><span>→</span>
+          <strong>4. Perfil activado</strong>
+        </div>
         <div className="workerAdminAiBar">
           <div>
             <strong>Validación local y revisión manual</strong>
@@ -360,6 +382,12 @@ export default function IntranetWorkersReviewPage() {
                 </div>
 
                 <h3>Credenciales</h3>
+                <label className="accreditationRejectReason">
+                  Motivo rápido si rechazas un documento
+                  <select value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)}>
+                    {REJECTION_REASONS.map((reason) => <option key={reason}>{reason}</option>)}
+                  </select>
+                </label>
                 <ul className="workerAdminCredList">
                   {detail.credentials.map((cred) => (
                     <li key={cred.id}>
@@ -389,13 +417,11 @@ export default function IntranetWorkersReviewPage() {
                           className="secondaryButton"
                           disabled={busy}
                           onClick={() => {
-                            const reason = window.prompt("Motivo del rechazo:");
-                            if (!reason?.trim()) return;
                             void runAction({
                               action: "review_credential",
                               credentialId: cred.id,
                               credentialStatus: "rejected",
-                              message: reason.trim(),
+                              message: rejectionReason,
                             });
                           }}
                         >
@@ -405,6 +431,21 @@ export default function IntranetWorkersReviewPage() {
                     </li>
                   ))}
                   {!detail.credentials.length && <li className="muted">Sin credenciales cargadas.</li>}
+                </ul>
+
+                <h3>Evaluaciones de conocimientos</h3>
+                <p className="muted">Se habilitan después de aprobar el respaldo documental. Escala 1,0 a 7,0; aprobación mínima 4,0.</p>
+                <ul className="workerAdminCredList">
+                  {detail.services.map((service) => (
+                    <li key={`assessment-${service.id}`}>
+                      <div><strong>{service.specialty_name}</strong><small>Prueba técnica específica para esta especialidad</small></div>
+                      <div className="workerAdminActions assessmentScoreAction">
+                        <input type="number" min="1" max="7" step="0.1" value={assessmentScores[service.id] ?? ""} onChange={(event) => setAssessmentScores((current) => ({ ...current, [service.id]: event.target.value }))} placeholder="Nota" aria-label={`Nota de ${service.specialty_name}`} />
+                        <button type="button" className="secondaryButton" disabled={busy || !assessmentScores[service.id]} onClick={() => void runAction({ action: "record_assessment", serviceId: service.id, score: Number(assessmentScores[service.id]) })}>Guardar resultado</button>
+                      </div>
+                    </li>
+                  ))}
+                  {!detail.services.length && <li className="muted">Primero asigna una especialidad al perfil.</li>}
                 </ul>
 
                 <h3>Servicios</h3>

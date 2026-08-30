@@ -1,6 +1,7 @@
 "use client";
 
 import { credentialAvatarCandidates } from "@/lib/credential/avatarUrl";
+import { supabase } from "@/lib/supabase";
 import { UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -11,16 +12,34 @@ type CredentialAvatarProps = {
 };
 
 export function CredentialAvatar({ profileId, avatarUrl, name }: CredentialAvatarProps) {
-  const candidates = useMemo(
+  const publicCandidates = useMemo(
     () => credentialAvatarCandidates(profileId, avatarUrl),
     [profileId, avatarUrl],
   );
+  const [candidates, setCandidates] = useState(publicCandidates);
   const [index, setIndex] = useState(0);
 
-  const candidatesKey = candidates.join("|");
   useEffect(() => {
+    let cancelled = false;
     setIndex(0);
-  }, [candidatesKey]);
+    setCandidates(publicCandidates);
+
+    // La foto puede estar en un bucket privado. Agregamos enlaces firmados
+    // como respaldo para que no desaparezca al fallar el enlace público.
+    void Promise.all(
+      ["jpg", "jpeg", "png", "webp"].map(async (extension) => {
+        const { data } = await supabase.storage
+          .from("profile-avatars")
+          .createSignedUrl(`${profileId}/avatar.${extension}`, 60 * 60);
+        return data?.signedUrl ?? "";
+      }),
+    ).then((signedUrls) => {
+      if (cancelled) return;
+      setCandidates((current) => [...new Set([...current, ...signedUrls.filter(Boolean)])]);
+    });
+
+    return () => { cancelled = true; };
+  }, [profileId, publicCandidates]);
 
   const src = candidates[index] ?? null;
 

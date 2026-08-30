@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: Params) {
     };
 
     if (!body.action || !["aprobar", "pagar", "rechazar"].includes(body.action)) {
-      return NextResponse.json({ error: "Acción inválida." }, { status: 400 });
+      return NextResponse.json({ error: "AcciÃ³n invÃ¡lida." }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -42,3 +42,4 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

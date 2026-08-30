@@ -1,62 +1,43 @@
-import { getRedirectOrigin } from "@/lib/auth/redirects";
-import { safeNextPath } from "@/lib/auth/safeNextPath";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
-function getSupabaseEnv() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  }
-
-  return { url, key };
+function safeNext(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/panel";
+  return value;
 }
 
-function resolveNextPath(next: string | null, type: string | null): string {
-  if (type === "recovery" || type === "invite") {
-    return "/auth/restablecer-clave";
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const origin = url.origin;
+  const next = safeNext(url.searchParams.get("next"));
+  const providerError = url.searchParams.get("error");
+  const providerErrorCode = url.searchParams.get("error_code");
+
+  if (providerError || providerErrorCode) {
+    const reason = providerErrorCode === "otp_expired" ? "expired" : "invalid";
+    return NextResponse.redirect(
+      `${origin}/login?confirm_error=${reason}&next=${encodeURIComponent(next)}`,
+    );
   }
 
-  return safeNextPath(next, "/panel");
-}
-
-export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url);
-  const { searchParams } = requestUrl;
-  const origin = getRedirectOrigin(requestUrl.origin);
-  const code = searchParams.get("code");
-  const next = resolveNextPath(searchParams.get("next"), searchParams.get("type"));
-
+  const code = url.searchParams.get("code");
   if (!code) {
-    const errorCode =
-      searchParams.get("type") === "recovery" ? "callback-recuperacion" : "auth-callback";
-    return NextResponse.redirect(`${origin}/login?error=${errorCode}`);
+    return NextResponse.redirect(
+      `${origin}/login?confirm_error=invalid&next=${encodeURIComponent(next)}`,
+    );
   }
 
-  const { url, key } = getSupabaseEnv();
-  const response = NextResponse.redirect(`${origin}${next}`);
-
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
-        });
-      },
-    },
-  });
-
+  const supabase = await createClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
-
   if (error) {
-    const errorCode = searchParams.get("type") === "recovery" ? "callback-recuperacion" : "auth-callback";
-    return NextResponse.redirect(`${origin}/login?error=${errorCode}`);
+    const reason = /expired|otp/i.test(error.message) ? "expired" : "invalid";
+    return NextResponse.redirect(
+      `${origin}/login?confirm_error=${reason}&next=${encodeURIComponent(next)}`,
+    );
   }
 
-  return response;
+  await supabase.auth.signOut();
+  return NextResponse.redirect(
+    `${origin}/login?confirmed=1&next=${encodeURIComponent(next)}`,
+  );
 }

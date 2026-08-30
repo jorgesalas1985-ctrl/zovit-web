@@ -3,7 +3,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OperationalDocumentActorType } from "@/lib/operations/documentRenewalPersistence";
 import {
   loadLocalOcrQueue,
-  type LocalOcrQueue,
   type LocalOcrQueueItem,
 } from "@/lib/operations/localOcrQueue";
 import {

@@ -9,6 +9,15 @@ const securityHeaderList = Object.entries(getSecurityHeaders()).map(([key, value
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  async redirects() {
+    return [
+      {
+        source: "/admin/pagos",
+        destination: "/intranet/finanzas/pagos",
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     return [
       { source: "/sitemap.xml", destination: "/sitemap/sitemap.xml" },
@@ -19,6 +28,14 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaderList,
+      },
+      {
+        source: "/intranet/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, max-age=0, must-revalidate" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Expires", value: "0" },
+        ],
       },
       {
         source: "/sitemap.xml",

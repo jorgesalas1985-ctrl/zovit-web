@@ -70,6 +70,8 @@ export function decideFromScores(input: {
   return "dudoso";
 }
 
+// Conservado para reactivar un proveedor de visión externo en el futuro.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function extractJsonObject(text: string): unknown {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const raw = (fenced?.[1] ?? text).trim();
@@ -173,6 +175,8 @@ export function normalizeAiWorkerVerdict(
   };
 }
 
+// Conservado junto al contrato histórico del proveedor externo.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildPrompt(input: AiDocumentInput): string {
   return [
     "Eres un revisor documental de ZOVIT (Chile). Evalúas certificados, licencias, títulos y matrículas.",

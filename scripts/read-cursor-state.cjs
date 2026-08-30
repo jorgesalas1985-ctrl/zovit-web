@@ -51,7 +51,7 @@ async function main() {
       );
       const agent = parsed?.composerState?.modes4?.find((m) => m.id === "agent");
       console.log("agent mode:", agent?.autoRun, agent?.fullAutoRun, agent?.smartModeAutoRun);
-    } catch (e) {
+    } catch {
       console.log("preview:", String(row[1]).slice(0, 200));
     }
   }

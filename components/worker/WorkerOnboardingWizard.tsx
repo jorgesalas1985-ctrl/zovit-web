@@ -8,9 +8,7 @@ import {
   CheckCircle2,
   CheckSquare,
   ChevronDown,
-  FileUp,
   HelpCircle,
-  Lock,
   Plus,
   Save,
   Square,
@@ -19,19 +17,16 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { FloatingToast } from "@/components/ui/FloatingToast";
-import { MobileDocumentCaptureButton } from "@/components/verification/MobileDocumentCaptureButton";
 import { DocumentAttachField } from "@/components/worker/DocumentAttachField";
 import { CHILE_SERVICE_ZONES, SPANISH_MONTHS } from "@/lib/geo/rmCommunes";
 import { listWorkerSpecialtyOptions } from "@/lib/worker/catalog";
 import {
-  ensureStudentTraining,
   getParticipations,
   pickPrimaryProfile,
   suggestFromGuidedAssistant,
   suggestProfilesFromParticipations,
   type GuidedAnswers,
 } from "@/lib/worker/classify";
-import { buildWorkerProfileCompletion } from "@/lib/worker/profileCompletion";
 import {
   clearLocalWorkerDraft,
   createEmptyWorkerDraft,
@@ -53,9 +48,8 @@ import type {
   WorkerRegistrationDraft,
 } from "@/lib/worker/types";
 import {
-  getMissingDocumentIssue,
-  getRegistrationFormIssue,
   getStepValidationIssue,
+  isStepComplete,
   type WorkerFieldId,
 } from "@/lib/worker/validate";
 import { normalizeChileanRut } from "@/lib/registration/validateRegistration";
@@ -119,14 +113,22 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   const focusMissingField = useCallback((fieldId: WorkerFieldId, targetStep: number) => {
     setMissingFieldId(fieldId);
     setStep(targetStep);
+    window.scrollTo({ top: 0, behavior: "smooth" });
     window.setTimeout(() => {
       const el = document.querySelector(`[data-field-id="${fieldId}"]`) as HTMLElement | null;
       if (!el) return;
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       const focusable = el.querySelector<HTMLElement>("input, textarea, select, button");
       focusable?.focus({ preventScroll: true });
-    }, 120);
+    }, 300);
   }, []);
+
+  const openStep = useCallback((targetStep: number) => {
+    clearToast();
+    setMissingFieldId(null);
+    setStep(targetStep);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [clearToast]);
   const [guided, setGuided] = useState<GuidedAnswers>({
     hasFormalCredential: null,
     hasExperience: null,
@@ -135,7 +137,6 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   });
 
   const specialties = useMemo(() => listWorkerSpecialtyOptions(), []);
-  const isStudent = profile?.account_kind === "student";
   const selectedParticipations = getParticipations(draft);
   const activeProfiles = useMemo(() => {
     if (selectedParticipations.includes("unsure")) {
@@ -144,17 +145,38 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     const fromChoices = suggestProfilesFromParticipations(selectedParticipations);
     return fromChoices.length ? fromChoices : draft.suggestedProfiles;
   }, [draft.suggestedProfiles, selectedParticipations]);
-  const showTrainingBlock = activeProfiles.includes("in_training") || isStudent;
-  const completion = useMemo(
+  const completedSteps = [1, 2, 3, 4, 5, 6].filter((item) => isStepComplete(item, draft)).length;
+  const formPercent = Math.round((completedSteps / 6) * 100);
+  // El avance mide exclusivamente lo que debe completar el alumno.
+  // La revisión posterior es una tarea interna de ZOVIT y no reduce su porcentaje.
+  const completionPercent = formPercent;
+  const canGenerateCertificate = completionPercent === 100 && documentCompliance?.status === "complete";
+  const isDocumentSuspended =
+    documentCompliance?.status === "suspension_ready" ||
+    draft.status === "suspended" ||
+    draft.status === "document_expired";
+  const isProfileIncomplete = completionPercent < 100;
+  const incompleteFormSteps = useMemo(
     () =>
-      buildWorkerProfileCompletion({
-        draft,
-        isStudent,
-        documentCompliance,
-        documentComplianceError,
-      }),
-    [documentCompliance, documentComplianceError, draft, isStudent],
+      [1, 2, 3, 4, 5, 6]
+        .map((item) => ({ step: item, issue: getStepValidationIssue(item, draft) }))
+        .filter((item) => item.issue),
+    [draft],
   );
+  const documentRequirement = documentCompliance
+    ? documentCompliance.status === "complete"
+      ? { state: "complete" as const, text: "Documentos revisados y aprobados." }
+      : documentCompliance.rejectedKinds.length
+        ? { state: "action" as const, text: `Debes reemplazar: ${documentCompliance.rejectedKinds.join(", ")}.` }
+        : documentCompliance.missingKinds.length
+          ? { state: "action" as const, text: `Debes subir: ${documentCompliance.missingKinds.join(", ")}.` }
+          : { state: "waiting" as const, text: "Tus documentos están en revisión. No necesitas enviarlos nuevamente." }
+    : {
+        state: "action" as const,
+        text: documentComplianceError
+          ? "No pudimos confirmar el estado documental. Revisa tus antecedentes y vuelve a enviarlos si falta alguno."
+          : "Revisa los antecedentes del paso 3 para confirmar tus documentos.",
+      };
 
   const hydrate = useCallback(async () => {
     const local = loadLocalWorkerDraft();
@@ -170,6 +192,11 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
             ...(data.registration.draft as WorkerRegistrationDraft),
             status: serverStatus || data.registration.draft.status,
           };
+          if (serverStatus === "submitted" || serverStatus === "verified") {
+            setStep(7);
+          } else {
+            setStep(1);
+          }
         } else if (data.profile) {
           next = createEmptyWorkerDraft({
             firstName: data.profile.first_name ?? "",
@@ -208,72 +235,39 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
         },
       };
     }
-    let prepared = normalizeWorkerDraft(
-      ensureStudentTraining(next, profile?.account_kind === "student"),
-    );
-    if (local?.training?.enrollmentStoragePath && !prepared.training.enrollmentStoragePath) {
-      prepared = {
-        ...prepared,
-        training: {
-          ...prepared.training,
-          enrollmentDocName: local.training.enrollmentDocName,
-          enrollmentStoragePath: local.training.enrollmentStoragePath,
-          enrollmentMime: local.training.enrollmentMime,
-        },
-      };
-    }
-    setDraft(prepared);
-    if (getMissingDocumentIssue(prepared)) {
-      setStep(3);
-    } else if (prepared.status === "submitted" || prepared.status === "verified") {
-      setStep(7);
-    } else if (getRegistrationFormIssue(prepared)) {
-      setStep(getRegistrationFormIssue(prepared)?.step ?? 1);
-    } else {
-      setStep(1);
-    }
+    setDraft(normalizeWorkerDraft(next));
   }, [profile, user]);
 
   useEffect(() => {
     if (!loading) void hydrate();
   }, [hydrate, loading]);
 
-  const loadDocumentCompliance = useCallback(async () => {
+  useEffect(() => {
     if (!user) return;
-    try {
-      const response = await fetch("/api/worker/document-compliance", { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) {
-        setDocumentComplianceError(data.error ?? "No se pudo cargar tu estado documental.");
-        return;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/worker/document-compliance", { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) {
+          setDocumentComplianceError(data.error ?? "No se pudo cargar tu estado documental.");
+          return;
+        }
+        setDocumentCompliance(
+          data.compliance
+            ? {
+                ...data.compliance,
+                actionLabel: data.actionLabel ?? "",
+                nextStep: data.nextStep ?? "upload_documents",
+              }
+            : null,
+        );
+        setDocumentComplianceError(data.error ?? "");
+      } catch {
+        setDocumentComplianceError("No se pudo cargar tu estado documental.");
       }
-      setDocumentCompliance(
-        data.compliance
-          ? {
-              ...data.compliance,
-              actionLabel: data.actionLabel ?? "",
-              nextStep: data.nextStep ?? "upload_documents",
-            }
-          : null,
-      );
-      setDocumentComplianceError(data.error ?? "");
-    } catch {
-      setDocumentComplianceError("No se pudo cargar tu estado documental.");
-    }
+    })();
   }, [user]);
-
-  useEffect(() => {
-    void loadDocumentCompliance();
-  }, [loadDocumentCompliance]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const focus = new URLSearchParams(window.location.search).get("focus");
-    if (focus !== "documents" && focus !== "documentos") return;
-    const target = completion.target;
-    if (!target) return;
-    focusMissingField(target.fieldId, target.step);
-  }, [completion.target, focusMissingField]);
 
   useEffect(() => {
     saveLocalWorkerDraft(draft);
@@ -329,57 +323,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     return true;
   }
 
-  function reviewMissingDocuments() {
-    const box = document.getElementById("worker-missing-study-doc");
-    if (box) {
-      setMissingFieldId("training.enrollment");
-      box.scrollIntoView({ behavior: "smooth", block: "center" });
-      const focusable = box.querySelector<HTMLElement>("input, textarea, select, button");
-      focusable?.focus({ preventScroll: true });
-      showToast(
-        `Falta: ${completion.missingDocumentLabel}. Súbelo desde el PC o con el QR del celular.`,
-        "info",
-      );
-      return;
-    }
-    const target = completion.target;
-    if (!target) {
-      showToast("No hay documentos pendientes por ahora.", "info");
-      return;
-    }
-    showToast(target.message, "info");
-    focusMissingField(target.fieldId, target.step);
-  }
-
-  async function attachEnrollment(file: File) {
-    setBusy(true);
-    const uploaded = await uploadWorkerDocument(file, "enrollment");
-    if (!uploaded) {
-      setBusy(false);
-      return;
-    }
-    const next = {
-      ...draft,
-      training: {
-        ...draft.training,
-        enrollmentDocName: uploaded.name,
-        enrollmentStoragePath: uploaded.path,
-        enrollmentMime: uploaded.mime,
-      },
-    };
-    setDraft(next);
-    saveLocalWorkerDraft(next);
-    setBusy(false);
-    showToast("Documento de estudios subido. Ese era el 14% que faltaba.", "success");
-    await persistDraft(next, { quiet: true });
-    void loadDocumentCompliance();
-  }
-
   function toggleParticipation(choice: ParticipationChoice) {
-    if (isStudent && choice === "training" && selectedParticipations.includes("training")) {
-      showToast("Como alumno debes mantener el certificado de estudios en tu perfil.", "info");
-      return;
-    }
     setDraft((current) => {
       const currentChoices = getParticipations(current);
       let nextChoices: ParticipationChoice[];
@@ -491,24 +435,38 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
     }
 
     setBusy(true);
-    const response = await fetch("/api/worker/registration", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ draft }),
-    });
-    const data = await response.json();
-    setBusy(false);
+    try {
+      const response = await fetch("/api/worker/registration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft }),
+        signal: AbortSignal.timeout(20000),
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      const data = contentType.includes("application/json")
+        ? await response.json()
+        : { error: "El servidor no entregó una respuesta válida." };
 
-    if (!response.ok) {
-      showToast(data.error ?? "No se pudo enviar el registro.", "error");
-      return;
+      if (!response.ok) {
+        showToast(data.error ?? "No se pudo enviar el registro.", "error");
+        return;
+      }
+
+      clearLocalWorkerDraft();
+      setDraft(data.draft ?? { ...draft, status: "submitted" });
+      setMissingFieldId(null);
+      if (data.notice) showToast(data.notice, "info");
+      setStep(7);
+    } catch (error) {
+      showToast(
+        error instanceof DOMException && error.name === "TimeoutError"
+          ? "El servidor tardó demasiado. Intenta enviar nuevamente."
+          : "No se pudo conectar con el servidor. Intenta nuevamente.",
+        "error"
+      );
+    } finally {
+      setBusy(false);
     }
-
-    clearLocalWorkerDraft();
-    setDraft(data.draft ?? { ...draft, status: "submitted" });
-    setMissingFieldId(null);
-    if (data.notice) showToast(data.notice, "info");
-    setStep(7);
   }
 
   async function reopenForEdit() {
@@ -534,7 +492,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
   if (requireAuth && !user) {
     return (
       <section className="formPageCard workerWizardCard">
-        <p className="kicker">REGISTRO TRABAJADOR</p>
+        <p className="kicker">{profile?.account_kind === "student" ? "REGISTRO ALUMNO" : "REGISTRO TRABAJADOR"}</p>
         <h1>{WORKER_COPY.title}</h1>
         <p className="muted">{WORKER_COPY.subtitle}</p>
         <p className="formMessage">
@@ -555,12 +513,12 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
 
   return (
     <section className="formPageCard workerWizardCard" aria-labelledby="worker-wizard-title">
-      <p className="kicker">REGISTRO TRABAJADOR</p>
+      <p className="kicker">{profile?.account_kind === "student" ? "REGISTRO ALUMNO" : "REGISTRO TRABAJADOR"}</p>
       <h1 id="worker-wizard-title">{WORKER_COPY.title}</h1>
       <p className="muted">{WORKER_COPY.subtitle}</p>
 
       {documentCompliance ? (
-        <div className="notice workerPanelNotice">
+        <div className={`notice workerPanelNotice ${isDocumentSuspended ? "workerPanelNotice-danger" : isProfileIncomplete ? "workerPanelNotice-warning" : "workerPanelNotice-success"}`}>
           <strong>{documentCompliance.summary}</strong>
           <span>{documentCompliance.actionLabel}</span>
           <span>
@@ -581,140 +539,59 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
           ) : null}
         </div>
       ) : documentComplianceError ? (
-        <div className="notice workerPanelNotice">
+        <div className="notice workerPanelNotice workerPanelNotice-warning">
           Estado documental pendiente: {documentComplianceError}
         </div>
       ) : null}
 
-      <section className="workerCompletionCard" aria-labelledby="worker-completion-title">
-        <div className="workerCompletionHead">
+      <div className={`workerCompletionCard ${isDocumentSuspended ? "isSuspended" : isProfileIncomplete ? "isIncomplete" : "isComplete"}`}>
+        <div><strong>{isDocumentSuspended ? "Cuenta suspendida" : isProfileIncomplete ? "Perfil incompleto" : "Perfil completo"}</strong><span>{completionPercent}% completado</span></div>
+        <div className="workerCompletionTrack" aria-label={`${completionPercent}% completado`}><span style={{ width: `${completionPercent}%` }} /></div>
+        <p>
+          {isDocumentSuspended
+            ? "No puedes realizar trabajos hasta regularizar los documentos académicos solicitados."
+            : "Sigue los requisitos que aparecen inmediatamente abajo. Usa cada botón “Completar” y el porcentaje avanzará hasta 100%."}
+        </p>
+      </div>
+
+      <section className="workerCompletionGuide" aria-label="Requisitos pendientes para completar el perfil">
+        <div className="workerCompletionGuideHeader">
           <div>
-            <p className="kicker">{completion.percent === 100 ? "PERFIL LISTO" : "PERFIL INCOMPLETO"}</p>
-            <h2 id="worker-completion-title">
-              {completion.percent}% completado
-            </h2>
+            <strong>{completionPercent === 100 ? "Tu perfil está completo" : `Te falta ${100 - completionPercent}% para completar tu perfil`}</strong>
+            <p>{canGenerateCertificate ? "Ya puedes generar tu certificado." : completionPercent === 100 ? "No tienes nada más que completar: ZOVIT debe revisar tus documentos antes de habilitar el certificado." : "Empieza por el primer requisito pendiente y presiona “Completar”."}</p>
           </div>
-          {completion.remainingPercent > 0 ? (
-            <strong>Te falta {completion.remainingPercent}% para completar tu perfil</strong>
-          ) : (
-            <strong>Ya puedes obtener tu certificado</strong>
-          )}
+          {canGenerateCertificate ? (
+            <Link href="/panel/pasaporte" className="primaryButton">
+              Generar certificado <ArrowRight size={16} />
+            </Link>
+          ) : null}
         </div>
-        <div
-          className="workerCompletionBar"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={completion.percent}
-          aria-label="Progreso del perfil"
-        >
-          <span style={{ width: `${completion.percent}%` }} />
-        </div>
-        {completion.warning ? <p className="workerCompletionWarning">{completion.warning}</p> : null}
-        {!completion.documentsComplete ? (
-          <div
-            id="worker-missing-study-doc"
-            className={`workerMissingDocBox ${
-              missingFieldId === "training.enrollment" ? "isMissingField" : ""
-            }`}
-          >
-            <h3>Archivo que falta para el {completion.remainingPercent}%</h3>
-            <p>
-              <strong>{completion.missingDocumentLabel}</strong>. Sin este archivo el certificado
-              ZOVIT permanece cerrado.
-            </p>
-            {!draft.training.institution.trim() || !draft.training.career.trim() ? (
-              <div className="formGrid">
-                <label>
-                  Institución educacional
-                  <input
-                    value={draft.training.institution}
-                    placeholder={FIELD_PLACEHOLDERS.institution}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        training: { ...draft.training, institution: e.target.value },
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  Carrera, especialidad o curso
-                  <input
-                    value={draft.training.career}
-                    placeholder={FIELD_PLACEHOLDERS.career}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        training: { ...draft.training, career: e.target.value },
-                      })
-                    }
-                  />
-                </label>
-              </div>
-            ) : null}
-            <DocumentAttachField
-              label="1. Subir desde este computador"
-              fileName={draft.training.enrollmentDocName}
-              busy={busy}
-              highlight={missingFieldId === "training.enrollment"}
-              hint="Pulsa + y elige un JPG, PNG, WEBP o PDF. Máximo 10 MB."
-              onPick={(file) => void attachEnrollment(file)}
-              onClear={() =>
-                setDraft({
-                  ...draft,
-                  training: {
-                    ...draft.training,
-                    enrollmentDocName: "",
-                    enrollmentStoragePath: "",
-                    enrollmentMime: "",
-                  },
-                })
-              }
-            />
-            <div className="workerMissingDocQr">
-              <p>2. O escanear un QR y subirlo desde el celular</p>
-              <MobileDocumentCaptureButton
-                documentType="certificado_estudios"
-                label={completion.missingDocumentLabel}
-                busy={busy}
-                onCaptured={(file) => void attachEnrollment(file)}
-              />
-            </div>
-          </div>
-        ) : null}
-        <ul className="workerCompletionList">
-          {completion.items.map((item) => (
-            <li key={item.id} className={`workerCompletionItem is-${item.status}`}>
-              <span className="workerCompletionIcon" aria-hidden>
-                {item.status === "complete" ? (
-                  <CheckCircle2 size={18} />
-                ) : item.status === "locked" ? (
-                  <Lock size={18} />
-                ) : (
-                  <AlertCircle size={18} />
-                )}
-              </span>
+        <ul className="workerCompletionChecklist">
+          {incompleteFormSteps.length ? incompleteFormSteps.map(({ step: incompleteStep, issue }) => (
+            <li key={incompleteStep} className="isPending">
+              <Square size={18} aria-hidden="true" />
               <div>
-                <strong>{item.title}</strong>
-                <p>{item.description}</p>
-                {item.actionLabel ? (
-                  <button
-                    type="button"
-                    className="primaryButton workerCompletionAction"
-                    onClick={reviewMissingDocuments}
-                  >
-                    <FileUp size={16} /> {item.actionLabel}
-                  </button>
-                ) : null}
-                {item.id === "certificate" && completion.certificateUnlocked ? (
-                  <Link href="/certificado-experiencia" className="primaryButton workerCompletionAction">
-                    Ver certificado <ArrowRight size={16} />
-                  </Link>
-                ) : null}
+                <strong>Paso {incompleteStep}: {STEPS[incompleteStep - 1]}</strong>
+                <span>{issue?.message}</span>
               </div>
+              <button type="button" className="textButton" onClick={() => issue && focusMissingField(issue.fieldId, incompleteStep)}>
+                Completar
+              </button>
             </li>
-          ))}
+          )) : (
+            <li className="isComplete"><CheckSquare size={18} aria-hidden="true" /><div><strong>Formulario de registro</strong><span>Completado.</span></div></li>
+          )}
+          <li className={documentRequirement.state === "complete" ? "isComplete" : "isPending"}>
+            {documentRequirement.state === "complete" ? <CheckSquare size={18} aria-hidden="true" /> : <Square size={18} aria-hidden="true" />}
+            <div><strong>Revisión de documentos</strong><span>{documentRequirement.state === "waiting" ? "No tienes que hacer nada: ZOVIT está revisando tus documentos. Esta revisión no afecta tu porcentaje; al aprobarlos se habilitará tu certificado." : documentRequirement.text}</span></div>
+            {documentRequirement.state === "action" ? (
+              <button type="button" className="textButton" onClick={() => openStep(3)}>Revisar documentos</button>
+            ) : null}
+          </li>
+          <li className={completionPercent === 100 ? "isComplete" : "isPending"}>
+            {completionPercent === 100 ? <CheckSquare size={18} aria-hidden="true" /> : <Square size={18} aria-hidden="true" />}
+            <div><strong>Certificado</strong><span>{canGenerateCertificate ? "Listo para generar." : "Aún bloqueado: se habilitará automáticamente cuando ZOVIT apruebe la revisión."}</span></div>
+          </li>
         </ul>
       </section>
 
@@ -729,8 +606,20 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
               className={`workerProgressItem ${active ? "isActive" : ""} ${done ? "isDone" : ""}`}
               aria-current={active ? "step" : undefined}
             >
-              <span>{number}</span>
-              <small>{label}</small>
+              <button
+                type="button"
+                className="workerProgressButton"
+                onClick={() => {
+                  clearToast();
+                  setMissingFieldId(null);
+                  setStep(number);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                aria-label={`Editar paso ${number}: ${label}`}
+              >
+                <span>{number}</span>
+                <small>{label}</small>
+              </button>
             </li>
           );
         })}
@@ -761,7 +650,12 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
 
       {step === 1 && (
         <div className="formGrid">
-          <label>
+          <div className="workerRegisteredSummary full">
+            <strong>Datos de cuenta ya registrados</strong>
+            <span>{draft.personal.firstName} {draft.personal.lastName} · {draft.personal.rut || "RUT registrado"} · {draft.personal.email}</span>
+            <small>No necesitas ingresar nuevamente tu nombre, RUT, nacimiento ni correo.</small>
+          </div>
+          <label className="workerPreviouslyRegistered">
             Nombres
             <input
               value={draft.personal.firstName}
@@ -771,7 +665,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
               }
             />
           </label>
-          <label>
+          <label className="workerPreviouslyRegistered">
             Apellidos
             <input
               value={draft.personal.lastName}
@@ -781,7 +675,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
               }
             />
           </label>
-          <label data-field-id="personal.rut">
+          <label className="workerPreviouslyRegistered" data-field-id="personal.rut">
             RUT
             <input
               value={draft.personal.rut}
@@ -803,7 +697,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
             />
             <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
           </label>
-          <label>
+          <label className="workerPreviouslyRegistered">
             Fecha de nacimiento
             <input
               type="text"
@@ -817,7 +711,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
             />
             <small className="fieldHint">{FIELD_PLACEHOLDERS.birthDateHint}</small>
           </label>
-          <p className="muted full">
+          <p className="muted full workerPreviouslyRegistered">
             Solo mayores de 18 años pueden registrarse como profesionales en ZOVIT.
           </p>
           <label>
@@ -831,7 +725,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
               }
             />
           </label>
-          <label>
+          <label className="workerPreviouslyRegistered">
             Correo electrónico
             <input
               type="email"
@@ -1001,7 +895,10 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
 
       {step === 3 && (
         <div className="workerAntecedents">
-          <p className="muted">{WORKER_COPY.documents}</p>
+          <div className="workerFastStepIntro">
+            <strong>Paso rápido</strong>
+            <span>Completa solo lo esencial y adjunta el respaldo. Los detalles opcionales podrás agregarlos después.</span>
+          </div>
 
           {activeProfiles.includes("certified") && (
             <div
@@ -1051,7 +948,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                       }}
                     />
                   </label>
-                  <label>
+                  <label className="workerOptionalDetail">
                     Año de obtención
                     <input
                       value={cred.yearObtained}
@@ -1063,7 +960,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                       }}
                     />
                   </label>
-                  <label>
+                  <label className="workerOptionalDetail">
                     Nº registro o licencia
                     <input
                       value={cred.registryNumber}
@@ -1075,7 +972,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                       }}
                     />
                   </label>
-                  <label>
+                  <label className="workerOptionalDetail">
                     Fecha de vencimiento
                     <input
                       type="text"
@@ -1113,7 +1010,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                       setBusy(true);
                       const uploaded = await uploadWorkerDocument(file, `cred-${cred.id}`);
                       setBusy(false);
-                      if (!uploaded) return;
+                      if (!uploaded) return false;
                       const credentials = [...draft.credentials];
                       credentials[index] = {
                         ...cred,
@@ -1123,7 +1020,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                       };
                       setDraft({ ...draft, credentials });
                       showToast("Documento adjuntado correctamente.", "success");
-                      void loadDocumentCompliance();
+                      return true;
                     }}
                     onClear={() => {
                       const credentials = [...draft.credentials];
@@ -1222,7 +1119,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   }
                 />
               </label>
-              <label className="full">
+              <label className="full workerOptionalDetail">
                 Portafolio / fotos de trabajos (descripción o enlaces)
                 <textarea
                   rows={3}
@@ -1235,7 +1132,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   }
                 />
               </label>
-              <label className="full">
+              <label className="full workerOptionalDetail">
                 Referencias laborales (opcionales, con consentimiento)
                 <textarea
                   rows={3}
@@ -1248,7 +1145,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   }
                 />
               </label>
-              <label>
+              <label className="workerOptionalDetail">
                 Herramientas o equipamiento
                 <input
                   value={draft.experience.tools}
@@ -1261,7 +1158,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   }
                 />
               </label>
-              <label>
+              <label className="workerOptionalDetail">
                 Zonas donde prestas servicios
                 <input
                   value={draft.experience.serviceZones}
@@ -1277,7 +1174,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
             </div>
           )}
 
-          {showTrainingBlock && (
+          {activeProfiles.includes("in_training") && (
             <div
               className={`workerBlock formGrid ${
                 missingFieldId === "training.institution" ||
@@ -1327,7 +1224,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   }
                 />
               </label>
-              <label className="full">
+              <label className="full workerOptionalDetail">
                 Fecha estimada de egreso
                 <div className="workerMonthYearRow">
                   <div className="workerSelectWrap">
@@ -1393,7 +1290,23 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                 fieldId="training.enrollment"
                 highlight={missingFieldId === "training.enrollment"}
                 hint="Pulsa + para adjuntar el certificado (JPG, PNG, WEBP o PDF)"
-                onPick={(file) => void attachEnrollment(file)}
+                onPick={async (file) => {
+                  setBusy(true);
+                  const uploaded = await uploadWorkerDocument(file, "enrollment");
+                  setBusy(false);
+                  if (!uploaded) return false;
+                  setDraft({
+                    ...draft,
+                    training: {
+                      ...draft.training,
+                      enrollmentDocName: uploaded.name,
+                      enrollmentStoragePath: uploaded.path,
+                      enrollmentMime: uploaded.mime,
+                    },
+                  });
+                  showToast("Certificado de matrícula adjuntado.", "success");
+                  return true;
+                }}
                 onClear={() =>
                   setDraft({
                     ...draft,
@@ -1406,7 +1319,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   })
                 }
               />
-              <label className="full">
+              <label className="full workerOptionalDetail">
                 Competencias declaradas
                 <textarea
                   rows={3}
@@ -1419,7 +1332,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   }
                 />
               </label>
-              <label className="full">
+              <label className="full workerOptionalDetail">
                 Trabajos que estás autorizado o capacitado para realizar
                 <textarea
                   rows={3}
@@ -1432,7 +1345,7 @@ export function WorkerOnboardingWizard({ requireAuth = true }: Props) {
                   }
                 />
               </label>
-              <label className="full">
+              <label className="full workerOptionalDetail">
                 Tutor o docente de referencia (opcional)
                 <input
                   value={draft.training.tutorReference}

@@ -11,7 +11,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Falta requestId." }, { status: 400 });
     }
     if (!isValidUuid(requestId)) {
-      return NextResponse.json({ error: "requestId inválido." }, { status: 400 });
+      return NextResponse.json({ error: "requestId invÃ¡lido." }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -93,10 +93,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Faltan campos obligatorios." }, { status: 400 });
     }
     if (!isValidUuid(body.requestId)) {
-      return NextResponse.json({ error: "requestId inválido." }, { status: 400 });
+      return NextResponse.json({ error: "requestId invÃ¡lido." }, { status: 400 });
     }
     if (Number(body.amount) <= 0 || Number(body.amount) > 1000000000) {
-      return NextResponse.json({ error: "Monto inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Monto invÃ¡lido." }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -114,3 +114,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Award,
-  BadgeCheck,
   BriefcaseBusiness,
   ClipboardCheck,
   Copy,

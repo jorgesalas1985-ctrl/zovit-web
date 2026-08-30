@@ -3,38 +3,31 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  BriefcaseBusiness,
   Clock3,
   CreditCard,
   FileText,
   IdCard,
-  MapPinned,
-  Plus,
-  Share2,
   ShieldCheck,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 import { AccountModeControls } from "@/components/AccountModeControls";
 import { EcosystemAccessGrid } from "@/components/ecosystem/EcosystemAccessGrid";
 import { Protected } from "@/components/Protected";
-import { RoleModeBanner } from "@/components/RoleModeBanner";
-import { IdentityBadge } from "@/components/verification/IdentityBadge";
-import { ExperienceBadge, ProfessionalStatsGrid } from "@/components/experience/ExperienceSection";
 import { ProfessionalAvailabilityToggle } from "@/components/map/ProfessionalAvailabilityToggle";
 import { useAuth } from "@/components/AuthProvider";
-import type { ProfessionalStats } from "@/lib/experience/types";
-import { isSuperAdminRole } from "@/lib/auth/intranetRoles";
 import { hasUnrestrictedSuperAdminAccess } from "@/lib/auth/superAdminAccess";
 import {
-  getActiveMode,
   hasDualMode,
   resolvePanelViewMode,
   roleErrorMessage,
 } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { useSuperAdminView } from "@/components/superadmin/SuperAdminViewProvider";
+import { PanelProfileHeader } from "@/components/panel/PanelProfileHeader";
+import { ProfileSectionMenu } from "@/components/panel/ProfileSectionMenu";
+import type { SuperAdminTourAccount } from "@/lib/auth/superAdminView";
 
 type RequestItem = {
   id: string;
@@ -45,33 +38,48 @@ type RequestItem = {
 };
 
 function PanelContent() {
-  const { user, profile, realProfile } = useAuth();
+  const { user, profile } = useAuth();
+  const { isRealSuperAdmin, tourAccount } = useSuperAdminView();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [requestCount, setRequestCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [accessMessage, setAccessMessage] = useState("");
-  const [professionalStats, setProfessionalStats] = useState<ProfessionalStats | null>(null);
   const [workerRegistrationStatus, setWorkerRegistrationStatus] = useState<string | null>(null);
   const [documentAlertCount, setDocumentAlertCount] = useState(0);
 
   const role = profile?.role;
-  const activeMode = profile ? getActiveMode(profile) : "client";
-  const panelView = resolvePanelViewMode(profile);
+  const panelView = isRealSuperAdmin && tourAccount === "professional"
+    ? "professional"
+    : isRealSuperAdmin && tourAccount === "client"
+      ? "client"
+      : resolvePanelViewMode(profile);
   const isProfessionalView = panelView === "professional";
   const isClientView = panelView === "client";
-  const isAdmin = role === "admin";
-  const isSuperAdmin = isSuperAdminRole(realProfile?.intranet_role) && profile?.intranet_role === "super_admin";
+  const isAdmin = isRealSuperAdmin ? tourAccount === "admin" : role === "admin";
+  const isSuperAdmin = isRealSuperAdmin && tourAccount === "super_admin";
   // Certificado solo para dual cliente-profesional o vista profesional (no clientes puros).
   const canShowCertificate = Boolean(user && (hasDualMode(profile) || isProfessionalView));
-
+  const panelAccount: SuperAdminTourAccount = isRealSuperAdmin
+    ? tourAccount
+    : profile?.intranet_role === "hr_admin" ? "admin"
+        : profile?.account_kind === "student" ? "student"
+          : profile?.account_kind === "company" ? "company"
+            : profile?.account_kind === "institution" ? "institution"
+              : isProfessionalView ? "professional" : "client";
   useEffect(() => {
     const accessError = searchParams.get("error");
+    if (accessError && isRealSuperAdmin) {
+      setAccessMessage("");
+      router.replace("/panel");
+      return;
+    }
     if (accessError) {
       setAccessMessage(roleErrorMessage(accessError));
     }
-  }, [searchParams]);
+  }, [isRealSuperAdmin, router, searchParams]);
 
   useEffect(() => {
     if (!user || !role) return;
@@ -82,15 +90,8 @@ function PanelContent() {
       setError("");
 
       if (isProfessionalView) {
-        const [jobsResult, statsResult, registrationResult, documentAlertsResult] =
+        const [registrationResult, documentAlertsResult] =
           await Promise.all([
-          supabase
-            .from("solicitudes_de_servicio")
-            .select("id,category,description,status,created_at")
-            .eq("professional_id", userId)
-            .order("created_at", { ascending: false })
-            .limit(6),
-          supabase.rpc("get_professional_stats", { p_professional_id: userId }),
           fetch("/api/worker/registration", { cache: "no-store" })
             .then(async (response) => {
               if (!response.ok) return null;
@@ -113,24 +114,6 @@ function PanelContent() {
 
         setWorkerRegistrationStatus(registrationResult);
         setDocumentAlertCount(documentAlertsResult.count ?? 0);
-
-        if (jobsResult.error) {
-          setError("No fue posible cargar tu actividad. Intenta nuevamente.");
-        } else {
-          setRequests((jobsResult.data ?? []) as RequestItem[]);
-          setRequestCount(jobsResult.data?.length ?? 0);
-        }
-
-        const statsRow = Array.isArray(statsResult.data) ? statsResult.data[0] : statsResult.data;
-        if (statsRow) {
-          setProfessionalStats({
-            completed_jobs: Number(statsRow.completed_jobs ?? 0),
-            total_hours: Number(statsRow.total_hours ?? 0),
-            average_rating: Number(statsRow.average_rating ?? 0),
-            rating_count: Number(statsRow.rating_count ?? 0),
-            experience_level: (statsRow.experience_level ?? "junior") as ProfessionalStats["experience_level"],
-          });
-        }
 
         setLoading(false);
       return;
@@ -163,13 +146,16 @@ function PanelContent() {
   }, [user, role, isProfessionalView]);
 
   return (
-    <main className="dashboardPage">
+    <main className={`dashboardPage${isProfessionalView ? " panelProfessionalView" : ""}`}>
       {accessMessage && <div className="notice">{accessMessage}</div>}
 
-      <RoleModeBanner role={activeMode} />
+      <PanelProfileHeader
+        account={panelAccount}
+        personName={[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || user?.email?.split("@")[0]}
+      />
 
       {isProfessionalView &&
-        !hasUnrestrictedSuperAdminAccess(profile?.intranet_role) &&
+        !hasUnrestrictedSuperAdminAccess(profile?.intranet_role, user?.email) &&
         (workerRegistrationStatus === "submitted" ||
           workerRegistrationStatus === "needs_info") && (
         <section className="panelSection compactSection">
@@ -183,66 +169,11 @@ function PanelContent() {
         </section>
       )}
 
-      {!isAdmin && (
-        <section className="panelSection compactSection">
-          <AccountModeControls />
-        </section>
-      )}
+      {!isAdmin && <AccountModeControls />}
 
       {isProfessionalView && (
-        <section className="panelSection compactSection">
+        <section id="mapa-zovit" className="panelSection compactSection panelAnchorSection">
           <ProfessionalAvailabilityToggle />
-        </section>
-      )}
-
-      <section className="dashboardHero">
-        <div>
-          <p className="kicker light">{isProfessionalView ? "PANEL PROFESIONAL" : "PANEL CLIENTE"}</p>
-          <h1>
-            Hola, {profile?.first_name || user?.email?.split("@")[0] || "usuario"}.
-          </h1>
-          <p>
-            {isProfessionalView
-              ? "Administra tus trabajos y construye experiencia verificable en ZOVIT."
-              : isAdmin
-                ? "Administra solicitudes, trabajos y tu cuenta desde un solo lugar."
-                : "Administra tu cuenta y tus solicitudes reales desde un solo lugar."}
-          </p>
-          <IdentityBadge verified={profile?.identity_verified ?? false} role={isProfessionalView ? "professional" : "client"} />
-        </div>
-
-        {isProfessionalView ? (
-          <div className="panelHeroActions">
-            <Link className="whiteButton" href="/trabajos"><BriefcaseBusiness size={18} /> Ver trabajos</Link>
-            <Link className="secondaryButton" href="/experiencia"><Sparkles size={18} /> Mi experiencia</Link>
-          </div>
-        ) : (
-          <div className="panelHeroActions">
-            <Link className="whiteButton" href="/cliente/mapa">
-              <MapPinned size={18} /> Mapa de profesionales
-            </Link>
-            <Link className="secondaryButton" href="/solicitudes/nueva">
-              <Plus size={18} /> Nueva solicitud
-            </Link>
-          </div>
-        )}
-      </section>
-
-      {isProfessionalView && professionalStats && (
-        <section className="panelSection compactSection">
-          <div className="sectionHeading">
-            <div>
-              <p className="kicker">REPUTACIÓN ZOVIT</p>
-              <h2>Tu progreso verificable</h2>
-              <ExperienceBadge level={professionalStats.experience_level} />
-            </div>
-            {user && (
-              <Link className="secondaryButton" href={`/profesional/${user.id}`}>
-                <Share2 size={16} /> Perfil público
-              </Link>
-            )}
-          </div>
-          <ProfessionalStatsGrid stats={professionalStats} />
         </section>
       )}
 
@@ -258,9 +189,32 @@ function PanelContent() {
         </section>
       )}
 
-      <EcosystemAccessGrid />
+      {!isClientView && <EcosystemAccessGrid />}
 
-      <section className="dashboardGrid">
+      {isClientView && (
+        <section className="panelSection compactSection unifiedSectionAccess">
+          <ProfileSectionMenu title="¿Qué quieres hacer?" options={[
+            { href: "/cliente/mapa", label: "Mapa de profesionales", description: "Busca profesionales cercanos y revisa sus servicios." },
+            { href: "/cliente/mapa?nueva=1", label: "Nueva solicitud", description: "Publica una necesidad de servicio." },
+            { href: "/perfil", label: "Mi perfil", description: "Actualiza tus datos personales y preferencias." },
+            { href: "/pagos", label: "Pagar servicios", description: "Paga servicios aceptados y revisa tus comprobantes." },
+            { href: "/mis-solicitudes", label: "Mis solicitudes", description: "Revisa tus solicitudes publicadas, finalizadas y canceladas." },
+          ]} />
+          <Link href="/pagos" className="clientPaymentsShortcut">
+            <CreditCard size={18} /> Ir a pagar servicios
+          </Link>
+        </section>
+      )}
+
+      {!isClientView && !isProfessionalView && <details id="gestion-personal" className="panelSection compactSection panelManagementSection clientPanelMenu panelAnchorSection" open>
+        {isClientView && (
+          <summary>
+            <span><p className="kicker">GESTIÓN PERSONAL</p><strong>Cuenta y herramientas</strong></span>
+            <span className="clientPanelMenuHint">Abrir</span>
+          </summary>
+        )}
+        <div className="sectionHeading"><div><p className="kicker">GESTIÓN PERSONAL</p><h2>Cuenta y herramientas</h2><p className="muted">Opciones complementarias organizadas para tu perfil.</p></div></div>
+      <div className="dashboardGrid">
         <Link href="/perfil" className="dashboardCard">
           <div className="dashboardIcon"><UserRound /></div>
           <div><h3>Mi perfil</h3><p>Actualiza tus datos personales.</p></div>
@@ -293,17 +247,6 @@ function PanelContent() {
         )}
 
         {isClientView && (
-          <Link href="/cliente/mapa" className="dashboardCard">
-            <div className="dashboardIcon"><MapPinned /></div>
-            <div>
-              <h3>Mapa de profesionales</h3>
-              <p>Mira quién está cerca, filtra por oficio y solicita en el mapa.</p>
-            </div>
-            <ArrowRight />
-          </Link>
-        )}
-
-        {isClientView && (
           <Link href="/pagos" className="dashboardCard">
             <div className="dashboardIcon"><CreditCard /></div>
             <div><h3>Mis pagos</h3><p>Pendientes, historial y comprobantes.</p></div>
@@ -328,7 +271,7 @@ function PanelContent() {
         )}
 
         {isSuperAdmin && (
-          <Link href="/admin/pagos" className="dashboardCard">
+          <Link href="/intranet/finanzas/pagos" className="dashboardCard">
             <div className="dashboardIcon"><Clock3 /></div>
             <div>
               <h3>Estados de cuenta</h3>
@@ -349,30 +292,6 @@ function PanelContent() {
           </Link>
         )}
 
-        {isClientView && (
-          <Link href="/solicitudes/nueva" className="dashboardCard">
-            <div className="dashboardIcon"><BriefcaseBusiness /></div>
-            <div><h3>Solicitar servicio</h3><p>Crea una nueva solicitud.</p></div>
-            <ArrowRight />
-          </Link>
-        )}
-
-        {isProfessionalView && (
-          <Link href="/trabajos" className="dashboardCard">
-            <div className="dashboardIcon"><BriefcaseBusiness /></div>
-            <div><h3>Trabajos disponibles</h3><p>Revisa solicitudes de clientes y envía propuestas.</p></div>
-            <ArrowRight />
-          </Link>
-        )}
-
-        {isProfessionalView && (
-          <Link href="/experiencia" className="dashboardCard">
-            <div className="dashboardIcon"><Sparkles /></div>
-            <div><h3>Experiencia verificada</h3><p>Historial real de trabajos en ZOVIT.</p></div>
-            <ArrowRight />
-          </Link>
-        )}
-
         <article className="dashboardCard">
           <div className="dashboardIcon"><FileText /></div>
           <div>
@@ -380,8 +299,9 @@ function PanelContent() {
             <p>{isProfessionalView ? "Actividad registrada" : "Solicitudes registradas"}</p>
           </div>
         </article>
-      </section>
+      </div></details>}
 
+      {!isClientView && !isProfessionalView ? (
       <section className="panelSection">
         <div className="sectionHeading">
           <div>
@@ -406,7 +326,7 @@ function PanelContent() {
             {isProfessionalView ? (
               <Link href="/trabajos" className="primaryButton">Ver trabajos</Link>
             ) : isClientView ? (
-              <Link href="/solicitudes/nueva" className="primaryButton">Crear solicitud</Link>
+              <Link href="/cliente/mapa?nueva=1" className="primaryButton">Crear solicitud</Link>
             ) : null}
           </div>
         ) : (
@@ -433,6 +353,7 @@ function PanelContent() {
           </div>
         )}
       </section>
+      ) : null}
     </main>
   );
 }

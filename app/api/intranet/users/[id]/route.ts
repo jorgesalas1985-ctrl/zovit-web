@@ -1,117 +1,61 @@
-import { isIntranetRole, type IntranetRole } from "@/lib/auth/intranetRoles";
+import { NextResponse } from "next/server";
+import { isIntranetRole } from "@/lib/auth/intranetRoles";
 import { canManageTargetRole, requireIntranetManager } from "@/lib/intranet/apiAuth";
-import {
-  canViewerSeeIntranetAccount,
-  hiddenAccountResponse,
-} from "@/lib/intranet/accessVisibility";
 import {
   getIntranetRoleForUser,
   revokeIntranetAccess,
   updateIntranetUserRole,
 } from "@/lib/intranet/manageUsers";
-import { NextResponse } from "next/server";
 
-type UpdateUserBody = {
-  intranetRole?: string;
-};
+type RouteContext = { params: Promise<{ id: string }> };
 
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: Request, context: RouteContext) {
   try {
     const auth = await requireIntranetManager();
-    if (!auth.ok) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status });
-    }
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const { id } = await context.params;
-    const body = (await request.json()) as UpdateUserBody;
-    const intranetRole = body.intranetRole;
-
-    if (!intranetRole || !isIntranetRole(intranetRole)) {
-      return NextResponse.json({ error: "Perfil interno inválido." }, { status: 400 });
-    }
-
+    const body = await request.json();
     const currentRole = await getIntranetRoleForUser(id);
-    if (!currentRole) {
-      return NextResponse.json({ error: "Usuario intranet no encontrado." }, { status: 404 });
+    if (!currentRole) return NextResponse.json({ error: "Acceso interno no encontrado." }, { status: 404 });
+    if (!isIntranetRole(body.intranetRole)) {
+      return NextResponse.json({ error: "Selecciona un perfil interno válido." }, { status: 400 });
+    }
+    if (
+      !canManageTargetRole(auth.manager.intranetRole, currentRole) ||
+      !canManageTargetRole(auth.manager.intranetRole, body.intranetRole)
+    ) {
+      return NextResponse.json({ error: "No tienes permiso para modificar este acceso." }, { status: 403 });
     }
 
-    // RR.HH. no puede ver ni tocar al super admin.
-    if (currentRole === "super_admin" && auth.manager.intranetRole !== "super_admin") {
-      const hidden = hiddenAccountResponse();
-      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
-    }
-
-    if (!canViewerSeeIntranetAccount(auth.manager.intranetRole, currentRole)) {
-      const hidden = hiddenAccountResponse();
-      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
-    }
-
-    if (!canManageTargetRole(auth.manager.intranetRole, currentRole)) {
-      return NextResponse.json({ error: "No puedes modificar ese usuario." }, { status: 403 });
-    }
-
-    if (intranetRole === "super_admin" && auth.manager.intranetRole !== "super_admin") {
-      return NextResponse.json({ error: "No puedes asignar super administrador." }, { status: 403 });
-    }
-
-    if (!canManageTargetRole(auth.manager.intranetRole, intranetRole)) {
-      return NextResponse.json({ error: "No puedes asignar ese perfil interno." }, { status: 403 });
-    }
-
-    if (id === auth.manager.userId) {
-      return NextResponse.json({ error: "No puedes cambiar tu propio perfil desde aquí." }, { status: 400 });
-    }
-
-    await updateIntranetUserRole(id, intranetRole as IntranetRole);
+    await updateIntranetUserRole(id, body.intranetRole);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "No fue posible actualizar el perfil." },
+      { status: 500 },
+    );
   }
 }
 
-export async function DELETE(
-  _request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const auth = await requireIntranetManager();
-    if (!auth.ok) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status });
-    }
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const { id } = await context.params;
-
-    if (id === auth.manager.userId) {
-      return NextResponse.json({ error: "No puedes revocar tu propio acceso." }, { status: 400 });
-    }
-
     const currentRole = await getIntranetRoleForUser(id);
-    if (!currentRole) {
-      return NextResponse.json({ error: "Usuario intranet no encontrado." }, { status: 404 });
-    }
-
-    if (currentRole === "super_admin" && auth.manager.intranetRole !== "super_admin") {
-      const hidden = hiddenAccountResponse();
-      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
-    }
-
-    if (!canViewerSeeIntranetAccount(auth.manager.intranetRole, currentRole)) {
-      const hidden = hiddenAccountResponse();
-      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
-    }
-
+    if (!currentRole) return NextResponse.json({ error: "Acceso interno no encontrado." }, { status: 404 });
     if (!canManageTargetRole(auth.manager.intranetRole, currentRole)) {
-      return NextResponse.json({ error: "No puedes revocar ese usuario." }, { status: 403 });
+      return NextResponse.json({ error: "No tienes permiso para revocar este acceso." }, { status: 403 });
     }
 
     await revokeIntranetAccess(id);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "No fue posible revocar el acceso." },
+      { status: 500 },
+    );
   }
 }

@@ -6,7 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 import type { PaymentRecord } from "@/lib/payments/types";
 import { formatCLP } from "@/lib/payments/types";
 import { isSuperAdminRole } from "@/lib/auth/intranetRoles";
-import { ShieldCheck } from "lucide-react";
+import { AlertTriangle, Banknote, CircleDollarSign, Clock3, HandCoins, Landmark, Scale, ShieldCheck, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -21,6 +21,10 @@ type AdminStats = {
   pendingPayouts?: number;
   openCommissionFlags?: number;
   pendingCancellationFees?: number;
+  serviceVatWithheld?: number;
+  zovitCommissionVat?: number;
+  mercadoPagoVatCredit?: number;
+  estimatedVatPayable?: number;
 };
 
 type CommissionFlag = {
@@ -69,8 +73,8 @@ type DisputeRow = {
 
 const DISPUTE_KIND_LABELS: Record<string, string> = {
   general: "General",
-  cancelacion_post_pago: "Cancelación post-pago",
-  cancelacion_post_llegada: "Cancelación post-llegada",
+  cancelacion_post_pago: "Cancelación posterior al pago",
+  cancelacion_post_llegada: "Cancelación posterior a la llegada",
   calidad_servicio: "Calidad del servicio",
   no_asistencia: "No asistencia",
 };
@@ -236,55 +240,81 @@ export default function AdminPaymentsPage() {
     <Protected>
       <main className="simplePage">
         <section className="formPageCard paymentsPage">
+          <Link href="/intranet/finanzas" className="browseBackLink intranetSectionBack">
+            ← Volver al panel de superadministrador
+          </Link>
           <div className="eyebrow">
             <ShieldCheck size={16} /> Super administrador
           </div>
-          <h1>Estados de cuenta, disputas y retiros</h1>
-          <p className="muted">
-            Escrow, disputas, retiros y supervisión de elusión de comisión (montos en chat vs pago
-            oficial).
-          </p>
+          <div className="financeAdminHero">
+            <div>
+              <span className="financeAdminHeroLabel">CONTROL FINANCIERO</span>
+              <h1>Estados de cuenta, disputas y retiros</h1>
+              <p>Supervisa pagos protegidos, comisiones, retiros y alertas desde un solo lugar.</p>
+            </div>
+            <Landmark size={42} aria-hidden="true" />
+          </div>
           {message && <p className="aiError">{message}</p>}
 
           {stats && (
+            <>
+            <section className="paymentsSection">
+              <h2>IVA mensual estimado para el SII</h2>
+              <div className="walletGrid">
+                <article className="walletCard walletCard-held"><Landmark size={21} />
+                  <strong>{formatCLP(stats.serviceVatWithheld ?? 0)}</strong><span>IVA de servicios retenido</span>
+                </article>
+                <article className="walletCard walletCard-fees"><HandCoins size={21} />
+                  <strong>{formatCLP(stats.zovitCommissionVat ?? 0)}</strong><span>IVA comisión ZOVIT</span>
+                </article>
+                <article className="walletCard walletCard-cost"><Banknote size={21} />
+                  <strong>-{formatCLP(stats.mercadoPagoVatCredit ?? 0)}</strong><span>Crédito fiscal IVA Mercado Pago</span>
+                </article>
+                <article className="walletCard walletCard-net"><CircleDollarSign size={21} />
+                  <strong>{formatCLP(stats.estimatedVatPayable ?? 0)}</strong><span>Estimado a pagar al SII</span>
+                </article>
+              </div>
+              <p className="muted">Estimación del mes actual. El valor definitivo debe conciliarse con facturas, notas de crédito y el Formulario 29.</p>
+            </section>
             <div className="walletGrid">
-              <article className="walletCard">
+              <article className="walletCard walletCard-volume"><CircleDollarSign size={21} />
                 <strong>{formatCLP(stats.totalVolume)}</strong>
                 <span>Volumen total</span>
               </article>
-              <article className="walletCard">
+              <article className="walletCard walletCard-fees"><HandCoins size={21} />
                 <strong>{formatCLP(stats.totalFees)}</strong>
                 <span>Comisiones brutas</span>
               </article>
-              <article className="walletCard">
+              <article className="walletCard walletCard-cost"><Banknote size={21} />
                 <strong>{formatCLP(stats.totalMpFees ?? 0)}</strong>
                 <span>Costo Mercado Pago</span>
               </article>
-              <article className="walletCard">
+              <article className="walletCard walletCard-net"><Landmark size={21} />
                 <strong>{formatCLP(stats.netPlatformFees ?? stats.totalFees)}</strong>
                 <span>Comisión neta ZOVIT</span>
               </article>
-              <article className="walletCard">
+              <article className="walletCard walletCard-held"><Clock3 size={21} />
                 <strong>{stats.heldCount}</strong>
-                <span>En retención / curso</span>
+                <span>En retención o en curso</span>
               </article>
-              <article className="walletCard">
+              <article className="walletCard walletCard-dispute"><Scale size={21} />
                 <strong>{stats.disputedCount}</strong>
                 <span>En disputa</span>
               </article>
-              <article className="walletCard">
+              <article className="walletCard walletCard-payout"><WalletCards size={21} />
                 <strong>{stats.pendingPayouts ?? openPayouts.length}</strong>
                 <span>Retiros pendientes</span>
               </article>
-              <article className="walletCard">
+              <article className="walletCard walletCard-alert"><AlertTriangle size={21} />
                 <strong>{stats.openCommissionFlags ?? openFlags.length}</strong>
-                <span>Alertas comisión</span>
+                <span>Alertas de comisión</span>
               </article>
-              <article className="walletCard">
+              <article className="walletCard walletCard-cancel"><ShieldCheck size={21} />
                 <strong>{stats.pendingCancellationFees ?? pendingCancelFees.length}</strong>
-                <span>Cargos cancelación</span>
+                <span>Cargos por cancelación</span>
               </article>
             </div>
+            </>
           )}
 
           <section className="paymentsSection">
@@ -318,7 +348,7 @@ export default function AdminPaymentsPage() {
           </section>
 
           <section className="paymentsSection">
-            <h2>Alertas de elusión de comisión</h2>
+            <h2>Alertas por posible elusión de comisión</h2>
             {openFlags.length === 0 ? (
               <p className="muted">Sin alertas abiertas.</p>
             ) : (
@@ -380,7 +410,7 @@ export default function AdminPaymentsPage() {
                   {(dispute.dispute_kind === "cancelacion_post_llegada" ||
                     dispute.dispute_kind === "cancelacion_post_pago") && (
                     <p className="muted">
-                      Regla: tras pago/llegada el reembolso no es automático. Si hay indicios de trato
+                      Regla: después del pago o la llegada, el reembolso no es automático. Si hay indicios de trato
                       fuera de ZOVIT, prioriza liberar al profesional o sancionar.
                     </p>
                   )}
@@ -397,7 +427,7 @@ export default function AdminPaymentsPage() {
                       disabled={busyId === dispute.id}
                       onClick={() => void resolveDispute(dispute.id, "liberacion")}
                     >
-                      Resolver → liberar al pro
+                      Resolver → liberar al profesional
                     </button>
                   </div>
                 </article>
@@ -452,7 +482,7 @@ export default function AdminPaymentsPage() {
           <section className="paymentsSection">
             <h2>Wallets</h2>
             {wallets.length === 0 ? (
-              <p className="muted">Sin wallets aún.</p>
+              <p className="muted">Aún no hay billeteras digitales.</p>
             ) : (
               <div className="paymentHistoryList">
                 {wallets.map((wallet) => (
@@ -471,7 +501,7 @@ export default function AdminPaymentsPage() {
           <section className="paymentsSection">
             <h2>Pagos recientes</h2>
             {payments.map((payment) => (
-              <PaymentCard key={payment.id} payment={payment} />
+              <PaymentCard key={payment.id} payment={payment} detailed />
             ))}
           </section>
 

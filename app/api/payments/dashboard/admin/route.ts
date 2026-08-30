@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    // service_role solo tras verificar super_admin (RR.HH. no entra aquí).
+    // service_role solo tras verificar super_admin (RR.HH. no entra aquÃ­).
     const admin = createAdminClient();
     const [
       paymentsResult,
@@ -45,6 +45,20 @@ export async function GET() {
       const actual = p.providerProcessingFee || p.providerProcessingFeeEstimated;
       return sum + actual;
     }, 0);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const monthlyPaid = payments.filter((p) => {
+      const paymentDate = new Date(p.paidAt ?? p.createdAt);
+      return paymentDate >= monthStart && !["cancelado", "reembolsado"].includes(p.status);
+    });
+    const serviceVatWithheld = monthlyPaid.reduce((sum, p) => sum + p.serviceVatWithheld, 0);
+    const zovitCommissionVat = monthlyPaid.reduce((sum, p) => sum + p.taxAmount, 0);
+    const mercadoPagoVatCredit = monthlyPaid.reduce((sum, p) => {
+      const feeWithVat = p.providerProcessingFee || p.providerProcessingFeeEstimated;
+      return sum + Math.round((feeWithVat * 19) / 119);
+    }, 0);
+    const estimatedVatPayable = Math.max(0, serviceVatWithheld + zovitCommissionVat - mercadoPagoVatCredit);
     const stats = {
       totalVolume: payments.reduce((sum, p) => sum + p.amountGross, 0),
       totalFees,
@@ -64,6 +78,10 @@ export async function GET() {
       pendingCancellationFees: (cancellationFeesResult.data ?? []).filter(
         (f) => f.status === "pendiente",
       ).length,
+      serviceVatWithheld,
+      zovitCommissionVat,
+      mercadoPagoVatCredit,
+      estimatedVatPayable,
     };
 
     return NextResponse.json({

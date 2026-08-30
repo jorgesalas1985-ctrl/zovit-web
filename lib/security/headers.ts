@@ -23,17 +23,22 @@ function buildCsp(isProd: boolean): string {
 /** Baseline browser / proxy hardening for all responses. */
 export function getSecurityHeaders(): Record<string, string> {
   const isProd = process.env.NODE_ENV === "production";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const isSecureDeployment = isProd && appUrl.startsWith("https://");
   const headers: Record<string, string> = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "camera=(self), microphone=(), geolocation=(self), payment=()",
+    // La geolocalización se solicita directamente desde la pantalla principal.
+    // Sin iframes permitidos en ZOVIT, dejarla en la política por defecto evita
+    // que navegadores locales la interpreten como una restricción adicional.
+    "Permissions-Policy": "camera=(self), microphone=(), payment=()",
     "X-DNS-Prefetch-Control": "off",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-site",
-    "Content-Security-Policy": buildCsp(isProd),
+    "Content-Security-Policy": buildCsp(isSecureDeployment),
   };
-  if (isProd) {
+  if (isSecureDeployment) {
     headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload";
   }
   return headers;

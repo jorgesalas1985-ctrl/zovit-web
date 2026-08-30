@@ -11,6 +11,7 @@ import {
   type UserRole,
 } from "@/lib/auth/roles";
 import { hasUnrestrictedSuperAdminAccess } from "@/lib/auth/superAdminAccess";
+import { useSuperAdminView } from "@/components/superadmin/SuperAdminViewProvider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -23,10 +24,11 @@ type RoleGuardProps = {
 
 function hasRequiredAccess(
   profile: NonNullable<ReturnType<typeof useAuth>["profile"]>,
+  email?: string | null,
   requiredMode?: RoleMode,
   allowedRoles?: UserRole[]
 ): boolean {
-  if (hasUnrestrictedSuperAdminAccess(profile.intranet_role)) return true;
+  if (hasUnrestrictedSuperAdminAccess(profile.intranet_role, email)) return true;
   if (profile.role === "admin") return true;
 
   if (requiredMode === "client") {
@@ -58,16 +60,24 @@ export function RoleGuard({
   children,
   showRoleBanner = true,
 }: RoleGuardProps) {
-  const { profile, loading } = useAuth();
+  const { profile, loading, user } = useAuth();
+  const { isRealSuperAdmin, tourAccount } = useSuperAdminView();
   const router = useRouter();
+  const tourModeAllowed = isRealSuperAdmin && (
+    (requiredMode === "professional" && tourAccount === "professional") ||
+    (requiredMode === "client" && tourAccount === "client")
+  );
+  const accessAllowed = Boolean(
+    profile && (tourModeAllowed || hasRequiredAccess(profile, user?.email, requiredMode, allowedRoles)),
+  );
 
   useEffect(() => {
     if (loading || !profile?.role) return;
 
-    if (!hasRequiredAccess(profile, requiredMode, allowedRoles)) {
+    if (!accessAllowed) {
       router.replace("/panel?error=sin-permiso");
     }
-  }, [allowedRoles, loading, profile, requiredMode, router]);
+  }, [accessAllowed, loading, profile?.role, router]);
 
   if (loading) {
     return <div className="centerState">Cargando ZOVIT…</div>;
@@ -77,7 +87,7 @@ export function RoleGuard({
     return null;
   }
 
-  if (!hasRequiredAccess(profile, requiredMode, allowedRoles)) {
+  if (!accessAllowed) {
     return <div className="centerState">{roleErrorMessage("sin-permiso")}</div>;
   }
 

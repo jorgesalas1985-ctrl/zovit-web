@@ -14,8 +14,11 @@ export const RECEIPT_FINANCING_ISSUER =
 export const RECEIPT_FINANCING_NOTE =
   "El cargo por financiamiento o comisión de cuotas no forma parte del precio del servicio documentado por ZOVIT. Ese cobro lo realiza la entidad financiera de tu tarjeta de crédito / Mercado Pago según el plan de cuotas que elegiste. No constituye venta de ZOVIT ni del profesional.";
 
+export const PAYMENT_PROCESSING_TERMS_NOTE =
+  "ZOVIT acepta pagos únicamente mediante los medios electrónicos habilitados en la plataforma. Los costos reales de procesamiento cobrados por Mercado Pago son de cargo del cliente, se incorporan al total pagado y no se presentan como un ítem tributario separado en la boleta del servicio. No corresponden a la comisión ZOVIT y pueden calcularse mediante gross-up para conservar íntegro el subtotal. Las cuotas e intereses bancarios son gestionados por Mercado Pago y la entidad emisora.";
+
 export const RECEIPT_SERVICE_NOTE =
-  "La boleta o factura del servicio corresponde al monto del trabajo acordado en ZOVIT (precio del servicio). La comisión de la plataforma y los impuestos aplicables se desglosan conforme a la normativa vigente cuando se emita el documento tributario.";
+  "La boleta o factura del servicio corresponde al monto del trabajo acordado en ZOVIT (precio del servicio). En pagos con débito, el valor mostrado como Servicio puede incorporar el costo del procesamiento electrónico asumido por el cliente. La comisión de la plataforma y los impuestos aplicables se desglosan conforme a la normativa vigente cuando se emita el documento tributario.";
 
 export const RECEIPT_SII_PENDING_NOTE =
   `La emisión electrónica ante el SII se hará con Haulmer a nombre de ${ZOVIT_ISSUER.tradeName} (RUT ${ZOVIT_ISSUER.rut}), sobre este desglose: monto de servicio/comisión en el DTE; financiamiento de cuotas solo como leyenda (cobro de la entidad financiera), sin incorporarlo como ítem de venta.`;

@@ -10,6 +10,7 @@ import {
 } from "@/lib/security/rateLimit";
 import { canPublishServiceRequest } from "@/lib/auth/roles";
 import { isValidUuid } from "@/lib/security/validation";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
@@ -86,10 +87,20 @@ export async function POST(request: Request) {
     });
 
     if (created?.id) {
-      void fetch(new URL(`/api/requests/${created.id}/auto-match`, request.url), {
-        method: "POST",
-        headers: { cookie: request.headers.get("cookie") ?? "" },
-      }).catch(() => undefined);
+      if (body.professionalId) {
+        // La solicitud dirigida no pasa por el auto-match; se avisa al profesional elegido.
+        void createAdminClient().from("notifications").insert({
+          user_id: body.professionalId,
+          request_id: created.id,
+          title: "Nuevo trabajo para ti",
+          body: `Un cliente solicita un servicio de ${body.category}. Revisa el detalle y decide si lo aceptas.`,
+        }).then(() => undefined);
+      } else {
+        void fetch(new URL(`/api/requests/${created.id}/auto-match`, request.url), {
+          method: "POST",
+          headers: { cookie: request.headers.get("cookie") ?? "" },
+        }).catch(() => undefined);
+      }
     }
 
     return NextResponse.json({ id: created?.id, ok: true });

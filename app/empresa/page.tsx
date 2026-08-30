@@ -4,24 +4,25 @@ import Link from "next/link";
 import { ArrowRight, Building2, ClipboardCheck } from "lucide-react";
 import { Protected } from "@/components/Protected";
 import { useAuth } from "@/components/AuthProvider";
+import { PanelProfileHeader } from "@/components/panel/PanelProfileHeader";
+import { ProfileSectionMenu } from "@/components/panel/ProfileSectionMenu";
 
 export default function CompanyHomePage() {
   const { profile } = useAuth();
 
   return (
     <Protected>
-      <main className="simplePage">
-        <section className="formPageCard">
-          <div className="eyebrow">
-            <Building2 size={16} /> EMPRESA ZOVIT
-          </div>
-          <h1>Perfil Empresa</h1>
-          <p className="muted">
-            Tu perfil empresa prepara oportunidades, solicitudes, busqueda de talento y
-            gestion operativa dentro del ecosistema ZOVIT.
-          </p>
-
-          <div className="intranetGrid">
+      <main className="simplePage profileOverviewPage">
+        <PanelProfileHeader
+          account="company"
+          personName={[profile?.first_name, profile?.last_name].filter(Boolean).join(" ")}
+        />
+        <section className="formPageCard profileOverviewCard">
+          <ProfileSectionMenu options={[
+            { href: "/solicitudes/nueva", label: "Crear solicitud", description: "Publica una necesidad de servicio como cuenta empresa." },
+            { href: "/panel", label: "Panel general", description: "Revisa la cuenta y sus herramientas principales." },
+          ]} />
+          <div className="intranetGrid legacyProfileLinks">
             <article className="intranetCard intranetCardStatic">
               <ClipboardCheck size={24} />
               <h3>{profile?.account_kind === "company" ? "Activo" : "Disponible"}</h3>

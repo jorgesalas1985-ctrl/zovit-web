@@ -13,7 +13,7 @@ export async function GET() {
       return NextResponse.json({ error: "No autenticado." }, { status: 401 });
     }
     if (!isValidUuid(authData.user.id)) {
-      return NextResponse.json({ error: "Identificador de usuario inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Identificador de usuario invÃ¡lido." }, { status: 400 });
     }
 
     const superAuth = await requireIntranetSuperAdmin();
@@ -82,3 +82,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

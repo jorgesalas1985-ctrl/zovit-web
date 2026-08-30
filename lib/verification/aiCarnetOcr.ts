@@ -1,7 +1,7 @@
 import { getAgeInYears, MIN_AGE_CHILE } from "@/lib/registration/age";
 import { normalizeChileanRut } from "@/lib/registration/validateRegistration";
 import { chileanDateToIso } from "@/lib/ui/chileanDate";
-import { analyzeImagesWithLocalOcr } from "@/lib/verification/localCarnetOcr";
+import { analyzeImagesWithLocalOcr, type LocalDocumentAssessment } from "@/lib/verification/localCarnetOcr";
 
 export type AiForgeryRisk = "low" | "medium" | "high";
 export type IdentityAiDecision = "approved" | "rejected" | "dudoso";
@@ -26,6 +26,11 @@ export type CarnetOcrVerdict = {
   userMessage: string;
   extractedRut: string | null;
   extractedBirthDate: string | null; // ISO yyyy-mm-dd
+  extractedExpiryDate: string | null;
+  nameMatches: boolean | null;
+  carnetExpired?: boolean | null;
+  faceReviewRequired: boolean;
+  documentAssessments: LocalDocumentAssessment[];
   rutMatches: boolean;
   birthDateMatches: boolean;
   isAdult: boolean;
@@ -45,12 +50,14 @@ export function decideCarnetVerdict(input: {
   hasImages: boolean;
   extractedRut: string | null;
   extractedBirthDate: string | null;
+  carnetExpired?: boolean | null;
 }): IdentityAiDecision {
   if (!input.hasImages) return "dudoso";
   if (input.forgeryRisk === "high") return "rejected";
   if (input.extractedRut && !input.rutMatches) return "rejected";
   if (input.extractedBirthDate && !input.isAdult) return "rejected";
   if (input.extractedBirthDate && !input.birthDateMatches) return "rejected";
+  if (input.carnetExpired) return "rejected";
   if (input.forgeryRisk === "medium") return "dudoso";
   if (
     input.rutMatches &&
@@ -84,6 +91,8 @@ export async function analyzeCarnetWithOpenAI(
       userMessage: "Sube fotos claras del carnet (frontal y reverso) en JPG o PNG.",
       extractedRut: null,
       extractedBirthDate: null,
+      extractedExpiryDate: null, nameMatches: null, carnetExpired: null, faceReviewRequired: true,
+      documentAssessments: [],
       rutMatches: false,
       birthDateMatches: false,
       isAdult: false,
@@ -95,9 +104,13 @@ export async function analyzeCarnetWithOpenAI(
   const local = await analyzeImagesWithLocalOcr(imageFiles);
   const extractedRut = local.extractedRut;
   const extractedBirthDate = local.extractedBirthDate;
+  const extractedExpiryDate = local.extractedExpiryDate;
   const confidence = local.confidence;
   const looksLikeId = local.documentLooksLikeChileanId;
-  const forgeryRisk: AiForgeryRisk = looksLikeId ? local.forgeryRisk : "high";
+  // Una imagen que no acredita estructura de cédula no se aprueba sola: queda dudosa
+  // para la persona administradora. Las señales explícitas de captura/fraude siguen
+  // siendo riesgo alto.
+  const forgeryRisk: AiForgeryRisk = local.forgeryRisk;
 
   const rutMatches = Boolean(
     extractedRut && declaredRut && extractedRut === normalizeChileanRut(declaredRut),
@@ -107,6 +120,10 @@ export async function analyzeCarnetWithOpenAI(
   const birthDateMatches = declaredBirthIso
     ? Boolean(extractedBirthDate && extractedBirthDate === declaredBirthIso)
     : !extractedBirthDate || isAdult;
+  const normalizedText = local.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const declaredNameWords = `${input.firstName ?? ""} ${input.lastName ?? ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/\s+/).filter((word) => word.length >= 3);
+  const nameMatches = declaredNameWords.length ? declaredNameWords.every((word) => normalizedText.includes(word)) : null;
+  const carnetExpired = extractedExpiryDate ? new Date(`${extractedExpiryDate}T23:59:59`).getTime() < Date.now() : null;
 
   const decision = decideCarnetVerdict({
     confidence,
@@ -117,9 +134,14 @@ export async function analyzeCarnetWithOpenAI(
     hasImages: true,
     extractedRut,
     extractedBirthDate,
+    carnetExpired,
   });
 
   const reasons = [...local.reasons];
+  reasons.push(`Calidad OCR ${Math.round(local.ocrConfidence)}% · ${local.sidesRead} cara(s) legible(s)`);
+  if (!looksLikeId || !local.identityStructureConfirmed) {
+    reasons.push("No se confirmó que la imagen sea una cédula chilena completa");
+  }
   if (!rutMatches && extractedRut) {
     reasons.push(`RUT del carnet (${extractedRut}) ≠ declarado (${declaredRut})`);
   }
@@ -131,6 +153,9 @@ export async function analyzeCarnetWithOpenAI(
   if (extractedBirthDate && !isAdult) {
     reasons.push(`Menor de ${MIN_AGE_CHILE} años según carnet`);
   }
+  if (nameMatches === false) reasons.push("El nombre declarado no se reconoce completo en el texto del carnet");
+  if (carnetExpired) reasons.push("El carnet parece estar vencido");
+  reasons.push("Selfie y prueba de vida: comparación facial requiere revisión humana");
 
   return {
     decision,
@@ -145,10 +170,15 @@ export async function analyzeCarnetWithOpenAI(
           : "Tu carnet requiere una revisión adicional. Te avisaremos pronto.",
     extractedRut,
     extractedBirthDate,
+    extractedExpiryDate,
+    nameMatches,
+    carnetExpired,
+    faceReviewRequired: true,
+    documentAssessments: local.documentAssessments,
     rutMatches,
     birthDateMatches,
     isAdult,
-    model: "tesseract-local",
+    model: "tesseract-local-advanced-v3",
     reasons,
   };
 }

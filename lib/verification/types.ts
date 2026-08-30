@@ -51,6 +51,7 @@ export type PendingVerificationUser = {
   birth_date: string | null;
   birth_date_carnet_confirmed?: boolean | null;
   role: UserRole;
+  account_kind?: string | null;
   identity_submitted_at: string | null;
   identity_ai_status?: IdentityAiStatus | null;
   identity_ai_summary?: string | null;
@@ -65,7 +66,7 @@ export const IDENTITY_DOCUMENT_LABELS: Record<IdentityDocumentType, string> = {
   cedula_front: "Carnet / cédula (frontal)",
   cedula_back: "Carnet / cédula (reverso)",
   certificado_antecedentes: "Certificado de antecedentes",
-  certificado_estudios: "Certificado de estudios",
+  certificado_estudios: "Certificado de alumno regular / estudios",
   selfie: "Selfie biométrica",
   liveness_proof: "Prueba de vida",
 };

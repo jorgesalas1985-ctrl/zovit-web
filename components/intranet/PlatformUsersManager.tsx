@@ -20,6 +20,7 @@ import {
   Loader2,
   PencilLine,
   ShieldCheck,
+  Search,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -121,6 +122,7 @@ export function PlatformUsersManager() {
   const [users, setUsers] = useState<PlatformUserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>(emptyForm);
   const [toast, setToast] = useState<{ message: string; tone: "error" | "success" | "info" } | null>(
@@ -131,6 +133,19 @@ export function PlatformUsersManager() {
     () => users.find((user) => user.id === editingId) ?? null,
     [editingId, users]
   );
+  const filteredUsers = useMemo(() => {
+    const query = searchTerm.trim().toLocaleLowerCase("es-CL").replace(/\s+/g, " ");
+    if (!query) return users;
+    const compactQuery = query.replace(/[^a-z0-9k]/g, "");
+    return users.filter((user) => {
+      const text = [user.firstName, user.lastName, user.rut, user.phone, user.email]
+        .filter(Boolean)
+        .join(" ")
+        .toLocaleLowerCase("es-CL");
+      const compact = text.replace(/[^a-z0-9k]/g, "");
+      return text.includes(query) || (compactQuery.length > 2 && compact.includes(compactQuery));
+    });
+  }, [searchTerm, users]);
 
   const showToast = useCallback((message: string, tone: "error" | "success" | "info" = "error") => {
     setToast({ message, tone });
@@ -436,13 +451,30 @@ export function PlatformUsersManager() {
         </article>
       )}
 
+      <section className="platformUserSearch" aria-label="Buscar cuentas">
+        <label htmlFor="platform-user-search">Buscar una cuenta</label>
+        <div className="platformUserSearchControl">
+          <Search size={21} aria-hidden="true" />
+          <input
+            id="platform-user-search"
+            type="search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Nombre, RUT, celular o correo electrónico"
+            autoComplete="off"
+          />
+          {searchTerm ? <button type="button" onClick={() => setSearchTerm("")}>Limpiar</button> : null}
+        </div>
+        <small>{filteredUsers.length} de {users.length} cuentas</small>
+      </section>
+
       <div className="intranetTableWrap">
         {loading ? (
           <div className="centerState intranetTableState">
             <Loader2 size={20} className="spinIcon" /> Cargando usuarios…
           </div>
-        ) : users.length === 0 ? (
-          <div className="centerState intranetTableState">No hay usuarios registrados.</div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="centerState intranetTableState">{users.length ? "No encontramos cuentas con esos datos." : "No hay usuarios registrados."}</div>
         ) : (
           <table className="intranetTable intranetTableWide">
             <thead>
@@ -458,7 +490,7 @@ export function PlatformUsersManager() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => {
+              {filteredUsers.map((user) => {
                 const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Sin nombre";
                 const deletable = callerRole ? canDeletePlatformUser(user, callerRole) : false;
                 const verifiable = canVerifyPlatformUser(user) && user.identityStatus === "pending";
@@ -480,17 +512,20 @@ export function PlatformUsersManager() {
                     <td>{user.address || "—"}</td>
                     <td>{userTypeLabel(user)}</td>
                     <td>
-                      <span
-                        className={`identityStatusTag identityStatusTag-${
-                          user.intranetRole === "super_admin" ? "approved" : user.identityStatus
-                        }`}
-                      >
-                        {user.intranetRole === "super_admin"
-                          ? "Protegido"
-                          : canVerifyPlatformUser(user)
-                            ? IDENTITY_STATUS_LABELS[user.identityStatus as IdentityStatus]
-                            : "—"}
-                      </span>
+                      {user.intranetRole === "super_admin" || !canVerifyPlatformUser(user) ? (
+                        <span className="identityStatusTag identityStatusTag-approved">
+                          {user.intranetRole === "super_admin" ? "Protegido" : "—"}
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/intranet/admin/verificacion?focus=${user.id}`}
+                          className={`identityStatusTag identityStatusButton identityStatusTag-${user.identityStatus}`}
+                          title="Presiona para realizar o revisar la verificación manual"
+                        >
+                          {IDENTITY_STATUS_LABELS[user.identityStatus as IdentityStatus]}
+                          <small>Revisar</small>
+                        </Link>
+                      )}
                     </td>
                     <td>
                       <div className="intranetActionGroup">

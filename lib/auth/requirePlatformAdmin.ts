@@ -16,7 +16,7 @@ export async function requirePlatformAdmin() {
     .eq("id", authData.user.id)
     .maybeSingle();
 
-  if (profile?.role !== "admin" && !hasUnrestrictedSuperAdminAccess(profile?.intranet_role)) {
+  if (profile?.role !== "admin" && !hasUnrestrictedSuperAdminAccess(profile?.intranet_role, authData.user.email)) {
     return { error: NextResponse.json({ error: "Acceso restringido." }, { status: 403 }) };
   }
 

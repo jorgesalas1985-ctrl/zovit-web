@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, CheckCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
@@ -20,6 +20,16 @@ export function NotificationBell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!panelRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, [open]);
 
   useEffect(() => {
     if (!user) return;
@@ -78,7 +88,7 @@ export function NotificationBell() {
   };
 
   return (
-    <div className="notificationWrap">
+    <div className="notificationWrap" ref={panelRef}>
       <button className="iconButton notificationButton" onClick={() => setOpen(!open)} aria-label="Notificaciones">
         <Bell size={19} />
         {unread > 0 && <span className="notificationCount">{unread > 9 ? "9+" : unread}</span>}
@@ -100,7 +110,10 @@ export function NotificationBell() {
                 className={!item.read_at ? "notificationItem unread notificationItemButton" : "notificationItem notificationItemButton"}
                 onClick={() => void openNotification(item)}
               >
-                <strong>{item.title}</strong>
+                <span className="notificationItemTitle">
+                  <strong>{item.title}</strong>
+                  {!item.read_at && <span className="notificationNewBadge">Nueva</span>}
+                </span>
                 <p>{item.body}</p>
                 <time>{new Date(item.created_at).toLocaleString("es-CL")}</time>
               </button>

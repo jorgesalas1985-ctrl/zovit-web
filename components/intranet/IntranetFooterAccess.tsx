@@ -6,7 +6,12 @@ import { ArrowRight, Building2 } from "lucide-react";
 export function IntranetFooterAccess() {
   return (
     <section className="intranetFooterSection intranetFooterSectionCompact">
-      <Link href="/intranet/acceso" className="intranetEntryButton">
+      <Link
+        href="/intranet/acceso"
+        className="intranetEntryButton"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         <Building2 size={20} />
         Ingreso a intranet
         <ArrowRight size={18} />

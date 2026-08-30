@@ -12,6 +12,7 @@ export default function IntranetGestionUsuariosPage() {
         description="Solo super administrador: revisión completa de clientes, profesionales e intranet."
         kicker="SUPER ADMIN"
         headerAction={<SuperAdminReviewButton />}
+        backHref="/intranet/finanzas"
       >
         <PlatformUsersManager />
       </IntranetShell>

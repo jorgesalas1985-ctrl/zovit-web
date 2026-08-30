@@ -1,116 +1,36 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isIntranetRole } from "@/lib/auth/intranetRoles";
-import { isValidUuid } from "@/lib/security/validation";
-import {
-  processPendingWorkerAiReviews,
-  processWorkerAiReview,
-} from "@/lib/worker/processWorkerAiBatch";
+import { processPendingWorkerAiReviews } from "@/lib/worker/processWorkerAiBatch";
 
-const BATCH_DEFAULT = 8;
-const BATCH_MAX = 20;
-
-async function requireHrReviewer() {
+async function authorize() {
   const supabase = await createClient();
-  const { data: authData } = await supabase.auth.getUser();
-  if (!authData.user) {
-    return { error: NextResponse.json({ error: "No autenticado." }, { status: 401 }) };
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("intranet_role")
-    .eq("id", authData.user.id)
-    .maybeSingle();
-
-  const role = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
-  if (!role || !["hr_admin", "super_admin"].includes(role)) {
-    return { error: NextResponse.json({ error: "Acceso restringido." }, { status: 403 }) };
-  }
-
-  return { supabase, user: authData.user, role };
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return null;
+  const { data: profile } = await supabase.from("profiles").select("intranet_role").eq("id", data.user.id).maybeSingle();
+  return profile?.intranet_role === "hr_admin" || profile?.intranet_role === "super_admin" ? supabase : null;
 }
 
 export async function GET() {
   try {
-    const auth = await requireHrReviewer();
-    if ("error" in auth) return auth.error;
-
-    const { data, error } = await auth.supabase
-      .from("worker_registrations")
-      .select("profile_id,status,ai_review_status,ai_confidence,ai_forgery_risk,submitted_at")
-      .eq("status", "submitted")
-      .or("ai_review_status.is.null,ai_review_status.eq.pending,ai_review_status.eq.dudoso");
-
-    if (error) {
-      const missing = /ai_review_status|worker_registrations|schema cache|does not exist/i.test(
-        error.message,
-      );
-      if (missing) {
-        // Sin migración: cola vacía, sin error ruidoso en la UI.
-        return NextResponse.json({
-          pending: 0,
-          dudosos: 0,
-          queue: [],
-          migrationRequired: true,
-          openaiConfigured: (await import("@/lib/ai/provider")).isAiConfigured(),
-        });
-      }
-      return NextResponse.json(
-        { error: error.message, code: "QUERY_ERROR" },
-        { status: 400 },
-      );
-    }
-
-    const rows = data ?? [];
-    return NextResponse.json({
-      pending: rows.filter((r) => r.ai_review_status !== "dudoso").length,
-      dudosos: rows.filter((r) => r.ai_review_status === "dudoso").length,
-      queue: rows,
-      migrationRequired: false,
-      openaiConfigured: (await import("@/lib/ai/provider")).isAiConfigured(),
-    });
+    const supabase = await authorize();
+    if (!supabase) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
+    const [{ count: pending }, { count: dudosos }] = await Promise.all([
+      supabase.from("worker_registrations").select("profile_id", { count: "exact", head: true }).eq("status", "submitted").or("ai_review_status.is.null,ai_review_status.eq.pending,ai_review_status.eq.processing"),
+      supabase.from("worker_registrations").select("profile_id", { count: "exact", head: true }).eq("status", "submitted").eq("ai_review_status", "dudoso"),
+    ]);
+    return NextResponse.json({ pending: pending ?? 0, dudosos: dudosos ?? 0, openaiConfigured: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo cargar la cola." }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const auth = await requireHrReviewer();
-    if ("error" in auth) return auth.error;
-
-    const body = (await request.json().catch(() => ({}))) as {
-      limit?: number;
-      includeDudosos?: boolean;
-      profileIds?: string[];
-      profileId?: string;
-    };
-
-    if (body.profileId) {
-      if (!isValidUuid(body.profileId)) {
-        return NextResponse.json({ error: "profileId inválido." }, { status: 400 });
-      }
-      const one = await processWorkerAiReview(body.profileId);
-      return NextResponse.json({
-        processed: 1,
-        approved: one.decision === "approved" ? 1 : 0,
-        rejected: one.decision === "rejected" ? 1 : 0,
-        dudosos: one.decision === "dudoso" ? 1 : 0,
-        results: [{ profileId: body.profileId, ...one }],
-      });
-    }
-
-    const limit = Math.min(BATCH_MAX, Math.max(1, Number(body.limit) || BATCH_DEFAULT));
-    const summary = await processPendingWorkerAiReviews(limit, {
-      includeDudosos: body.includeDudosos === true,
-      profileIds: body.profileIds,
-    });
-
-    return NextResponse.json(summary);
+    if (!(await authorize())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
+    const body = await request.json() as { limit?: number; includeDudosos?: boolean };
+    const limit = Math.max(1, Math.min(15, Number(body.limit) || 8));
+    return NextResponse.json(await processPendingWorkerAiReviews(limit, { includeDudosos: Boolean(body.includeDudosos) }));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo procesar la cola." }, { status: 500 });
   }
 }

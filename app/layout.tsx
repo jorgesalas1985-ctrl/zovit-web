@@ -6,8 +6,10 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { Header } from "@/components/Header";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SuperAdminAccountFab } from "@/components/superadmin/SuperAdminAccountFab";
+import { IdentityResubmissionGate } from "@/components/verification/IdentityResubmissionGate";
 import { SuperAdminViewProvider } from "@/components/superadmin/SuperAdminViewProvider";
 import { SiteSpellcheck } from "@/components/ui/SiteSpellcheck";
+import { GlobalBackButton } from "@/components/ui/GlobalBackButton";
 import {
   getSiteUrl,
   SITE_DESCRIPTION,
@@ -94,14 +96,14 @@ export const metadata: Metadata = {
       },
 };
 
-const themeInitScript = `(function(){try{var t=localStorage.getItem('zovit-theme');document.documentElement.dataset.theme=t==='light'?'light':'dark';}catch(e){document.documentElement.dataset.theme='dark';}})();`;
+const themeInitScript = `(function(){try{var t=localStorage.getItem('zovit-theme');document.documentElement.dataset.theme=t==='dark'?'dark':'light';}catch(e){document.documentElement.dataset.theme='light';}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="es-CL"
       spellCheck
-      data-theme="dark"
+      data-theme="light"
       suppressHydrationWarning
       className={`${outfit.variable} ${dmSans.variable}`}
     >
@@ -114,8 +116,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <SuperAdminViewProvider>
             <Header />
+            <GlobalBackButton />
             {children}
             <SuperAdminAccountFab />
+            <IdentityResubmissionGate />
           </SuperAdminViewProvider>
         </AuthProvider>
       </body>

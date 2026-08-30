@@ -33,7 +33,7 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Sin permiso." }, { status: 403 });
     }
     if (fee.status !== "pendiente" || Number(fee.amount) <= 0) {
-      return NextResponse.json({ error: "Este cargo no está pendiente de pago." }, { status: 400 });
+      return NextResponse.json({ error: "Este cargo no estÃ¡ pendiente de pago." }, { status: 400 });
     }
 
     const providerName = isMockPaymentsAllowed() ? "mock" : "mercadopago";
@@ -88,3 +88,4 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

@@ -11,7 +11,7 @@ import {
 import { isIntranetRole } from "@/lib/auth/intranetRoles";
 import { hasUnrestrictedSuperAdminAccess } from "@/lib/auth/superAdminAccess";
 import { applySecurityHeaders } from "@/lib/security/headers";
-import { needsBiometricOnboarding, canAccessPanel } from "@/lib/verification/types";
+import { needsBiometricOnboarding } from "@/lib/verification/types";
 import { mergeCookies, updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
   const { data: profile, error } = await supabase
     .from("profiles")
     .select(
-      "role, can_act_as_client, can_act_as_professional, active_mode, identity_status, intranet_role",
+      "role, can_act_as_client, can_act_as_professional, active_mode, identity_status, intranet_role, worker_registration_status",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -75,6 +75,8 @@ export async function middleware(request: NextRequest) {
 
   // Intranet: requiere rol intranet real (no basta estar logueado).
   if (pathname.startsWith("/intranet") && !isPublicIntranetRoute(pathname)) {
+    supabaseResponse.headers.set("Cache-Control", "no-store, max-age=0, must-revalidate");
+    supabaseResponse.headers.set("Pragma", "no-cache");
     if (!isIntranetRole(profile.intranet_role)) {
       const accesoUrl = request.nextUrl.clone();
       accesoUrl.pathname = "/intranet/acceso";
@@ -83,7 +85,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const isSuperAdmin = hasUnrestrictedSuperAdminAccess(profile.intranet_role);
+  const isSuperAdmin = hasUnrestrictedSuperAdminAccess(profile.intranet_role, user.email);
 
   // Dinero / estados de cuenta: solo super_admin (RR.HH. bloqueado).
   if (isFinancialAdminRoute(pathname) && !isSuperAdmin) {
@@ -112,11 +114,14 @@ export async function middleware(request: NextRequest) {
     | "rejected"
     | null;
 
-  if (pathname.startsWith("/registro/biometria") && canAccessPanel(identityStatus)) {
-    const panelUrl = request.nextUrl.clone();
-    panelUrl.pathname = "/panel";
-    panelUrl.search = "";
-    return applySecurityHeaders(mergeCookies(supabaseResponse, NextResponse.redirect(panelUrl)));
+  const workerSuspended =
+    profile.worker_registration_status === "suspended" ||
+    profile.worker_registration_status === "document_expired";
+  if (workerSuspended && pathname.startsWith("/trabajos")) {
+    const workerUrl = request.nextUrl.clone();
+    workerUrl.pathname = "/registro/trabajador";
+    workerUrl.searchParams.set("estado", "suspendido");
+    return applySecurityHeaders(mergeCookies(supabaseResponse, NextResponse.redirect(workerUrl)));
   }
 
   const requiresIdentityGate =

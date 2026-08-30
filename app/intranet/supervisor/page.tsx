@@ -9,6 +9,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import { ProfileSectionMenu } from "@/components/panel/ProfileSectionMenu";
 
 export default function IntranetSupervisorPage() {
   return (
@@ -16,8 +17,15 @@ export default function IntranetSupervisorPage() {
       <IntranetShell
         title="Portal evaluador / supervisor"
         description="Revisa tu informacion interna y prepara evaluaciones tecnicas ZOVIT segun competencias asignadas."
+        showHeader={false}
       >
-        <div className="intranetGrid">
+        <ProfileSectionMenu options={[
+          { href: "/intranet/liquidaciones", label: "Mi información", description: "Consulta liquidaciones, antecedentes y beneficios propios." },
+          { href: "/intranet/equipo", label: "Equipo a cargo", description: "Revisa trabajadores y antecedentes asignados." },
+          { href: "/intranet/supervisor?seccion=evaluaciones", label: "Evaluaciones asignadas", description: "Gestiona pruebas técnicas, evidencias y puntajes." },
+          { href: "/intranet/supervisor?seccion=reportes", label: "Reportes de evaluación", description: "Consulta indicadores de las evaluaciones técnicas." },
+        ]} />
+        <div className="intranetGrid legacyProfileLinks">
           <Link href="/intranet/liquidaciones" className="intranetCard">
             <Wallet size={24} />
             <h3>Mi informacion</h3>

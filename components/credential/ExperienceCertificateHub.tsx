@@ -16,10 +16,6 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import { getActiveMode } from "@/lib/auth/roles";
 import { normalizeCertificateFolio } from "@/lib/certificates/folio";
-import { buildWorkerProfileCompletion } from "@/lib/worker/profileCompletion";
-import { createEmptyWorkerDraft, normalizeWorkerDraft } from "@/lib/worker/draft";
-import { ensureStudentTraining } from "@/lib/worker/classify";
-import type { WorkerRegistrationDraft } from "@/lib/worker/types";
 
 function extractLegacyCredentialId(raw: string): string | null {
   const value = raw.trim();
@@ -59,9 +55,6 @@ export function ExperienceCertificateHub() {
   const [printAfter, setPrintAfter] = useState(true);
   const [toEmail, setToEmail] = useState("");
   const [toPhone, setToPhone] = useState("");
-  const [profileReady, setProfileReady] = useState(false);
-  const [missingDocumentLabel, setMissingDocumentLabel] = useState("");
-  const [remainingPercent, setRemainingPercent] = useState(0);
 
   const isProfessional =
     Boolean(profile) &&
@@ -76,30 +69,9 @@ export function ExperienceCertificateHub() {
   useEffect(() => {
     if (!user) {
       setActiveFolio(null);
-      setProfileReady(false);
       return;
     }
     void (async () => {
-      try {
-        const response = await fetch("/api/worker/registration", { cache: "no-store" });
-        const data = await response.json().catch(() => ({}));
-        const draft = normalizeWorkerDraft(
-          ensureStudentTraining(
-            (data.registration?.draft as WorkerRegistrationDraft | undefined) ??
-              createEmptyWorkerDraft(),
-            profile?.account_kind === "student",
-          ),
-        );
-        const completion = buildWorkerProfileCompletion({
-          draft,
-          isStudent: profile?.account_kind === "student",
-        });
-        setProfileReady(completion.certificateUnlocked);
-        setMissingDocumentLabel(completion.missingDocumentLabel);
-        setRemainingPercent(completion.remainingPercent);
-      } catch {
-        setProfileReady(false);
-      }
       const response = await fetch("/api/certificates", { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) return;
@@ -111,7 +83,7 @@ export function ExperienceCertificateHub() {
       );
       setActiveFolio(active?.folio ?? null);
     })();
-  }, [profile?.account_kind, user]);
+  }, [user]);
 
   function submitVerify(event: FormEvent) {
     event.preventDefault();
@@ -130,12 +102,6 @@ export function ExperienceCertificateHub() {
   }
 
   async function issueCertificate(reissue = false) {
-    if (!profileReady) {
-      setMessage(
-        `Completa el 100% del perfil antes de emitir el certificado. Falta: ${missingDocumentLabel}.`,
-      );
-      return;
-    }
     setBusy(true);
     setMessage("");
     const response = await fetch("/api/certificates", {
@@ -216,16 +182,6 @@ export function ExperienceCertificateHub() {
               <p className="muted">Cargando…</p>
             ) : user ? (
               <>
-                {!profileReady && (
-                  <div className="notice">
-                    El certificado está cerrado hasta completar el 100% del perfil.
-                    {remainingPercent > 0 ? ` Te falta ${remainingPercent}%: ${missingDocumentLabel}.` : ""}
-                    {" "}
-                    <Link href="/registro/trabajador?focus=documents" className="textLink">
-                      Subir el archivo faltante
-                    </Link>
-                  </div>
-                )}
                 {!isProfessional && (
                   <p>
                     Activa el modo profesional para emitir tu certificado de experiencia laboral.
@@ -238,7 +194,7 @@ export function ExperienceCertificateHub() {
                   </p>
                 )}
 
-                {isProfessional && identityReady && profileReady && (
+                {isProfessional && identityReady && (
                   <div className="certificateDeliveryBox">
                     <strong>¿Cómo quieres recibirlo?</strong>
                     <p className="muted">
@@ -304,7 +260,7 @@ export function ExperienceCertificateHub() {
                   </div>
                 )}
 
-                {isProfessional && identityReady && profileReady && (
+                {isProfessional && identityReady && (
                   <p>
                     {activeFolio
                       ? `Ya tienes un certificado vigente (${activeFolio}). Puedes abrirlo, reenviarlo o reemitirlo.`
@@ -313,12 +269,12 @@ export function ExperienceCertificateHub() {
                 )}
 
                 <div className="securityHeroActions">
-                  {activeFolio && profileReady && (
+                  {activeFolio && (
                     <Link href={`/certificados/${activeFolio}`} className="primaryButton">
                       Abrir mi certificado <ArrowRight size={18} />
                     </Link>
                   )}
-                  {isProfessional && identityReady && profileReady && (
+                  {isProfessional && identityReady && (
                     <button
                       type="button"
                       className={activeFolio ? "secondaryButton" : "primaryButton"}

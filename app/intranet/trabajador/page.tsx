@@ -2,6 +2,7 @@ import { IntranetGuard } from "@/components/intranet/IntranetGuard";
 import { IntranetShell } from "@/components/intranet/IntranetShell";
 import Link from "next/link";
 import { FileText, Gift, Wallet } from "lucide-react";
+import { ProfileSectionMenu } from "@/components/panel/ProfileSectionMenu";
 
 export default function IntranetWorkerPage() {
   return (
@@ -9,8 +10,14 @@ export default function IntranetWorkerPage() {
       <IntranetShell
         title="Portal trabajador"
         description="Consulta tus antecedentes personales, beneficios y liquidaciones de sueldo."
+        showHeader={false}
       >
-        <div className="intranetGrid">
+        <ProfileSectionMenu options={[
+          { href: "/intranet/liquidaciones", label: "Mis liquidaciones", description: "Consulta el historial de sueldos y descargas mensuales." },
+          { href: "/perfil", label: "Antecedentes personales", description: "Revisa tus datos personales y de contacto." },
+          { href: "/intranet/trabajador?seccion=beneficios", label: "Beneficios", description: "Consulta seguros, convenios y beneficios ZOVIT." },
+        ]} />
+        <div className="intranetGrid legacyProfileLinks">
           <Link href="/intranet/liquidaciones" className="intranetCard">
             <Wallet size={24} />
             <h3>Mis liquidaciones</h3>

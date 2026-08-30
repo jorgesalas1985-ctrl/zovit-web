@@ -12,6 +12,7 @@ const ALLOWED_TYPES = new Set([
   "certificado_estudios",
   "selfie",
   "liveness_proof",
+  "capture_complete",
 ]);
 
 async function ensureBucket(admin = createAdminClient()) {
@@ -41,11 +42,11 @@ export async function GET(request: Request) {
     const type = url.searchParams.get("type") ?? "";
 
     if (!TOKEN_RE.test(token)) {
-      return NextResponse.json({ error: "Token inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Token invÃ¡lido." }, { status: 400 });
     }
 
     if (!ALLOWED_TYPES.has(type)) {
-      return NextResponse.json({ error: "Tipo de documento inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Tipo de documento invÃ¡lido." }, { status: 400 });
     }
 
     const admin = createAdminClient();
@@ -83,11 +84,11 @@ export async function POST(request: Request) {
     const file = form.get("file");
 
     if (!TOKEN_RE.test(token)) {
-      return NextResponse.json({ error: "Token inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Token invÃ¡lido." }, { status: 400 });
     }
 
     if (!ALLOWED_TYPES.has(type)) {
-      return NextResponse.json({ error: "Tipo de documento inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Tipo de documento invÃ¡lido." }, { status: 400 });
     }
 
     if (!(file instanceof File)) {

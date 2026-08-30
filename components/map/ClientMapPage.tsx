@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Protected } from "@/components/Protected";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AddressSearch } from "@/components/map/AddressSearch";
@@ -53,6 +53,7 @@ function ClientMapExperience() {
   const [location, setLocation] = useState<ClientMapLocation | null>(null);
   const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [professionals, setProfessionals] = useState<MapProfessional[]>([]);
   const [summary, setSummary] = useState<Summary>({ count: 0, averageEtaMinutes: null });
   const [loadingPros, setLoadingPros] = useState(false);
@@ -64,6 +65,12 @@ function ClientMapExperience() {
   const [trackingStatus, setTrackingStatus] = useState<string>("publicada");
   const [livePoint, setLivePoint] = useState<{ latitude: number; longitude: number } | null>(null);
   const [arrivalSuggested, setArrivalSuggested] = useState(false);
+  const selectedProfessionalCardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("nueva") === "1") setRequestOpen(true);
+  }, []);
 
   const selected = useMemo(
     () => professionals.find((p) => p.id === selectedId) ?? null,
@@ -92,10 +99,19 @@ function ClientMapExperience() {
 
   const locateMe = useCallback(async () => {
     setLocating(true);
-    const result = await requestBrowserLocation();
+    setPermissionMessage(null);
+    setLocationStatus(null);
+    const result = await requestBrowserLocation({
+      enableHighAccuracy: true,
+      timeoutMs: 10_000,
+      maximumAgeMs: 30_000,
+      timeoutMessage: "El navegador tiene permiso, pero Windows no entregó tu ubicación. Abre la configuración de ubicación del equipo, actívala y vuelve a intentarlo.",
+    });
     setLocating(false);
     if (!result.ok) {
-      applyDefaultLocation(result.message);
+      // Conserva la ubicación ya elegida; no sustituye silenciosamente la ubicación real
+      // por Santiago cuando el permiso está bloqueado o el GPS tarda en responder.
+      setPermissionMessage(result.message);
       return;
     }
     setPermissionMessage(null);
@@ -107,28 +123,28 @@ function ClientMapExperience() {
       region: null,
       source: "geolocation",
     });
+    setLocationStatus(
+      result.accuracy && result.accuracy > 1_000
+        ? `Ubicación actualizada con precisión aproximada de ${Math.round(result.accuracy)} m.`
+        : result.accuracy
+          ? `Ubicación actualizada (precisión aproximada: ${Math.round(result.accuracy)} m).`
+          : "Ubicación actualizada en el mapa."
+    );
     setAddressQuery("Mi ubicación actual");
-  }, [applyDefaultLocation]);
+  }, []);
 
   useEffect(() => {
-    void (async () => {
-      setLocating(true);
-      const result = await requestBrowserLocation({ timeoutMs: 8000 });
-      setLocating(false);
-      if (result.ok) {
-        setLocation({
-          latitude: result.latitude,
-          longitude: result.longitude,
-          formattedAddress: "Mi ubicación actual",
-          commune: null,
-          region: null,
-          source: "geolocation",
-        });
-        setAddressQuery("Mi ubicación actual");
-        return;
-      }
-      applyDefaultLocation(result.message);
-    })();
+    if (!selectedId || isMobile) return;
+    const frame = window.requestAnimationFrame(() => {
+      selectedProfessionalCardRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isMobile, selectedId]);
+
+  useEffect(() => {
+    // El navegador solo muestra el permiso de ubicación de forma fiable
+    // tras una acción directa del usuario. Por eso no se solicita al cargar.
+    applyDefaultLocation();
   }, [applyDefaultLocation]);
 
   useEffect(() => {
@@ -361,12 +377,15 @@ function ClientMapExperience() {
         {permissionMessage && (
           <LocationPermissionNotice
             message={permissionMessage}
-            onUseLocation={() => void locateMe()}
-            onDismiss={() => setPermissionMessage(null)}
+            onDismiss={() => {
+              setPermissionMessage(null);
+              window.setTimeout(() => document.getElementById("map-address-input")?.focus(), 0);
+            }}
           />
         )}
 
-        <UseMyLocationButton onClick={() => void locateMe()} busy={locating} />
+        <UseMyLocationButton onClick={locateMe} busy={locating} />
+        {locationStatus && <p className="mapLocationStatus" role="status">{locationStatus}</p>}
 
         <AddressSearch
           value={addressQuery}
@@ -411,11 +430,13 @@ function ClientMapExperience() {
         <MapFilters filters={filters} onChange={setFilters} />
 
         {!isMobile && selected && (
-          <ProfessionalMapCard
-            professional={selected}
-            onClose={() => setSelectedId(null)}
-            onRequest={() => setRequestOpen(true)}
-          />
+          <div ref={selectedProfessionalCardRef}>
+            <ProfessionalMapCard
+              professional={selected}
+              onClose={() => setSelectedId(null)}
+              onRequest={() => setRequestOpen(true)}
+            />
+          </div>
         )}
 
         {trackingRequestId && (

@@ -1,7 +1,6 @@
-import {
-  INTRANET_LOGIN_PROFILE_LABELS,
-  type IntranetRole,
-} from "@/lib/auth/intranetRoles";
+import type { IntranetRole } from "@/lib/auth/intranetRoles";
+import { PanelProfileHeader } from "@/components/panel/PanelProfileHeader";
+import type { SuperAdminTourAccount } from "@/lib/auth/superAdminView";
 
 type IntranetRoleBannerProps = {
   role: IntranetRole;
@@ -9,11 +8,7 @@ type IntranetRoleBannerProps = {
 };
 
 export function IntranetRoleBanner({ role, variant = "page" }: IntranetRoleBannerProps) {
-  const label = INTRANET_LOGIN_PROFILE_LABELS[role].toUpperCase();
-
-  return (
-    <div className={`roleModeBanner roleModeBanner--${variant}`} aria-label={`Perfil ${label}`}>
-      <span className={`roleModeBadge roleModeBadge--intranet-${role}`}>{label}</span>
-    </div>
-  );
+  void variant;
+  const account: SuperAdminTourAccount = role === "hr_admin" ? "admin" : role;
+  return <PanelProfileHeader account={account} />;
 }

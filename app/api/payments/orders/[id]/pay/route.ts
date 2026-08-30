@@ -1,7 +1,6 @@
 import { confirmPaymentReceived } from "@/lib/payments/confirmPayment";
 import {
   calculateClientCharge,
-  estimateCheckoutProcessingFee,
   parseInstallmentOption,
 } from "@/lib/payments/mercadopagoFees";
 import { getPaymentProvider, isMockPaymentsAllowed } from "@/lib/payments/providers";
@@ -26,7 +25,7 @@ export async function POST(request: Request, { params }: Params) {
 
     const { id } = await params;
     if (!isValidUuid(id)) {
-      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Identificador invÃ¡lido." }, { status: 400 });
     }
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -39,7 +38,7 @@ export async function POST(request: Request, { params }: Params) {
 
     if (providerName === "mock" && !isMockPaymentsAllowed()) {
       return NextResponse.json(
-        { error: "En producción solo se acepta Mercado Pago con cobro real." },
+        { error: "En producciÃ³n solo se acepta Mercado Pago con cobro real." },
         { status: 400 },
       );
     }
@@ -77,7 +76,7 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     if (payment.status !== "esperando_pago") {
-      return NextResponse.json({ error: "El pago no está pendiente." }, { status: 400 });
+      return NextResponse.json({ error: "El pago no estÃ¡ pendiente." }, { status: 400 });
     }
 
     const charge = calculateClientCharge(payment.amountGross, installments);
@@ -89,7 +88,7 @@ export async function POST(request: Request, { params }: Params) {
       payment.clientChargedAmount == null ||
       Number(payment.clientChargedAmount) === charge.clientChargedAmount;
 
-    // Idempotencia: reutilizar preferencia activa si el plan de cuotas no cambió.
+    // Idempotencia: reutilizar preferencia activa si el plan de cuotas no cambiÃ³.
     if (
       providerName === "mercadopago" &&
       existingPreferenceId &&
@@ -105,19 +104,19 @@ export async function POST(request: Request, { params }: Params) {
           status: "esperando_pago",
           charge,
           reused: true,
-          message: "Reanudando checkout Mercado Pago…",
+          message: "Reanudando checkout Mercado Pagoâ€¦",
         });
       }
     }
 
-    const processingFeeEstimated = estimateCheckoutProcessingFee(charge.clientChargedAmount);
+    const processingFeeEstimated = charge.processingFee;
 
     await admin
       .from("payments")
       .update({
         client_charged_amount: charge.clientChargedAmount,
         installment_count: charge.installments,
-        provider_financing_fee: charge.providerFinancingFee,
+        provider_financing_fee: 0,
         provider_processing_fee_estimated: processingFeeEstimated,
         checkout_preference_id: null,
         updated_at: new Date().toISOString(),
@@ -137,7 +136,8 @@ export async function POST(request: Request, { params }: Params) {
       metadata: {
         requestId: payment.requestId,
         installments: String(charge.installments),
-        financingFee: String(charge.providerFinancingFee),
+        financingFee: "0",
+        processingFee: String(charge.processingFee),
       },
     });
 
@@ -177,7 +177,7 @@ export async function POST(request: Request, { params }: Params) {
       paymentPublicId: payment.publicId,
       status: "esperando_pago",
       charge,
-      message: "Redirigiendo a Mercado Pago…",
+      message: "Redirigiendo a Mercado Pagoâ€¦",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error inesperado.";

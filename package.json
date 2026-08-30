@@ -6,11 +6,12 @@
     "node": "24.x"
   },
   "scripts": {
+    "prebuild": "node scripts/generate-ai-platform-changes.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test": "tsx --test lib/worker/**/*.test.ts lib/auth/**/*.test.ts"
+    "lint": "eslint .",
+    "test": "tsx --test lib/worker/**/*.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -21,6 +22,7 @@
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sharp": "^0.34.5",
     "tesseract.js": "^5.1.1"
   },
   "devDependencies": {

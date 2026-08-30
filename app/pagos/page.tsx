@@ -149,7 +149,6 @@ export default function ClientPaymentsPage() {
               cancelación aquí.
             </p>
             {message && <p className="aiError">{message}</p>}
-            <MercadoPagoFeeNotice />
 
             {cancellationFees.some((f) => f.status === "pendiente") && (
               <section className="paymentsSection">
@@ -187,7 +186,11 @@ export default function ClientPaymentsPage() {
             <section className="paymentsSection">
               <h2>Pagos pendientes</h2>
               {pending.length === 0 ? (
-                <p className="muted">No tienes pagos pendientes.</p>
+                <div className="emptyState">
+                  <p>No tienes servicios pendientes de pago.</p>
+                  <p className="muted">El botón para pagar aparecerá aquí cuando un profesional acepte tu solicitud.</p>
+                  <Link href="/mis-solicitudes" className="secondaryButton">Revisar mis solicitudes</Link>
+                </div>
               ) : (
                 pending.map((payment) => {
                   const selected = installmentsByPayment[payment.id] ?? 1;
@@ -214,17 +217,17 @@ export default function ClientPaymentsPage() {
                                 return (
                                   <option key={n} value={n}>
                                     {n === 1
-                                      ? `Débito / contado · ${formatCLP(option.clientChargedAmount)}`
-                                      : `${n} cuotas crédito · ${formatCLP(option.clientChargedAmount)} (incl. financiamiento)`}
+                                      ? `Débito / crédito · ${formatCLP(option.clientChargedAmount)}`
+                                      : `${n} cuotas crédito · ${formatCLP(option.clientChargedAmount)}`}
                                   </option>
                                 );
                               })}
                             </select>
                           </label>
-                          {charge.providerFinancingFee > 0 && (
+                          {charge.processingFee > 0 && (
                             <p className="muted">
-                              Servicio {formatCLP(charge.serviceAmount)} + financiamiento cuotas{" "}
-                              {formatCLP(charge.providerFinancingFee)} ={" "}
+                              Subtotal ZOVIT {formatCLP(charge.serviceAmount)} + cargo por procesamiento de pago{" "}
+                              {formatCLP(charge.processingFee)} ={" "}
                               {formatCLP(charge.clientChargedAmount)}. Ese extra lo paga el cliente.
                             </p>
                           )}
@@ -259,6 +262,8 @@ export default function ClientPaymentsPage() {
                 })
               )}
             </section>
+
+            <MercadoPagoFeeNotice />
 
             <section className="paymentsSection">
               <h2>Trabajos en curso</h2>

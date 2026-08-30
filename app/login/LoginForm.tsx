@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, ArrowRight, BriefcaseBusiness, Building2, ChevronDown, GraduationCap, Landmark, LockKeyhole, Mail, UserRound } from "lucide-react";
+import { AlertCircle, ArrowRight, BriefcaseBusiness, Building2, ChevronDown, Clock3, GraduationCap, Landmark, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { resolvePostLoginPath, roleErrorMessage } from "@/lib/auth/roles";
@@ -14,7 +14,7 @@ import {
 import { completeRegistrationVerification } from "@/lib/registration/finishRegistration";
 import { flushPendingRegistration } from "@/lib/registration/pendingRegistration";
 import { supabase } from "@/lib/supabase";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 type LoginAccountKind = "client" | "professional" | "student" | "company" | "institution";
 
@@ -47,7 +47,6 @@ function authErrorMessage(message: string): string {
 }
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { user, profile, profileError, profileLoading, loading, refreshProfile } = useAuth();
   const [accountType, setAccountType] = useState<LoginAccountKind>("client");
@@ -57,8 +56,43 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [confirmationSeconds, setConfirmationSeconds] = useState<number | null>(null);
+  const redirectStarted = useRef(false);
+
+  const showResendConfirmation = Boolean(searchParams.get("confirm_error"))
+    || /falta confirmar|confirmaci[oó]n (?:venc|reenviada)|nuevo correo de confirmaci[oó]n/i.test(message);
 
   useEffect(() => {
+    const savedExpiry = Number(window.localStorage.getItem("zovit-confirmation-expiry"));
+    if (savedExpiry > Date.now()) {
+      setConfirmationSeconds(Math.ceil((savedExpiry - Date.now()) / 1000));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (confirmationSeconds === null || confirmationSeconds <= 0) return;
+    const timer = window.setInterval(() => {
+      setConfirmationSeconds((current) => current === null ? null : Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [confirmationSeconds]);
+
+  useEffect(() => {
+    const confirmed = searchParams.get("confirmed");
+    const confirmError = searchParams.get("confirm_error");
+    if (confirmed === "1" && !user) {
+      setMessage("Correo confirmado correctamente. Ya puedes iniciar sesión.");
+      return;
+    }
+    if (confirmError && !user) {
+      setMessage(
+        confirmError === "expired"
+          ? "El enlace de confirmación venció o ya fue utilizado. Ingresa para solicitar un nuevo correo de confirmación."
+          : "No se pudo confirmar el correo. Solicita un nuevo enlace e inténtalo nuevamente.",
+      );
+      return;
+    }
     const errorCode = searchParams.get("error");
     if (errorCode && !user) {
       setMessage(roleErrorMessage(errorCode));
@@ -79,7 +113,7 @@ function LoginForm() {
   }, [accountMenuOpen]);
 
   useEffect(() => {
-    if (loading || profileLoading || busy) return;
+    if (loading || profileLoading || busy || redirectStarted.current) return;
 
     if (profileError === "perfil-incompleto") {
       setMessage(roleErrorMessage("perfil-incompleto"));
@@ -94,8 +128,9 @@ function LoginForm() {
       profile,
       profile.identity_status
     );
-    router.replace(destination);
-  }, [busy, loading, profile, profileError, profileLoading, router, searchParams, user]);
+    redirectStarted.current = true;
+    window.location.replace(destination);
+  }, [busy, loading, profile, profileError, profileLoading, searchParams, user]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -186,6 +221,38 @@ function LoginForm() {
     setMessage(error ? error.message : "Te enviamos un correo para recuperar tu contraseña.");
   }
 
+  async function resendConfirmation() {
+    const normalizedEmail = normalizeAuthEmail(email);
+    if (!normalizedEmail) {
+      setMessage("Escribe tu correo electrónico para reenviar la confirmación.");
+      return;
+    }
+
+    setResendBusy(true);
+    const nextPath = searchParams.get("next") ?? "/panel";
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: normalizedEmail,
+      options: { emailRedirectTo: getAuthCallbackUrl(nextPath) },
+    });
+
+    if (error) {
+      setMessage(`No pudimos reenviar el correo: ${authErrorMessage(error.message)}`);
+    } else {
+      const expiry = Date.now() + 60 * 60 * 1000;
+      window.localStorage.setItem("zovit-confirmation-expiry", String(expiry));
+      setConfirmationSeconds(60 * 60);
+      setMessage("Confirmación reenviada. Abre solamente el correo más reciente y revisa también la carpeta de spam.");
+    }
+    setResendBusy(false);
+  }
+
+  function formatConfirmationTime(seconds: number): string {
+    const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const remainingSeconds = (seconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${remainingSeconds}`;
+  }
+
   if (loading || profileLoading || (user && profile?.role)) {
     return <div className="centerState">Redirigiendo…</div>;
   }
@@ -268,6 +335,31 @@ function LoginForm() {
           </label>
 
           {message && <div className="formMessage"><AlertCircle size={17} /> {message}</div>}
+
+          {showResendConfirmation && (
+            <div className="confirmationResendBlock">
+              <button
+                type="button"
+                className="secondaryButton wide"
+                disabled={resendBusy || busy}
+                onClick={resendConfirmation}
+              >
+                <Mail size={18} />
+                {resendBusy ? "Reenviando…" : "Reenviar confirmación de correo"}
+              </button>
+              <div className={`confirmationTimer ${confirmationSeconds === 0 ? "confirmationTimer-expired" : ""}`}>
+                <Clock3 size={18} />
+                {confirmationSeconds === null
+                  ? "Reenvía el correo para iniciar el tiempo de confirmación."
+                  : confirmationSeconds > 0
+                    ? <>Tiempo para confirmar: <strong>{formatConfirmationTime(confirmationSeconds)}</strong></>
+                    : "El enlace venció. Reenvía la confirmación para obtener uno nuevo."}
+              </div>
+              <p className="confirmationLatestWarning">
+                Importante: usa solamente el último correo recibido. Los enlaces anteriores pueden quedar inválidos al reenviar.
+              </p>
+            </div>
+          )}
 
           <p className="authLegalNote">
             Al ingresar aceptas los{" "}

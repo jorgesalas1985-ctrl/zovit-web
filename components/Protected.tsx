@@ -17,7 +17,8 @@ export function Protected({ children }: { children: React.ReactNode }) {
     if (loading || profilePending) return;
 
     if (!user) {
-      router.replace("/login");
+      const next = `${window.location.pathname}${window.location.search}`;
+      router.replace(`/login?next=${encodeURIComponent(next)}`);
       return;
     }
 

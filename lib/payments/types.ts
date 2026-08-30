@@ -59,6 +59,7 @@ export type PaymentRecord = {
   providerFinancingFee: number;
   providerProcessingFeeEstimated: number;
   providerProcessingFee: number;
+  serviceVatWithheld: number;
 };
 
 export type PaymentEvent = {
@@ -125,10 +126,18 @@ export function formatCLP(amount: number): string {
   }).format(amount);
 }
 
+export const ZOVIT_COMMISSION_RATE = 0.1;
+export const CHILE_VAT_RATE = 0.19;
+
+/** CLP no usa decimales: todos los cálculos monetarios se aproximan al peso. */
+export function roundCLP(amount: number): number {
+  return Math.round(amount);
+}
+
 export function calculateBreakdown(amount: number): PaymentBreakdown {
-  const platformFee = Math.round(amount * 0.1);
-  const taxAmount = Math.round(platformFee * 0.19);
-  const amountNet = Math.round(amount - platformFee - taxAmount);
+  const platformFee = roundCLP(amount * ZOVIT_COMMISSION_RATE);
+  const taxAmount = roundCLP(platformFee * CHILE_VAT_RATE);
+  const amountNet = roundCLP(amount - platformFee - taxAmount);
 
   return {
     amountGross: amount,

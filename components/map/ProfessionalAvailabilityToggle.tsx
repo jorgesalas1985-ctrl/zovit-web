@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, MapPin, Radio } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Map, MapPin, Radio } from "lucide-react";
 import { requestBrowserLocation } from "@/lib/geo/locationPermission";
 import {
   availabilityLabel,
@@ -73,8 +74,16 @@ export function ProfessionalAvailabilityToggle({
             timeoutMs: 12_000,
             maximumAgeMs: heartbeat ? 20_000 : 5_000,
             enableHighAccuracy: !heartbeat,
+            deniedMessage:
+              "No se autorizó el acceso a tu ubicación. Vuelve a presionar «Estoy disponible» y acepta el permiso del navegador.",
+            timeoutMessage:
+              "La ubicación tardó demasiado. Vuelve a presionar «Estoy disponible».",
           });
           if (!loc.ok) {
+            // Las actualizaciones automáticas no deben convertir una
+            // disponibilidad ya activada en un aviso rojo. El permiso se
+            // solicita únicamente desde el clic inicial del profesional.
+            if (heartbeat) return;
             throw new Error(loc.message);
           }
           latitude = loc.latitude;
@@ -92,6 +101,7 @@ export function ProfessionalAvailabilityToggle({
 
         setStatus((data.availabilityStatus as MapAvailabilityStatus) || (available ? "available" : "offline"));
         setUpdatedAt(new Date().toISOString());
+        setError("");
         if (data.message) setHint(data.message);
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo actualizar disponibilidad.");
@@ -149,6 +159,10 @@ export function ProfessionalAvailabilityToggle({
         >
           No disponible
         </button>
+        <Link href="/cliente/mapa" className="accountModeOption">
+          <Map size={16} aria-hidden />
+          Ir al mapa
+        </Link>
       </div>
 
       {updatedAt && isOnline && (
@@ -162,6 +176,7 @@ export function ProfessionalAvailabilityToggle({
           {error}
         </div>
       )}
+
     </section>
   );
 }

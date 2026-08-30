@@ -1,40 +1,24 @@
 import { inviteProfessionalsForRequest } from "@/lib/automation/inviteProfessionals";
-import { requireAuthenticatedUser } from "@/lib/auth/requirePlatformAdmin";
-import { isValidUuid } from "@/lib/security/validation";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { assertSameOrigin, csrfDeniedResponse } from "@/lib/security/csrf";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-type Params = { params: Promise<{ id: string }> };
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const csrf = assertSameOrigin(request);
+  if (!csrf.ok) return csrfDeniedResponse(csrf.error);
 
-export async function POST(_request: Request, { params }: Params) {
-  try {
-    const auth = await requireAuthenticatedUser();
-    if ("error" in auth) return auth.error;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
 
-    const { id } = await params;
-    if (!isValidUuid(id)) {
-      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
-    }
-
-    const admin = createAdminClient();
-    const { data: row } = await admin
-      .from("solicitudes_de_servicio")
-      .select("id,client_id")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (!row) {
-      return NextResponse.json({ error: "Solicitud no encontrada." }, { status: 404 });
-    }
-
-    if (row.client_id !== auth.user.id && auth.profile.role !== "admin") {
-      return NextResponse.json({ error: "Sin permiso." }, { status: 403 });
-    }
-
-    const result = await inviteProfessionalsForRequest(id);
-    return NextResponse.json({ ok: true, ...result });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
+  const { id } = await params;
+  const { data: service } = await supabase.from("solicitudes_de_servicio")
+    .select("client_id,status")
+    .eq("id", id)
+    .maybeSingle();
+  if (!service || service.client_id !== user.id || service.status !== "publicada") {
+    return NextResponse.json({ error: "No puedes distribuir esta solicitud." }, { status: 403 });
   }
+  const result = await inviteProfessionalsForRequest(id);
+  return NextResponse.json(result);
 }

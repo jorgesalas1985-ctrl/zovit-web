@@ -90,7 +90,10 @@ export async function uploadRegistrationDocuments(
 
 export async function submitBiometricVerification(): Promise<string | null> {
   const response = await fetch("/api/verification", { method: "POST" });
-  const data = (await response.json()) as { error?: string };
+  const contentType = response.headers.get("content-type") ?? "";
+  const data = contentType.includes("application/json")
+    ? ((await response.json()) as { error?: string })
+    : { error: "El servidor no respondió correctamente al enviar la verificación." };
 
   if (!response.ok) {
     return data.error ?? "No se pudo enviar la verificación biométrica.";

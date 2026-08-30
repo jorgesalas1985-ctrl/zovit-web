@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 type Props = {
@@ -8,6 +6,9 @@ type Props = {
   kicker?: string;
   wide?: boolean;
   headerAction?: ReactNode;
+  backHref?: string;
+  backLabel?: string;
+  showHeader?: boolean;
   children: ReactNode;
 };
 
@@ -17,23 +18,24 @@ export function IntranetShell({
   kicker = "INTRANET ZOVIT",
   wide = false,
   headerAction,
+  backHref: _backHref,
+  backLabel = "Atrás",
+  showHeader = true,
   children,
 }: Props) {
+  void _backHref;
+  void backLabel;
   return (
     <main className={`simplePage browsePage intranetPage${wide ? " intranetPageWide" : ""}`}>
       <section className="browseShell">
-        <Link href="/" className="browseBackLink">
-          <ArrowLeft size={18} /> Volver al sitio público
-        </Link>
-
-        <div className={`browseHeader${headerAction ? " browseHeaderWithAction" : ""}`}>
+        {showHeader && <div className={`browseHeader${headerAction ? " browseHeaderWithAction" : ""}`}>
           <div className="browseHeaderCopy">
             <p className="kicker">{kicker}</p>
             <h1>{title}</h1>
             {description && <p className="muted browseDescription">{description}</p>}
           </div>
           {headerAction ? <div className="browseHeaderAction">{headerAction}</div> : null}
-        </div>
+        </div>}
 
         {children}
       </section>

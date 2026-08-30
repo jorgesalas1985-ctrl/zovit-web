@@ -4,6 +4,25 @@ import { applyIdentityAiVerdict } from "@/lib/verification/applyIdentityAiVerdic
 import { isValidStoragePathForUser } from "@/lib/security/validation";
 
 const MAX_BYTES = 4_500_000;
+const OCR_TIMEOUT_MS = 45_000;
+
+/** Evita que una imagen dañada o un worker OCR detenido deje la cuenta bloqueada indefinidamente. */
+async function withOcrTimeout<T>(work: Promise<T>): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<T>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error("El OCR excedió el tiempo máximo. Se envió a revisión manual.")),
+          OCR_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
 
 async function downloadIdentityFile(
   admin: ReturnType<typeof createAdminClient>,
@@ -65,7 +84,7 @@ export async function processIdentityAiReview(profileId: string): Promise<{
 
   const { data: documents, error: docsError } = await admin
     .from("identity_documents")
-    .select("document_type,storage_path,status")
+    .select("id,document_type,storage_path,status,metadata")
     .eq("profile_id", profileId)
     .in("document_type", ["cedula_front", "cedula_back"])
     .in("status", ["uploaded", "approved"]);
@@ -88,47 +107,59 @@ export async function processIdentityAiReview(profileId: string): Promise<{
   }
 
   try {
-    const verdict = await analyzeCarnetWithOpenAI({
+    const verdict = await withOcrTimeout(analyzeCarnetWithOpenAI({
       declaredRut: profile.rut,
       declaredBirthDate: String(profile.birth_date),
       firstName: profile.first_name,
       lastName: profile.last_name,
       files,
-    });
+    }));
 
     const result = await applyIdentityAiVerdict({ admin, profileId, verdict });
 
-    const { data: frontRow } = await admin
-      .from("identity_documents")
-      .select("metadata")
-      .eq("profile_id", profileId)
-      .eq("document_type", "cedula_front")
-      .maybeSingle();
-
-    const prevMeta =
-      frontRow?.metadata && typeof frontRow.metadata === "object"
-        ? (frontRow.metadata as Record<string, unknown>)
+    const reviewedAt = new Date().toISOString();
+    await Promise.all((documents ?? []).map(async (document) => {
+      const previousMetadata =
+        document.metadata && typeof document.metadata === "object"
+          ? (document.metadata as Record<string, unknown>)
+          : {};
+      const documentAssessment = verdict.documentAssessments.find(
+        (assessment) => assessment.label === document.document_type,
+      );
+      const frontMetadata = document.document_type === "cedula_front"
+        ? {
+            aiExtractedRut: verdict.extractedRut,
+            aiExtractedBirthDate: verdict.extractedBirthDate,
+            aiExtractedExpiryDate: verdict.extractedExpiryDate,
+            aiNameMatches: verdict.nameMatches,
+            aiCarnetExpired: verdict.carnetExpired,
+            aiFaceReviewRequired: verdict.faceReviewRequired,
+            aiDecision: verdict.decision,
+            aiConfidence: verdict.confidence,
+            aiForgeryRisk: verdict.forgeryRisk,
+            aiSummary: verdict.summary,
+            aiReasons: verdict.reasons,
+            aiModel: verdict.model,
+          }
         : {};
 
-    await admin
-      .from("identity_documents")
-      .update({
-        metadata: {
-          ...prevMeta,
-          aiExtractedRut: verdict.extractedRut,
-          aiExtractedBirthDate: verdict.extractedBirthDate,
-          aiDecision: verdict.decision,
-          aiConfidence: verdict.confidence,
-          aiForgeryRisk: verdict.forgeryRisk,
-          aiSummary: verdict.summary,
-          aiReasons: verdict.reasons,
-          aiModel: verdict.model,
-          aiReviewedAt: new Date().toISOString(),
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("profile_id", profileId)
-      .eq("document_type", "cedula_front");
+      const { error: metadataError } = await admin
+        .from("identity_documents")
+        .update({
+          metadata: {
+            ...previousMetadata,
+            ...frontMetadata,
+            aiDocumentLooksLikeChileanId: documentAssessment?.looksLikeChileanId ?? false,
+            aiDocumentConfidence: documentAssessment?.confidence ?? 0,
+            aiDocumentReasons: documentAssessment?.reasons ?? ["OCR no pudo evaluar el documento"],
+            aiReviewedAt: reviewedAt,
+          },
+          updated_at: reviewedAt,
+        })
+        .eq("id", document.id)
+        .eq("profile_id", profileId);
+      if (metadataError) throw metadataError;
+    }));
 
     return { decision: result.applied, summary: verdict.summary };
   } catch (error) {
@@ -157,9 +188,11 @@ export async function processPendingIdentityAiReviews(
   dudoso: number;
 }> {
   const admin = createAdminClient();
+  // Un proceso que ya está activo no se vuelve a ejecutar en paralelo. Los casos
+  // detenidos se recuperan como "dudoso" en la cola de administración.
   const filter = options?.includeDudosos
-    ? "identity_ai_status.is.null,identity_ai_status.eq.pending,identity_ai_status.eq.dudoso,identity_ai_status.eq.processing"
-    : "identity_ai_status.is.null,identity_ai_status.eq.pending,identity_ai_status.eq.processing";
+    ? "identity_ai_status.is.null,identity_ai_status.eq.pending,identity_ai_status.eq.dudoso"
+    : "identity_ai_status.is.null,identity_ai_status.eq.pending";
 
   const { data: rows, error } = await admin
     .from("profiles")

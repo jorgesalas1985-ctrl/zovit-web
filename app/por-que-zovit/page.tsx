@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, BriefcaseBusiness } from "lucide-react";
 import { getRequestServiceHref } from "@/lib/auth/roles";
 
 export const metadata: Metadata = {
-  title: "¿Por qué ZOVIT? | ZOVIT",
+  title: "Historia de ZOVIT | ZOVIT",
   description:
     "La historia de por qué elegir ZOVIT: confianza, identidad verificada, pago protegido y experiencia real para clientes y profesionales en Chile.",
 };

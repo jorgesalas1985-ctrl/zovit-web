@@ -1,21 +1,20 @@
 import { RoleGuard } from "@/components/RoleGuard";
-import { Landmark, LineChart, ShieldCheck, UsersRound } from "lucide-react";
+import { LineChart, ShieldCheck, UsersRound } from "lucide-react";
+import { PanelProfileHeader } from "@/components/panel/PanelProfileHeader";
+import { ProfileSectionMenu } from "@/components/panel/ProfileSectionMenu";
 
 export default function InstitutionPage() {
   return (
     <RoleGuard>
-      <main className="simplePage">
-        <section className="formPageCard">
-          <div className="eyebrow">
-            <Landmark size={16} /> Ecosistema institucional
-          </div>
-          <h1>Perfil Institucion</h1>
-          <p className="muted">
-            Espacio para instituciones que necesitan vincular alumnos, certificados,
-            reportes y trazabilidad educativa dentro de ZOVIT.
-          </p>
-
-          <div className="intranetGrid">
+      <main className="simplePage profileOverviewPage">
+        <PanelProfileHeader account="institution" />
+        <section className="formPageCard profileOverviewCard">
+          <ProfileSectionMenu options={[
+            { href: "/institucion?seccion=alumnos", label: "Alumnos vinculados", description: "Gestiona cohortes, perfiles y documentos semestrales." },
+            { href: "/institucion?seccion=certificacion", label: "Certificación", description: "Revisa identidad, estudios y competencias verificables." },
+            { href: "/institucion?seccion=reportes", label: "Reportes", description: "Consulta indicadores de empleabilidad, cumplimiento y avance." },
+          ]} />
+          <div className="intranetGrid legacyProfileLinks">
             <article className="intranetCard intranetCardStatic">
               <UsersRound size={22} />
               <h3>Alumnos vinculados</h3>

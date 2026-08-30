@@ -91,37 +91,3 @@ export function deriveSuggestedProfiles(draft: WorkerRegistrationDraft): Service
   const fromChoices = suggestProfilesFromParticipations(choices);
   return fromChoices.length ? fromChoices : draft.suggestedProfiles;
 }
-
-/** Un alumno siempre debe ver y completar el certificado de estudios. */
-export function ensureStudentTraining(
-  draft: WorkerRegistrationDraft,
-  isStudent: boolean,
-): WorkerRegistrationDraft {
-  if (!isStudent) return draft;
-
-  const participations = getParticipations(draft);
-  if (participations.includes("unsure")) {
-    const suggested: ServiceProfileType[] = draft.suggestedProfiles.includes("in_training")
-      ? draft.suggestedProfiles
-      : [...draft.suggestedProfiles, "in_training"];
-    return {
-      ...draft,
-      suggestedProfiles: suggested,
-      primaryProfile: pickPrimaryProfile(suggested) ?? draft.primaryProfile,
-    };
-  }
-
-  if (participations.includes("training")) {
-    return draft;
-  }
-
-  const nextParticipations: ParticipationChoice[] = [...participations, "training"];
-  const suggested = suggestProfilesFromParticipations(nextParticipations);
-  return {
-    ...draft,
-    participations: nextParticipations,
-    participation: nextParticipations[0] ?? "training",
-    suggestedProfiles: suggested,
-    primaryProfile: pickPrimaryProfile(suggested),
-  };
-}

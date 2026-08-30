@@ -228,6 +228,19 @@ export function ClientServiceMap({
 
   useEffect(() => {
     const map = mapRef.current;
+    const selectedProfessional = professionals.find((professional) => professional.id === selectedId);
+    if (!map || !ready || !selectedProfessional) return;
+
+    map.easeTo({
+      center: [selectedProfessional.longitude, selectedProfessional.latitude],
+      zoom: Math.max(map.getZoom(), 14),
+      duration: 650,
+      essential: true,
+    });
+  }, [professionals, ready, selectedId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !ready) return;
 
     if (!liveProfessional) {

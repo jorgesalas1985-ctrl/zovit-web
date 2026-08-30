@@ -1,21 +1,17 @@
 "use client";
 
-import { AlertCircle, ArrowRight, FileUp, ScanFace, Upload } from "lucide-react";
-import { FormEvent, useRef } from "react";
+import { AlertCircle, ArrowRight, ScanFace, Smartphone, Upload } from "lucide-react";
+import { FormEvent, useMemo, useRef } from "react";
+import Image from "next/image";
 import { BiometricWizard } from "@/components/verification/BiometricWizard";
+import { MobileDocumentCaptureButton } from "@/components/verification/MobileDocumentCaptureButton";
 import type { RegistrationDocument } from "@/lib/registration/finishRegistration";
-import { validateCarnetBirthDateDeclaration, CARNET_BIRTH_DATE_HINT } from "@/lib/registration/carnetBirthDate";
-import { isValidChileanRut } from "@/lib/registration/validateRegistration";
+import { normalizeChileanRut } from "@/lib/registration/validateRegistration";
 import { FIELD_PLACEHOLDERS } from "@/lib/ui/fieldPlaceholders";
+import { formatChileanDateInput } from "@/lib/ui/chileanDate";
 import {
-  getCarnetDocuments,
-  hasAllBiometricDocuments,
-  hasBiometricDocuments,
-  IDENTITY_DOCUMENT_LABELS,
   type IdentityDocumentType,
 } from "@/lib/verification/types";
-
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
 type PendingBiometricFormProps = {
   documents: RegistrationDocument[];
@@ -35,10 +31,6 @@ type PendingBiometricFormProps = {
   message: string;
 };
 
-function carnetHint() {
-  return "Foto clara y legible del carnet. Formatos JPG, PNG, WEBP o PDF.";
-}
-
 export function PendingBiometricForm({
   documents,
   rut,
@@ -52,152 +44,170 @@ export function PendingBiometricForm({
   busy,
   message,
 }: PendingBiometricFormProps) {
-  const fileInputs = useRef<Partial<Record<IdentityDocumentType, HTMLInputElement | null>>>({});
-
-  const localState = documents.map((doc) => ({ document_type: doc.document_type }));
-  const carnetDocuments = getCarnetDocuments();
+  const carnetFileInputs = useRef<Partial<Record<"cedula_front" | "cedula_back", HTMLInputElement | null>>>({});
   const hasSelfie = documents.some((doc) => doc.document_type === "selfie");
   const hasLiveness = documents.some((doc) => doc.document_type === "liveness_proof");
-  const biometricDone = hasBiometricDocuments(localState);
-  const carnetBirthOk =
-    validateCarnetBirthDateDeclaration({
-      birthDate,
-      confirmed: carnetBirthDateConfirmed,
-    }) === null;
-  const canContinue =
-    isValidChileanRut(rut) && hasAllBiometricDocuments(localState) && carnetBirthOk;
+  const previews = useMemo(() => Object.fromEntries(documents.filter((doc) => doc.document_type === "cedula_front" || doc.document_type === "cedula_back" || doc.document_type === "selfie").map((doc) => [doc.document_type, URL.createObjectURL(doc.file)])), [documents]);
 
   return (
     <>
-      <div className="verificationInfoBox">
-        <h2>Verificación biométrica ZOVIT</h2>
-        <ul>
-          <li><strong>RUT:</strong> requerido para validar tu identidad.</li>
-          <li><strong>Fecha de nacimiento:</strong> la misma impresa en tu carnet (mayores de 18).</li>
-          <li><strong>Carnet:</strong> cédula frontal y reverso.</li>
-          <li><strong>Selfie:</strong> captura en vivo con cámara frontal.</li>
-          <li><strong>Prueba de vida:</strong> instrucción dinámica + código en pantalla.</li>
-        </ul>
-        <p className="muted">
-          Protege a clientes y profesionales en la plataforma. Los archivos biométricos son privados y solo los revisa ZOVIT.
-          Un revisor corroborará tu fecha de nacimiento con la imagen del carnet.
-        </p>
-      </div>
-
-      {message && (
-        <div className="formMessage">
-          <AlertCircle size={17} /> {message}
-        </div>
-      )}
-
       <form className="verificationUploadGrid" onSubmit={onSubmit}>
-        <div className="verificationSectionLabel">RUT</div>
-        <article className="verificationUploadCard">
+        <article className="verificationUploadCard identityDataCard">
           <label>
             RUT
-            <input
-              required
-              value={rut}
-              onChange={(event) => onRutChange(event.target.value)}
-              placeholder={FIELD_PLACEHOLDERS.rut}
-              autoComplete="off"
-            />
-            <small className="fieldHint">{FIELD_PLACEHOLDERS.rutHint}</small>
+            <div className="rutInputRow">
+              <input
+                required
+                value={rut}
+                onChange={(event) => {
+                  const characters = event.target.value.replace(/[^0-9kK]/g, "").slice(0, 9);
+                  onRutChange(normalizeChileanRut(characters));
+                }}
+                placeholder={FIELD_PLACEHOLDERS.rut}
+                autoComplete="off"
+                inputMode="numeric"
+                maxLength={12}
+              />
+              <button
+                type="button"
+                className="rutKButton"
+                disabled={rut.replace(/\D/g, "").length < 7}
+                onClick={() => {
+                  const body = rut.replace(/\D/g, "").slice(0, 8);
+                  onRutChange(normalizeChileanRut(`${body}K`));
+                }}
+                aria-label="Usar K como dígito verificador"
+              >
+                K
+              </button>
+            </div>
           </label>
-        </article>
-
-        <div className="verificationSectionLabel">Fecha del carnet</div>
-        <article className="verificationUploadCard">
           <label>
-            Fecha de nacimiento (como aparece en tu carnet)
+            Fecha de nacimiento
             <input
               required
               type="text"
               inputMode="numeric"
               autoComplete="bday"
               value={birthDate}
-              onChange={(event) => onBirthDateChange(event.target.value)}
-              placeholder={FIELD_PLACEHOLDERS.birthDate}
+              onChange={(event) => onBirthDateChange(formatChileanDateInput(event.target.value))}
+              onKeyDown={(event) => {
+                if (event.key === "Backspace" && birthDate.endsWith("-")) {
+                  event.preventDefault();
+                  const digits = birthDate.replace(/\D/g, "").slice(0, -1);
+                  onBirthDateChange(formatChileanDateInput(digits));
+                }
+              }}
+              placeholder="DD-MM-AAAA"
+              maxLength={10}
             />
-            <small className="fieldHint">{CARNET_BIRTH_DATE_HINT}</small>
           </label>
-          <label className="checkboxRow">
+          <label className="identityAdultCheck">
             <input
               type="checkbox"
               checked={carnetBirthDateConfirmed}
               onChange={(event) => onCarnetBirthDateConfirmedChange(event.target.checked)}
             />
-            <span>
-              Confirmo que esta fecha es exactamente la impresa en mi carnet de identidad y que soy
-              mayor de 18 años.
-            </span>
+            <span>Confirmo que soy mayor de 18 años.</span>
           </label>
         </article>
 
         <div className="verificationSectionLabel">Carnet</div>
-        {carnetDocuments.map((type) => {
-          const uploaded = documents.find((doc) => doc.document_type === type);
-          return (
-            <article className="verificationUploadCard" key={type}>
-              <div className="verificationUploadHead">
-                <FileUp size={18} />
-                <div>
-                  <h3>{IDENTITY_DOCUMENT_LABELS[type]}</h3>
-                  <p>{carnetHint()}</p>
+        <article className="verificationUploadCard carnetPairCaptureCard">
+          <div className="verificationUploadHead">
+            <Smartphone size={20} />
+            <div>
+              <h3>Fotografiar carnet</h3>
+              <p>Toma primero la foto frontal y luego el reverso, usando un solo código QR.</p>
+            </div>
+          </div>
+          <MobileDocumentCaptureButton
+            documentType="cedula_front"
+            additionalDocumentType="cedula_back"
+            label="Carnet completo (frontal y reverso)"
+            busy={busy}
+            disabled={busy}
+            onCaptured={(file, metadata) => onAddDocument("cedula_front", file, metadata)}
+            onAdditionalCaptured={(file, metadata) => onAddDocument("cedula_back", file, metadata)}
+          />
+          <div className="carnetPairPreviews" aria-label="Vista previa del carnet">
+            {(["cedula_front", "cedula_back"] as const).map((type) => {
+              const uploaded = documents.find((doc) => doc.document_type === type);
+              const label = type === "cedula_front" ? "Frontal" : "Reverso";
+              return (
+                <div className="carnetPairPreview" key={type}>
+                  {uploaded?.file.type.startsWith("image/") ? (
+                    <Image
+                      src={previews[type]}
+                      alt={`Vista previa ${label.toLowerCase()} del carnet`}
+                      width={180}
+                      height={114}
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="carnetPairPreviewEmpty">Foto pendiente</div>
+                  )}
+                  <strong>{label}</strong>
+                  <input
+                    ref={(node) => { carnetFileInputs.current[type] = node; }}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    hidden
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) onAddDocument(type, file, { source: "direct-upload" });
+                      event.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="secondaryButton carnetCloudUploadButton"
+                    disabled={busy}
+                    onClick={() => carnetFileInputs.current[type]?.click()}
+                  >
+                    <Upload size={16} /> {uploaded ? "Reemplazar" : `Subir ${label.toLowerCase()}`}
+                  </button>
                 </div>
-              </div>
-              <div className="verificationUploadActions">
-                <input
-                  ref={(node) => {
-                    fileInputs.current[type] = node;
-                  }}
-                  type="file"
-                  accept={ACCEPTED_TYPES.join(",")}
-                  hidden
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) onAddDocument(type, file);
-                    event.target.value = "";
-                  }}
-                />
-                <button
-                  type="button"
-                  className="secondaryButton"
-                  disabled={busy}
-                  onClick={() => fileInputs.current[type]?.click()}
-                >
-                  <Upload size={16} />
-                  {uploaded ? "Reemplazar archivo" : "Subir carnet"}
-                </button>
-                {uploaded && <span className="verificationUploadedTag">Archivo cargado</span>}
-              </div>
-            </article>
-          );
-        })}
+              );
+            })}
+          </div>
+        </article>
 
-        <div className="verificationSectionLabel">Selfie y prueba de vida</div>
-        <article className="verificationUploadCard">
+        <article className="verificationUploadCard biometricCompactCard">
           <div className="verificationUploadHead">
             <ScanFace size={18} />
             <div>
-              <h3>Verificación biométrica</h3>
-              <p>Selfie en vivo y prueba de vida con código dinámico.</p>
+              <h3>Selfie y prueba de vida</h3>
             </div>
           </div>
+          <MobileDocumentCaptureButton
+            documentType="selfie"
+            additionalDocumentType="liveness_proof"
+            label="Selfie y prueba de vida"
+            busy={busy}
+            disabled={busy}
+            onCaptured={(file, metadata) => onAddDocument("selfie", file, metadata)}
+            onAdditionalCaptured={(file, metadata) => onAddDocument("liveness_proof", file, metadata)}
+          />
           <BiometricWizard
             disabled={busy}
             hasSelfie={hasSelfie}
             hasLiveness={hasLiveness}
             busy={busy}
+            selfiePreviewUrl={previews.selfie}
             onUpload={async (type, file, metadata) => {
               onAddDocument(type, file, metadata);
             }}
           />
-          {biometricDone && <span className="verificationUploadedTag">Biometría completa</span>}
         </article>
 
-        <button className="primaryButton wide" disabled={!canContinue || busy}>
-          {busy ? "Procesando…" : <>Continuar a crear cuenta <ArrowRight size={18} /></>}
+        {message && (
+          <div className="formMessage verificationBottomMessage">
+            <AlertCircle size={17} /> {message}
+          </div>
+        )}
+        <button className="primaryButton wide">
+          Continuar a crear cuenta <ArrowRight size={18} />
         </button>
       </form>
     </>

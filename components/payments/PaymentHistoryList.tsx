@@ -40,9 +40,10 @@ export function PaymentHistoryList({ events }: Props) {
 type PaymentCardProps = {
   payment: PaymentRecord;
   actions?: ReactNode;
+  detailed?: boolean;
 };
 
-export function PaymentCard({ payment, actions }: PaymentCardProps) {
+export function PaymentCard({ payment, actions, detailed = false }: PaymentCardProps) {
   return (
     <article className="paymentCard">
       <div className="paymentCardTop">
@@ -58,6 +59,13 @@ export function PaymentCard({ payment, actions }: PaymentCardProps) {
         <div><dt>Impuestos</dt><dd>{formatCLP(payment.taxAmount)}</dd></div>
         <div><dt>Proveedor</dt><dd>{PROVIDER_LABELS[payment.provider]}</dd></div>
         <div><dt>Estado</dt><dd>{PAYMENT_STATUS_LABELS[payment.status]}</dd></div>
+        {detailed && <div><dt>Total cobrado al cliente</dt><dd>{formatCLP(payment.clientChargedAmount ?? payment.amountGross)}</dd></div>}
+        {detailed && <div><dt>IVA comisión ZOVIT</dt><dd>{formatCLP(payment.taxAmount)}</dd></div>}
+        {detailed && <div><dt>IVA servicio retenido para SII</dt><dd>{formatCLP(payment.serviceVatWithheld)}</dd></div>}
+        {detailed && <div><dt>Procesamiento MP estimado</dt><dd>{formatCLP(payment.providerProcessingFeeEstimated)}</dd></div>}
+        {detailed && <div><dt>Procesamiento MP real</dt><dd>{formatCLP(payment.providerProcessingFee)}</dd></div>}
+        {detailed && <div><dt>Financiamiento/cuotas MP</dt><dd>{formatCLP(payment.providerFinancingFee)}</dd></div>}
+        {detailed && <div><dt>Número de cuotas</dt><dd>{payment.installmentCount ?? 1}</dd></div>}
       </dl>
       {actions}
     </article>

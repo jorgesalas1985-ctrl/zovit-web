@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Bot, BriefcaseBusiness, FileBadge2, LayoutGrid, MapPinned, CalendarDays, MapPin, Building2, Globe, Users } from "lucide-react";
+import { ArrowRight, Bot, BriefcaseBusiness, FileBadge2, LayoutGrid, MapPinned, CalendarDays, MapPin, Users } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { HomeHeroStory } from "@/components/home/HomeHeroStory";
 import { TrustPillars } from "@/components/home/TrustPillars";
@@ -32,7 +32,7 @@ export default function HomePage() {
     : getRequestServiceHref(false);
 
   const [showBanner, setShowBanner] = useState(true);
-  const [diasRestantes, setDiasRestantes] = useState(0);
+  const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
 
   useEffect(() => {
     const fechaLanzamiento = new Date("2026-10-01T00:00:00-04:00");
@@ -55,7 +55,15 @@ export default function HomePage() {
                 <strong>🚀 ZOVIT llega a Chile el 1 de octubre 2026</strong>
                 <span>
                   Lanzamiento en 10 comunas de la Región Metropolitana.
-                  {diasRestantes > 0 && ` Faltan ${diasRestantes} días.`}
+                  <span
+                    className={`launchCountdown ${diasRestantes === null ? "launchCountdown--pending" : ""}`}
+                  >
+                    {diasRestantes === null
+                      ? " Faltan 000 días."
+                      : diasRestantes > 0
+                        ? ` Faltan ${diasRestantes} días.`
+                        : "\u00a0"}
+                  </span>
                 </span>
               </div>
             </div>
@@ -86,28 +94,15 @@ export default function HomePage() {
           <div className="homeHeroCopy">
             <p className="homeHeroBrand">ZOVIT</p>
             <h1>
-              Solicita un servicio. Recibe ofertas de profesionales verificados y paga sólo cuando el
-              trabajo esté terminado y aprobado.
+              Encuentra al <span className="homeHeroHighlight">profesional.</span>{" "}
+              Paga <span className="homeHeroHighlight homeHeroHighlight--accent">cuando apruebes.</span>
             </h1>
             <p className="homeHeroLead">
-              Conectamos a quien necesita un servicio con profesionales que pueden hacerlo. Busca cerca
-              de ti en el mapa, el dinero solo se libera cuando tú apruebas el trabajo.
+              Profesionales verificados cerca de ti, con pago protegido hasta que el trabajo quede listo.
             </p>
             <div className="homeHeroCtas">
               <Link href={mapHref} className="primaryButton homeHeroCtaPrimary">
-                {isLoggedIn && canPublish ? (
-                  <>
-                    Ver mapa cerca de ti <ArrowRight size={18} />
-                  </>
-                ) : isLoggedIn ? (
-                  <>
-                    Ir al panel <ArrowRight size={18} />
-                  </>
-                ) : (
-                  <>
-                    Regístrate para solicitar <ArrowRight size={18} />
-                  </>
-                )}
+                Solicitar servicio <ArrowRight size={18} />
               </Link>
               <Link href="/registro" className="whiteButton homeHeroCtaSecondary">
                 <BriefcaseBusiness size={18} /> Quiero trabajar con Zovit
@@ -144,9 +139,15 @@ export default function HomePage() {
                   src="/home/search-map-card.png"
                   alt=""
                   fill
+                  unoptimized
                   sizes="(max-width: 900px) 100vw, 360px"
                   className="searchMethodMediaImg"
                 />
+                <span className="searchMapSweep" />
+                <span className="searchMapPin searchMapPin--one" />
+                <span className="searchMapPin searchMapPin--two" />
+                <span className="searchMapPin searchMapPin--three" />
+                <span className="searchMapLive">Mapa en vivo</span>
               </div>
               <div className="searchMethodHead">
                 <div className="searchMethodIcon map">
@@ -166,6 +167,17 @@ export default function HomePage() {
             </Link>
 
             <Link href="/ia" className="searchMethodCard searchMethodCardLink">
+              <div className="searchMethodMedia" aria-hidden>
+                <Image
+                  src="/home/search-ai-card.png"
+                  alt=""
+                  fill
+                  sizes="(max-width: 900px) 100vw, 360px"
+                  className="searchMethodMediaImg searchMethodMediaImg--ai"
+                />
+                <span className="searchVisualGlow" />
+                <span className="searchVisualBadge">IA inteligente</span>
+              </div>
               <div className="searchMethodHead">
                 <div className="searchMethodIcon ai">
                   <Bot size={22} />
@@ -184,6 +196,17 @@ export default function HomePage() {
             </Link>
 
             <Link href="/categorias" className="searchMethodCard searchMethodCardLink">
+              <div className="searchMethodMedia" aria-hidden>
+                <Image
+                  src="/home/search-manual-card.png"
+                  alt=""
+                  fill
+                  sizes="(max-width: 900px) 100vw, 360px"
+                  className="searchMethodMediaImg searchMethodMediaImg--manual"
+                />
+                <span className="searchVisualGlow searchVisualGlow--manual" />
+                <span className="searchVisualBadge">Todas las categorías</span>
+              </div>
               <div className="searchMethodHead">
                 <div className="searchMethodIcon manual">
                   <LayoutGrid size={22} />
@@ -227,19 +250,7 @@ export default function HomePage() {
             <p>Regístrate, verifica tu identidad y solicita. El profesional cobra solo cuando apruebas.</p>
             <div className="homeFinalCtaActions">
               <Link href={finalRequestHref} className="whiteButton">
-                {isLoggedIn && canPublish ? (
-                  <>
-                    Solicitar servicio <ArrowRight size={18} />
-                  </>
-                ) : isLoggedIn ? (
-                  <>
-                    Ir al panel <ArrowRight size={18} />
-                  </>
-                ) : (
-                  <>
-                    Crear cuenta para solicitar <ArrowRight size={18} />
-                  </>
-                )}
+                Solicitar servicio <ArrowRight size={18} />
               </Link>
               <Link href="/registro" className="homeFinalCtaGhost">
                 Quiero trabajar con Zovit

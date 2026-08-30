@@ -4,7 +4,7 @@ import { WorkerOnboardingWizard } from "@/components/worker/WorkerOnboardingWiza
 export const metadata: Metadata = {
   title: "Registro de trabajador | ZOVIT",
   description:
-    "Cuéntanos tu formación, experiencia y los servicios que deseas ofrecer para construir un perfil confiable en ZOVIT.",
+    "CuÃ©ntanos tu formaciÃ³n, experiencia y los servicios que deseas ofrecer para construir un perfil confiable en ZOVIT.",
 };
 
 export default function WorkerRegistrationPage() {
@@ -14,3 +14,4 @@ export default function WorkerRegistrationPage() {
     </main>
   );
 }
+

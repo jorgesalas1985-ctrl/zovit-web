@@ -24,7 +24,7 @@ export async function POST(request: Request, { params }: Params) {
     };
 
     if (body.resolution !== "reembolso" && body.resolution !== "liberacion") {
-      return NextResponse.json({ error: "Resolución inválida." }, { status: 400 });
+      return NextResponse.json({ error: "ResoluciÃ³n invÃ¡lida." }, { status: 400 });
     }
 
     const admin = createAdminClient();
@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     if (!["abierta", "en_revision"].includes(dispute.status)) {
-      return NextResponse.json({ error: "La disputa ya está resuelta." }, { status: 400 });
+      return NextResponse.json({ error: "La disputa ya estÃ¡ resuelta." }, { status: 400 });
     }
 
     if (body.resolution === "reembolso") {
@@ -67,3 +67,4 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+

@@ -1,29 +1,29 @@
 "use client";
 
-import { MercadoPagoFeeNotice } from "@/components/payments/MercadoPagoFeeNotice";
-import { calculateBreakdown, formatCLP, type ServiceProposal } from "@/lib/payments/types";
-import { AlertCircle, ArrowRight, HandCoins } from "lucide-react";
+import { formatCLP, type ServiceProposal } from "@/lib/payments/types";
+import { createClient } from "@/lib/supabase/client";
+import { AlertCircle, ArrowRight, CheckCircle2, HandCoins, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Props = {
   requestId: string;
   requestStatus: string;
   isClient: boolean;
   isProfessional: boolean;
+  fuelAmount: number;
+  serviceAmount: number;
 };
 
-export function ProposalSection({ requestId, requestStatus, isClient, isProfessional }: Props) {
+export function ProposalSection({ requestId, requestStatus, isClient, isProfessional, fuelAmount, serviceAmount }: Props) {
   const router = useRouter();
+  const supabase = createClient();
   const [proposals, setProposals] = useState<ServiceProposal[]>([]);
-  const [amount, setAmount] = useState("45000");
-  const [description, setDescription] = useState("");
-  const [hours, setHours] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  async function loadProposals() {
+  const loadProposals = useCallback(async () => {
     setLoading(true);
     const response = await fetch(`/api/payments/proposals?requestId=${encodeURIComponent(requestId)}`, {
       cache: "no-store",
@@ -41,37 +41,29 @@ export function ProposalSection({ requestId, requestStatus, isClient, isProfessi
       setProposals(data.proposals ?? []);
     }
     setLoading(false);
-  }
+  }, [requestId]);
 
   useEffect(() => {
     void loadProposals();
-  }, [requestId]);
+  }, [loadProposals]);
 
-  async function submitProposal(event: FormEvent) {
-    event.preventDefault();
+  async function acceptService() {
     setBusy(true);
     setMessage("");
-
-    const response = await fetch("/api/payments/proposals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        requestId,
-        amount: Number(amount),
-        description,
-        estimatedHours: hours ? Number(hours) : undefined,
-      }),
+    const { error } = await supabase.rpc("accept_service_request", {
+      request_id: requestId,
     });
-    const data = (await response.json()) as { error?: string };
-
     setBusy(false);
-    if (!response.ok) {
-      setMessage(data.error ?? "No se pudo enviar la propuesta.");
+    if (error) {
+      setMessage(error.message || "No se pudo aceptar el servicio.");
       return;
     }
+    setMessage("Servicio aceptado. El cliente fue notificado.");
+    router.refresh();
+  }
 
-    setDescription("");
-    await loadProposals();
+  function rejectService() {
+    router.push("/trabajos");
   }
 
   async function acceptProposal(proposalId: string) {
@@ -99,22 +91,15 @@ export function ProposalSection({ requestId, requestStatus, isClient, isProfessi
     return null;
   }
 
-  const breakdown = calculateBreakdown(Number(amount) || 0);
-
   return (
     <section className="moduleCard">
       <div className="moduleHeading">
         <div>
           <p className="kicker">PAGOS ZOVIT</p>
-          <h2>Propuestas y cotización</h2>
+          <h2>{isProfessional ? "Pago por el servicio" : "Propuestas y cotización"}</h2>
         </div>
         <HandCoins />
       </div>
-
-      <p className="muted">
-        Declara el precio real. Registrar un monto menor para bajar la comisión ZOVIT está prohibido
-        y puede bloquear cuentas.
-      </p>
 
       {message && (
         <div className="formMessage">
@@ -123,31 +108,21 @@ export function ProposalSection({ requestId, requestStatus, isClient, isProfessi
       )}
 
       {isProfessional && requestStatus === "publicada" && (
-        <form className="formStack" onSubmit={submitProposal}>
-          <label>
-            Monto propuesto (CLP)
-            <input type="number" min={5000} step={1000} required value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </label>
-          <p className="muted">
-            Comisión estimada ZOVIT: {formatCLP(breakdown.platformFee)} + IVA{" "}
-            {formatCLP(breakdown.taxAmount)} · Neto profesional {formatCLP(breakdown.amountNet)}
-          </p>
-          <MercadoPagoFeeNotice compact />
-          <label>
-            Detalle de la propuesta
-            <textarea required minLength={10} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Qué incluye tu servicio, plazos y condiciones…" />
-          </label>
-          <label>
-            Horas estimadas (opcional)
-            <input type="number" min={0.5} step={0.5} value={hours} onChange={(e) => setHours(e.target.value)} />
-          </label>
-          <button className="primaryButton fullButton" disabled={busy}>
-            Enviar propuesta <ArrowRight size={16} />
+        <div className="formStack">
+          <div className="proposalCard">
+            <div className="proposalCardTop"><strong>Recibirás como profesional</strong><strong>{formatCLP(fuelAmount + serviceAmount)}</strong></div>
+          </div>
+          <p className="muted">El IVA del servicio es retenido por ZOVIT para su declaración y pago mensual al SII.</p>
+          <button className="primaryButton fullButton" disabled={busy} onClick={() => void acceptService()}>
+            <CheckCircle2 size={17} /> {busy ? "Aceptando…" : "Aceptar servicio"}
           </button>
-        </form>
+          <button className="secondaryButton fullButton" disabled={busy} onClick={rejectService}>
+            <X size={17} /> Rechazar servicio
+          </button>
+        </div>
       )}
 
-      {loading ? (
+      {!isProfessional && (loading ? (
         <p className="muted">Cargando propuestas…</p>
       ) : proposals.length === 0 ? (
         <p className="muted">Aún no hay propuestas para esta solicitud.</p>
@@ -171,7 +146,7 @@ export function ProposalSection({ requestId, requestStatus, isClient, isProfessi
             </article>
           ))}
         </div>
-      )}
+      ))}
     </section>
   );
 }

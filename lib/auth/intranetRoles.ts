@@ -107,6 +107,7 @@ export function portalMatchesRole(portal: IntranetPortal, role: IntranetRole): b
 }
 
 export function requiredRolesForPath(pathname: string): IntranetRole[] | null {
+  if (pathname.startsWith("/intranet/superadmin")) return ["super_admin"];
   if (pathname.startsWith("/intranet/trabajador")) return ["worker"];
   if (pathname.startsWith("/intranet/supervisor")) return ["supervisor"];
   // Todas las cuentas de la plataforma: solo super admin.

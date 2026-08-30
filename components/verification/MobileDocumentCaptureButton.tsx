@@ -12,6 +12,8 @@ type MobileDocumentCaptureButtonProps = {
   busy?: boolean;
   disabled?: boolean;
   onCaptured: (file: File, metadata: Record<string, unknown>) => void | Promise<void>;
+  additionalDocumentType?: IdentityDocumentType;
+  onAdditionalCaptured?: (file: File, metadata: Record<string, unknown>) => void | Promise<void>;
 };
 
 type CaptureState = "idle" | "generating" | "waiting" | "captured" | "error";
@@ -22,24 +24,31 @@ export function MobileDocumentCaptureButton({
   busy,
   disabled,
   onCaptured,
+  additionalDocumentType,
+  onAdditionalCaptured,
 }: MobileDocumentCaptureButtonProps) {
   const pollTimerRef = useRef<number | null>(null);
   const closedRef = useRef(false);
+  const capturedTypesRef = useRef(new Set<IdentityDocumentType>());
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [state, setState] = useState<CaptureState>("idle");
   const [message, setMessage] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [localNetworkOrigin, setLocalNetworkOrigin] = useState("");
 
   const mobileUrl = useMemo(() => {
     if (!token || typeof window === "undefined") return "";
-    const url = new URL("/registro/captura-movil", window.location.origin);
+    const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    const mobileOrigin = isLocalhost ? localNetworkOrigin : window.location.origin;
+    if (!mobileOrigin) return "";
+    const url = new URL("/registro/captura-movil", mobileOrigin);
     url.searchParams.set("token", token);
-    url.searchParams.set("type", documentType);
-    url.searchParams.set("label", label);
-    url.searchParams.set("returnTo", window.location.pathname + window.location.search);
+    const pairedType = documentType === "selfie" ? "biometric_pair" : "carnet_pair";
+    url.searchParams.set("type", additionalDocumentType ? pairedType : documentType);
     return url.toString();
-  }, [documentType, label, token]);
+  }, [additionalDocumentType, documentType, localNetworkOrigin, token]);
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current !== null) {
@@ -63,17 +72,56 @@ export function MobileDocumentCaptureButton({
     setToken(crypto.randomUUID());
     setQrDataUrl("");
     setMessage("");
+    setCopied(false);
+    setLocalNetworkOrigin("");
+    capturedTypesRef.current.clear();
     setState("generating");
     setOpen(true);
   }, []);
+
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+
+    if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+      setLocalNetworkOrigin(window.location.origin);
+      return;
+    }
+
+    let active = true;
+    void fetch("/api/local-network-url", { cache: "no-store" })
+      .then(async (response) => {
+        const data = (await response.json()) as { url?: string; error?: string };
+        if (!response.ok || !data.url) throw new Error(data.error ?? "No se pudo obtener la red local.");
+        if (active) setLocalNetworkOrigin(data.url.replace(/\/$/, ""));
+      })
+      .catch((error) => {
+        if (!active) return;
+        setState("error");
+        setMessage(error instanceof Error ? error.message : "No se pudo preparar el enlace para el celular.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [open]);
+
+  const copyMobileUrl = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(mobileUrl);
+      setCopied(true);
+    } catch {
+      window.prompt("Copia este enlace y envíalo al celular:", mobileUrl);
+    }
+  }, [mobileUrl]);
 
   useEffect(() => {
     if (!open || !mobileUrl) return;
 
     let active = true;
     void QRCode.toDataURL(mobileUrl, {
-      width: 240,
-      margin: 1,
+      width: 320,
+      margin: 4,
+      errorCorrectionLevel: "M",
       color: { dark: "#0f172a", light: "#ffffff" },
     })
       .then((url) => {
@@ -101,8 +149,20 @@ export function MobileDocumentCaptureButton({
     setState("waiting");
 
     const poll = async () => {
+      let completionReady = false;
+      const completionResponse = await fetch(
+        `/api/registro/captura-movil?token=${encodeURIComponent(token)}&type=capture_complete`,
+        { cache: "no-store" }
+      );
+      if (completionResponse.ok) {
+        const completion = (await completionResponse.json()) as { ready?: boolean };
+        completionReady = completion.ready === true;
+      }
+      const types = additionalDocumentType ? [documentType, additionalDocumentType] : [documentType];
+      for (const currentType of types) {
+      if (capturedTypesRef.current.has(currentType)) continue;
       const response = await fetch(
-        `/api/registro/captura-movil?token=${encodeURIComponent(token)}&type=${encodeURIComponent(documentType)}`,
+        `/api/registro/captura-movil?token=${encodeURIComponent(token)}&type=${encodeURIComponent(currentType)}`,
         { cache: "no-store" }
       );
       const data = (await response.json()) as {
@@ -117,10 +177,14 @@ export function MobileDocumentCaptureButton({
         setState("error");
         setMessage(data.error ?? "No se pudo revisar la foto del celular.");
         stopPolling();
-        return;
+        continue;
       }
 
       if (!data.ready || !data.signedUrl) {
+        if (completionReady) {
+          stopPolling();
+          closeModal();
+        }
         return;
       }
 
@@ -135,19 +199,25 @@ export function MobileDocumentCaptureButton({
       const blob = await fileResponse.blob();
       const file = new File(
         [blob],
-        data.fileName ?? `${documentType}-celular.jpg`,
+        data.fileName ?? `${currentType}-celular.jpg`,
         { type: data.contentType ?? (blob.type || "image/jpeg") }
       );
 
-      await onCaptured(file, {
+      const handler = currentType === documentType ? onCaptured : onAdditionalCaptured;
+      await handler?.(file, {
         source: "mobile-qr",
         token,
-        documentType,
+        documentType: currentType,
         label,
       });
 
+      capturedTypesRef.current.add(currentType);
+      }
+      if (capturedTypesRef.current.size < types.length) return;
       setState("captured");
-      setMessage("Foto cargada desde el celular.");
+      setMessage(additionalDocumentType
+        ? documentType === "selfie" ? "Selfie y prueba de vida cargadas desde el celular." : "Frontal y reverso cargados desde el celular."
+        : "Foto cargada desde el celular.");
       stopPolling();
       window.setTimeout(() => {
         if (!closedRef.current) closeModal();
@@ -162,7 +232,7 @@ export function MobileDocumentCaptureButton({
     return () => {
       stopPolling();
     };
-  }, [closeModal, documentType, label, onCaptured, open, stopPolling, token]);
+  }, [additionalDocumentType, closeModal, documentType, label, onAdditionalCaptured, onCaptured, open, stopPolling, token]);
 
   return (
     <>
@@ -172,8 +242,10 @@ export function MobileDocumentCaptureButton({
         disabled={disabled || busy}
         onClick={openQr}
       >
-        <Smartphone size={16} />
-        Subir con celular
+        {documentType === "selfie" ? <QrCode size={17} /> : <Smartphone size={16} />}
+        {additionalDocumentType
+          ? documentType === "selfie" ? "Hacer con celular (QR)" : "Fotografiar frontal y reverso"
+          : "Subir con celular"}
       </button>
 
       {open && (
@@ -201,7 +273,7 @@ export function MobileDocumentCaptureButton({
             <div className="mobileCaptureBody">
               <div className="mobileCaptureQrWrap">
                 {qrDataUrl ? (
-                  <Image src={qrDataUrl} alt={`QR para ${label}`} width={240} height={240} unoptimized />
+                  <Image src={qrDataUrl} alt={`QR para ${label}`} width={320} height={320} unoptimized />
                 ) : (
                   <div className="mobileCaptureQrPlaceholder">
                     <QrCode size={42} />
@@ -214,9 +286,13 @@ export function MobileDocumentCaptureButton({
                 <p>1. Escanea el código.</p>
                 <p>2. Permite la cámara en tu celular.</p>
                 <p>3. Toma la foto y se cargará sola en ZOVIT.</p>
-                <a className="mobileCaptureLink" href={mobileUrl || "#"} target="_blank" rel="noreferrer">
-                  Abrir en celular
-                </a>
+                <button
+                  type="button"
+                  className="mobileCaptureLink"
+                  onClick={() => void copyMobileUrl()}
+                >
+                  {copied ? "Enlace copiado" : "Copiar enlace para el celular"}
+                </button>
               </div>
             </div>
 

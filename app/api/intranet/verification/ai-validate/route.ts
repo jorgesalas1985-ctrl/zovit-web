@@ -1,79 +1,36 @@
-import { isAiConfigured } from "@/lib/ai/provider";
-import { requireIntranetManager } from "@/lib/intranet/apiAuth";
-import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  processIdentityAiReview,
-  processPendingIdentityAiReviews,
-} from "@/lib/verification/processIdentityAiReview";
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { processIdentityAiReview, processPendingIdentityAiReviews } from "@/lib/verification/processIdentityAiReview";
 
-export const runtime = "nodejs";
-export const maxDuration = 60;
+async function authorize() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return false;
+  const { data: profile } = await supabase.from("profiles").select("intranet_role").eq("id", data.user.id).maybeSingle();
+  return profile?.intranet_role === "hr_admin" || profile?.intranet_role === "super_admin";
+}
 
 export async function GET() {
-  try {
-    const auth = await requireIntranetManager();
-    if (!auth.ok) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status });
-    }
-    if (!["hr_admin", "super_admin"].includes(auth.manager.intranetRole)) {
-      return NextResponse.json({ error: "No tienes permiso." }, { status: 403 });
-    }
-
-    const admin = createAdminClient();
-    const { data, error } = await admin
-      .from("profiles")
-      .select("id,identity_ai_status,identity_status,identity_submitted_at")
-      .eq("identity_status", "pending")
-      .order("identity_submitted_at", { ascending: true })
-      .limit(100);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const rows = data ?? [];
-    return NextResponse.json({
-      openaiConfigured: isAiConfigured(),
-      pending: rows.filter((r) => !r.identity_ai_status || r.identity_ai_status === "pending").length,
-      processing: rows.filter((r) => r.identity_ai_status === "processing").length,
-      dudosos: rows.filter((r) => r.identity_ai_status === "dudoso").length,
-      totalPendingIdentity: rows.length,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  if (!(await authorize())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
+  const supabase = await createClient();
+  const [{ count: pending }, { count: dudosos }] = await Promise.all([
+    supabase.from("profiles").select("id", { count: "exact", head: true }).eq("identity_status", "pending").or("identity_ai_status.is.null,identity_ai_status.eq.pending,identity_ai_status.eq.processing"),
+    supabase.from("profiles").select("id", { count: "exact", head: true }).eq("identity_status", "pending").eq("identity_ai_status", "dudoso"),
+  ]);
+  return NextResponse.json({ pending: pending ?? 0, dudosos: dudosos ?? 0, openaiConfigured: true });
 }
 
 export async function POST(request: Request) {
   try {
-    const auth = await requireIntranetManager();
-    if (!auth.ok) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status });
-    }
-    if (!["hr_admin", "super_admin"].includes(auth.manager.intranetRole)) {
-      return NextResponse.json({ error: "No tienes permiso." }, { status: 403 });
-    }
-
-    const body = (await request.json().catch(() => ({}))) as {
-      profileId?: string;
-      limit?: number;
-      includeDudosos?: boolean;
-    };
-
+    if (!(await authorize())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
+    const body = await request.json() as { profileId?: string; limit?: number; includeDudosos?: boolean };
     if (body.profileId) {
       const result = await processIdentityAiReview(body.profileId);
-      return NextResponse.json({ ok: true, ...result });
+      return NextResponse.json({ processed: 1, ...result });
     }
-
-    const stats = await processPendingIdentityAiReviews(
-      Math.min(Math.max(Number(body.limit) || 10, 1), 25),
-      { includeDudosos: body.includeDudosos === true },
-    );
-    return NextResponse.json({ ok: true, ...stats });
+    const limit = Math.max(1, Math.min(15, Number(body.limit) || 8));
+    return NextResponse.json(await processPendingIdentityAiReviews(limit, { includeDudosos: Boolean(body.includeDudosos) }));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo procesar la cola OCR." }, { status: 500 });
   }
 }

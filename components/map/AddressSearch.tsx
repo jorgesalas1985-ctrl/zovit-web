@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { GeocodeSuggestion } from "@/lib/geo/geocode";
 import { geocodeAddress } from "@/lib/geo/geocode";
 import { Loader2, MapPin, Search, X } from "lucide-react";
@@ -26,38 +26,38 @@ export function AddressSearch({
   const [open, setOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  async function searchAddress(event?: FormEvent) {
+    event?.preventDefault();
     const q = value.trim();
     if (q.length < 3) {
       setSuggestions([]);
       setBusy(false);
+      setOpen(false);
+      setError("Escribe al menos 3 caracteres y presiona la lupa.");
       return;
     }
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
     setError("");
-    const timer = window.setTimeout(async () => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      try {
-        const results = await geocodeAddress(q, { signal: controller.signal, limit: 5 });
-        setSuggestions(results);
-        setOpen(true);
-      } catch (err) {
-        if ((err as Error).name === "AbortError") return;
-        setError(err instanceof Error ? err.message : "No se pudo buscar la dirección.");
-        setSuggestions([]);
-      } finally {
-        setBusy(false);
-      }
-    }, 400);
-
-    return () => {
-      window.clearTimeout(timer);
-      abortRef.current?.abort();
-    };
-  }, [value]);
+    setOpen(false);
+    try {
+      const results = await geocodeAddress(q, { signal: controller.signal, limit: 5 });
+      setSuggestions(results);
+      setOpen(results.length > 0);
+      if (results.length === 0) setError("No encontramos direcciones. Prueba agregando comuna o ciudad.");
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "No se pudo buscar la dirección.");
+      setSuggestions([]);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const listId = useMemo(() => "zovit-address-suggestions", []);
 
@@ -66,8 +66,10 @@ export function AddressSearch({
       <label className="mapFieldLabel" htmlFor="map-address-input">
         Dirección del servicio
       </label>
-      <div className="mapAddressInputWrap">
-        <Search size={16} aria-hidden />
+      <form className="mapAddressInputWrap" onSubmit={(event) => void searchAddress(event)}>
+        <button type="submit" className="mapAddressSearchButton" aria-label="Buscar dirección" disabled={disabled || busy}>
+          {busy ? <Loader2 size={16} className="spinIcon" aria-hidden /> : <Search size={16} aria-hidden />}
+        </button>
         <input
           id="map-address-input"
           type="search"
@@ -76,10 +78,13 @@ export function AddressSearch({
           autoComplete="street-address"
           placeholder={placeholder}
           aria-controls={listId}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setSuggestions([]);
+            setOpen(false);
+            setError("");
+          }}
         />
-        {busy && <Loader2 size={16} className="spinIcon" aria-label="Buscando" />}
         {value && !busy && (
           <button
             type="button"
@@ -94,7 +99,7 @@ export function AddressSearch({
             <X size={14} />
           </button>
         )}
-      </div>
+      </form>
 
       {error && <p className="mapHint mapHintDanger" role="alert">{error}</p>}
 

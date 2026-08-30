@@ -1,244 +1,81 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isValidUuid } from "@/lib/security/validation";
-import { isIntranetRole } from "@/lib/auth/intranetRoles";
-import type { ServiceProfileType, WorkerRegistrationStatus } from "@/lib/worker/types";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-async function requireHrReviewer() {
+async function reviewer() {
   const supabase = await createClient();
-  const { data: authData } = await supabase.auth.getUser();
-  if (!authData.user) {
-    return { error: NextResponse.json({ error: "No autenticado." }, { status: 401 }) };
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("intranet_role")
-    .eq("id", authData.user.id)
-    .maybeSingle();
-
-  const role = isIntranetRole(profile?.intranet_role) ? profile.intranet_role : null;
-  if (!role || !["hr_admin", "super_admin"].includes(role)) {
-    return { error: NextResponse.json({ error: "Acceso restringido." }, { status: 403 }) };
-  }
-
-  return { supabase, user: authData.user };
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return null;
+  const { data: profile } = await supabase.from("profiles").select("intranet_role").eq("id", data.user.id).maybeSingle();
+  return profile?.intranet_role === "hr_admin" || profile?.intranet_role === "super_admin" ? data.user : null;
 }
 
-type RouteContext = { params: Promise<{ id: string }> };
-
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireHrReviewer();
-    if ("error" in auth) return auth.error;
+    if (!(await reviewer())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     const { id } = await context.params;
-    if (!isValidUuid(id)) {
-      return NextResponse.json({ error: "Identificador inválido." }, { status: 400 });
-    }
-
-    const registrationResponse = await auth.supabase
-      .from("worker_registrations")
-      .select("*")
-      .eq("profile_id", id)
-      .maybeSingle();
-    const { data: credentials } = await auth.supabase.from("worker_credentials").select("*").eq("profile_id", id);
-    const { data: services } = await auth.supabase
-      .from("worker_service_authorizations")
-      .select("*")
-      .eq("profile_id", id);
-    const { data: history } = await auth.supabase
-      .from("worker_review_history")
-      .select("*")
-      .eq("profile_id", id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    const { data: profile } = await auth.supabase
-      .from("profiles")
-      .select(
-        "id,first_name,last_name,rut,phone,address,commune,birth_date,primary_service_profile,worker_registration_status,worker_admin_notes"
-      )
-      .eq("id", id)
-      .maybeSingle();
-
+    const admin = createAdminClient();
+    const [profileResult, registrationResult, credentialResult, serviceResult, authResult] = await Promise.all([
+      admin.from("profiles").select("id,first_name,last_name,rut,worker_admin_notes,primary_service_profile").eq("id", id).maybeSingle(),
+      admin.from("worker_registrations").select("draft,review_message,status").eq("profile_id", id).maybeSingle(),
+      admin.from("worker_credentials").select("id,credential_name,profession,institution,status,storage_path,rejection_reason").eq("profile_id", id),
+      admin.from("worker_service_authorizations").select("id,specialty_name,requires_credential,authorization_status").eq("profile_id", id),
+      admin.auth.admin.getUserById(id),
+    ]);
+    const meta = (authResult.data.user?.user_metadata?.zovit_accreditation ?? {}) as Record<string, unknown>;
     return NextResponse.json({
-      profile,
-      registration: registrationResponse.data,
-      credentials: credentials ?? [],
-      services: services ?? [],
-      history: history ?? [],
+      profile: profileResult.data,
+      registration: registrationResult.data,
+      credentials: credentialResult.data ?? [],
+      services: serviceResult.data ?? [],
+      history: [],
+      accreditation: meta,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo abrir el expediente." }, { status: 500 });
   }
 }
 
-export async function POST(request: Request, context: RouteContext) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireHrReviewer();
-    if ("error" in auth) return auth.error;
+    const actor = await reviewer();
+    if (!actor) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     const { id } = await context.params;
+    const body = await request.json() as Record<string, unknown>;
+    const admin = createAdminClient();
+    const { data: target } = await admin.auth.admin.getUserById(id);
+    const previous = (target.user?.user_metadata?.zovit_accreditation ?? {}) as Record<string, unknown>;
+    const metadata: Record<string, unknown> = { ...previous, updatedAt: new Date().toISOString(), reviewedBy: actor.id };
 
-    const body = (await request.json()) as {
-      action?:
-        | "approve"
-        | "reject"
-        | "request_info"
-        | "clear"
-        | "set_primary_profile"
-        | "review_credential"
-        | "authorize_service"
-        | "block_service"
-        | "internal_note";
-      status?: WorkerRegistrationStatus;
-      primaryProfile?: ServiceProfileType;
-      message?: string;
-      credentialId?: string;
-      credentialStatus?: "verified" | "rejected" | "expired" | "pending";
-      serviceId?: string;
-      authorizationStatus?: "authorized" | "blocked" | "pending" | "revoked";
-      internalNotes?: string;
-    };
-
-    const now = new Date().toISOString();
-    const action = body.action;
-
-    if (!action) {
-      return NextResponse.json({ error: "Acción requerida." }, { status: 400 });
+    if (body.action === "review_credential") {
+      const status = body.credentialStatus === "verified" ? "verified" : "rejected";
+      const { error } = await admin.from("worker_credentials").update({ status, rejection_reason: body.message ?? null, reviewed_by: actor.id, reviewed_at: new Date().toISOString() }).eq("id", body.credentialId).eq("profile_id", id);
+      if (error) throw error;
+    } else if (body.action === "record_assessment") {
+      const score = Number(body.score);
+      if (!Number.isFinite(score) || score < 1 || score > 7) return NextResponse.json({ error: "La nota debe estar entre 1,0 y 7,0." }, { status: 400 });
+      const assessments = { ...((previous.assessments ?? {}) as Record<string, unknown>), [String(body.serviceId)]: { score, passed: score >= 4, recordedAt: new Date().toISOString() } };
+      metadata.assessments = assessments;
+    } else if (body.action === "authorize_service" || body.action === "block_service") {
+      const authorization_status = body.action === "authorize_service" ? "authorized" : "blocked";
+      const { error } = await admin.from("worker_service_authorizations").update({ authorization_status }).eq("id", body.serviceId).eq("profile_id", id);
+      if (error) throw error;
+    } else if (body.action === "set_primary_profile") {
+      await admin.from("profiles").update({ primary_service_profile: body.primaryProfile }).eq("id", id);
+    } else if (body.action === "internal_note") {
+      await admin.from("profiles").update({ worker_admin_notes: body.internalNotes }).eq("id", id);
+    } else if (["approve", "request_info", "reject"].includes(String(body.action))) {
+      const status = body.action === "approve" ? "verified" : body.action === "request_info" ? "needs_info" : "rejected";
+      await admin.from("worker_registrations").update({ status, review_message: body.message ?? null, reviewed_by: actor.id, reviewed_at: new Date().toISOString() }).eq("profile_id", id);
+      await admin.from("profiles").update({ worker_registration_status: status, primary_service_profile: body.primaryProfile ?? undefined }).eq("id", id);
+      metadata.status = status;
+    } else {
+      return NextResponse.json({ error: "Acción no reconocida." }, { status: 400 });
     }
 
-    if (action === "approve" || action === "reject" || action === "request_info" || action === "clear") {
-      if (action === "clear") {
-        // Elimina el registro de trabajador: el panel no debe mostrar aviso.
-        await auth.supabase.from("worker_registrations").delete().eq("profile_id", id);
-        await auth.supabase
-          .from("profiles")
-          .update({
-            worker_registration_status: "draft",
-            primary_service_profile: null,
-            updated_at: now,
-          })
-          .eq("id", id);
-      } else {
-      const status: WorkerRegistrationStatus =
-        action === "approve"
-          ? "verified"
-          : action === "reject"
-            ? "rejected"
-            : "needs_info";
-
-      await auth.supabase
-        .from("worker_registrations")
-        .update({
-          status,
-          reviewed_at: now,
-          reviewed_by: auth.user.id,
-          review_message: body.message?.trim() || null,
-          updated_at: now,
-        })
-        .eq("profile_id", id);
-
-      await auth.supabase
-        .from("profiles")
-        .update({
-          worker_registration_status: status,
-          primary_service_profile: body.primaryProfile ?? undefined,
-          updated_at: now,
-        })
-        .eq("id", id);
-      }
-
-      if (action === "approve") {
-        await auth.supabase.from("worker_public_badges").upsert(
-          [
-            { profile_id: id, badge_key: "background_reviewed", granted_by: auth.user.id },
-            {
-              profile_id: id,
-              badge_key:
-                body.primaryProfile === "community_collaborator"
-                  ? "community_collaborator"
-                  : body.primaryProfile === "in_training"
-                    ? "in_training"
-                    : body.primaryProfile === "experience_verified"
-                      ? "experience_proven"
-                      : "certification_verified",
-              granted_by: auth.user.id,
-            },
-          ],
-          { onConflict: "profile_id,badge_key" }
-        );
-
-        await auth.supabase
-          .from("worker_service_authorizations")
-          .update({ authorization_status: "authorized", updated_at: now })
-          .eq("profile_id", id)
-          .eq("requires_credential", false);
-      }
-    }
-
-    if (action === "set_primary_profile" && body.primaryProfile) {
-      await auth.supabase
-        .from("profiles")
-        .update({ primary_service_profile: body.primaryProfile, updated_at: now })
-        .eq("id", id);
-    }
-
-    if (action === "review_credential" && body.credentialId && body.credentialStatus) {
-      await auth.supabase
-        .from("worker_credentials")
-        .update({
-          status: body.credentialStatus,
-          reviewed_by: auth.user.id,
-          reviewed_at: now,
-          rejection_reason: body.message?.trim() || null,
-          updated_at: now,
-        })
-        .eq("id", body.credentialId)
-        .eq("profile_id", id);
-
-      if (body.credentialStatus === "verified") {
-        await auth.supabase
-          .from("worker_service_authorizations")
-          .update({ authorization_status: "authorized", updated_at: now })
-          .eq("profile_id", id)
-          .eq("requires_credential", true);
-      }
-    }
-
-    if (action === "authorize_service" || action === "block_service") {
-      if (!body.serviceId) {
-        return NextResponse.json({ error: "serviceId requerido." }, { status: 400 });
-      }
-      await auth.supabase
-        .from("worker_service_authorizations")
-        .update({
-          authorization_status:
-            body.authorizationStatus ??
-            (action === "authorize_service" ? "authorized" : "blocked"),
-          updated_at: now,
-        })
-        .eq("id", body.serviceId)
-        .eq("profile_id", id);
-    }
-
-    if (action === "internal_note" && body.internalNotes !== undefined) {
-      await auth.supabase
-        .from("profiles")
-        .update({ worker_admin_notes: body.internalNotes, updated_at: now })
-        .eq("id", id);
-    }
-
-    await auth.supabase.from("worker_review_history").insert({
-      profile_id: id,
-      actor_id: auth.user.id,
-      action,
-      details: body,
-    });
-
+    await admin.auth.admin.updateUserById(id, { user_metadata: { ...target.user?.user_metadata, zovit_accreditation: metadata } });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo guardar la decisión." }, { status: 500 });
   }
 }

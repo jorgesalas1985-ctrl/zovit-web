@@ -1,72 +1,101 @@
-import { applySuperAdminTourProfile, readTourAccountFromCookie } from "@/lib/auth/applyTourProfile";
-import { requireAuthenticatedUser } from "@/lib/auth/requirePlatformAdmin";
-import { closeResolvedDocumentNotifications } from "@/lib/operations/documentNotificationCleanup";
-import { loadOwnDocumentCompliance } from "@/lib/operations/ownDocumentCompliance";
-import { resolveRequiredDocumentKinds } from "@/lib/worker/requiredDocuments";
-import type { ServiceProfileType } from "@/lib/worker/types";
 import { NextResponse } from "next/server";
 
-export async function GET(request: Request) {
-  try {
-    const auth = await requireAuthenticatedUser();
-    if ("error" in auth) return auth.error;
+import {
+  evaluateDocumentSemesterCompliance,
+  resolveDocumentCompliancePeriod,
+} from "@/lib/operations/documentSemesterCompliance";
+import { loadOwnDocumentCompliance } from "@/lib/operations/ownDocumentCompliance";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import {
+  isMissingWorkerTableError,
+  loadWorkerDraftFallback,
+} from "@/lib/worker/registrationFallback";
+import type { WorkerRegistrationDraft } from "@/lib/worker/types";
 
-    let accountKind: string | null = null;
-    let primaryProfile: ServiceProfileType | null = null;
-    const { data: profileExtra, error: profileExtraError } = await auth.supabase
-      .from("profiles")
-      .select("account_kind, primary_service_profile, intranet_role, role, can_act_as_client, can_act_as_professional, active_mode")
-      .eq("id", auth.user.id)
-      .maybeSingle();
-    if (!profileExtraError && profileExtra) {
-      const tour = readTourAccountFromCookie(request.headers.get("cookie"));
-      const effective = applySuperAdminTourProfile(
-        {
-          role: (profileExtra.role as "client" | "professional" | "admin") ?? "client",
-          account_kind: (profileExtra.account_kind as string | null) ?? null,
-          can_act_as_client: Boolean(profileExtra.can_act_as_client),
-          can_act_as_professional: Boolean(profileExtra.can_act_as_professional),
-          active_mode: profileExtra.active_mode === "professional" ? "professional" : "client",
-          intranet_role: (profileExtra.intranet_role as string | null) ?? null,
-        },
-        tour,
-      );
-      accountKind = effective?.account_kind ?? null;
-      primaryProfile = (profileExtra.primary_service_profile as ServiceProfileType | null) ?? null;
-      if (accountKind === "student") primaryProfile = "in_training";
+function hasUploadedCredential(draft: WorkerRegistrationDraft | null): boolean {
+  if (!draft) return false;
+
+  return Boolean(
+    draft.credentials.some((credential) => credential.storagePath) ||
+      draft.training.enrollmentStoragePath,
+  );
+}
+
+async function loadWorkerDraft(userId: string): Promise<WorkerRegistrationDraft | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("worker_registrations")
+    .select("draft")
+    .eq("profile_id", userId)
+    .maybeSingle();
+
+  if (!error) {
+    return (data?.draft as WorkerRegistrationDraft | null | undefined) ?? null;
+  }
+
+  if (!isMissingWorkerTableError(error.message)) return null;
+  const fallback = await loadWorkerDraftFallback(createAdminClient(), userId);
+  return fallback?.draft ?? null;
+}
+
+export async function GET() {
+  try {
+    const supabase = await createClient();
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !authData.user) {
+      return NextResponse.json({ error: "Sesión no válida." }, { status: 401 });
     }
 
-    const requiredKinds = resolveRequiredDocumentKinds({
-      accountKind,
-      primaryProfile,
-    });
-
     const result = await loadOwnDocumentCompliance({
-      supabase: auth.supabase,
-      profileId: auth.user.id,
-      requiredKinds,
+      supabase,
+      profileId: authData.user.id,
+      // La identidad ya se entrega y revisa en el registro biométrico.
+      // Aquí solo queda pendiente el respaldo académico/laboral del perfil trabajador.
+      requiredKinds: ["credential"],
     });
-    const cleanup = result.error
-      ? null
-      : await closeResolvedDocumentNotifications({
-          supabase: auth.supabase,
-          profileId: auth.user.id,
-          status: result.compliance.status,
-          semesterYear: result.compliance.period.year,
-          semester: result.compliance.period.code,
-        });
 
-    return NextResponse.json(
-      {
-        ...result,
-        cleanup,
-      },
-      {
-        headers: { "Cache-Control": "no-store" },
-      },
-    );
+    // El registro de trabajador guarda inicialmente los adjuntos en su borrador.
+    // Hasta que administración los convierta en documentos operativos, deben contar
+    // como entregados y pendientes de revisión, no como "faltantes".
+    const draft = await loadWorkerDraft(authData.user.id);
+    const draftHasCredential = hasUploadedCredential(draft);
+    const credentialIsMissing = result.compliance.missingKinds.includes("credential");
+
+    if (draftHasCredential && credentialIsMissing) {
+      const period = resolveDocumentCompliancePeriod();
+      const compliance = evaluateDocumentSemesterCompliance({
+        requiredKinds: ["credential"],
+        documents: [
+          {
+            documentId: "worker-registration-credential",
+            documentKind: "credential",
+            status: "submitted",
+            semesterYear: period.year,
+            semester: period.code,
+          },
+        ],
+      });
+
+      return NextResponse.json({
+        compliance,
+        actionLabel: "Tu documento fue recibido y está esperando revisión ZOVIT.",
+        nextStep: "wait_review",
+        error: null,
+      });
+    }
+
+    return NextResponse.json({
+      compliance: result.compliance,
+      actionLabel: result.actionLabel,
+      nextStep: result.nextStep,
+      error: result.error,
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "No se pudo cargar el estado documental." },
+      { status: 500 },
+    );
   }
 }

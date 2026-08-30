@@ -13,7 +13,7 @@ import {
   PASSWORD_HINT,
 } from "@/lib/auth/passwordPolicy";
 import { supabase } from "@/lib/supabase";
-import { AlertCircle, ArrowRight, Building2, ChevronDown, LockKeyhole, Mail } from "lucide-react";
+import { AlertCircle, ArrowRight, Building2, ChevronDown, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
@@ -24,6 +24,7 @@ export default function IntranetAccessPage() {
   const [selectedProfile, setSelectedProfile] = useState<IntranetRole>("worker");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -170,13 +171,23 @@ export default function IntranetAccessPage() {
             <div className="inputWithIcon">
               <LockKeyhole size={18} />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Tu contraseña"
                 autoComplete="current-password"
               />
+              <button
+                type="button"
+                className="passwordVisibilityButton"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                aria-pressed={showPassword}
+                title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
             <small className="fieldHint">{PASSWORD_HINT}</small>
           </label>

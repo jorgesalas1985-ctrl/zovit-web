@@ -4,14 +4,8 @@ import Link from "next/link";
 import {
   AlertCircle,
   ArrowRight,
-  BriefcaseBusiness,
-  Building2,
-  GraduationCap,
-  Landmark,
-  ScanFace,
-  UserRound,
 } from "lucide-react";
-import { FormEvent, Suspense, useMemo, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PendingBiometricForm } from "@/components/verification/PendingBiometricForm";
 import { ProfilePhotoPicker } from "@/components/profile/ProfilePhotoUpload";
@@ -66,63 +60,16 @@ function AccountKindSelector({
   onChange: (kind: PublicAccountKind) => void;
 }) {
   return (
-    <div className="roleSelector">
-      <button
-        type="button"
-        className={accountKind === "client" ? "roleCard active" : "roleCard"}
-        onClick={() => onChange("client")}
-      >
-        <UserRound />
-        <span>
-          <b>Cliente</b>
-          <small>Necesito contratar servicios</small>
-        </span>
-      </button>
-      <button
-        type="button"
-        className={accountKind === "professional" ? "roleCard active" : "roleCard"}
-        onClick={() => onChange("professional")}
-      >
-        <BriefcaseBusiness />
-        <span>
-          <b>Profesional</b>
-          <small>Quiero ofrecer mis servicios</small>
-        </span>
-      </button>
-      <button
-        type="button"
-        className={accountKind === "student" ? "roleCard active" : "roleCard"}
-        onClick={() => onChange("student")}
-      >
-        <GraduationCap />
-        <span>
-          <b>Alumno</b>
-          <small>Estoy en formacion y quiero construir mi pasaporte</small>
-        </span>
-      </button>
-      <button
-        type="button"
-        className={accountKind === "company" ? "roleCard active" : "roleCard"}
-        onClick={() => onChange("company")}
-      >
-        <Building2 />
-        <span>
-          <b>Empresa</b>
-          <small>Quiero gestionar oportunidades y servicios</small>
-        </span>
-      </button>
-      <button
-        type="button"
-        className={accountKind === "institution" ? "roleCard active" : "roleCard"}
-        onClick={() => onChange("institution")}
-      >
-        <Landmark />
-        <span>
-          <b>Institucion</b>
-          <small>Quiero vincular alumnos, certificados y reportes</small>
-        </span>
-      </button>
-    </div>
+    <label className="accountKindSelect">
+      Tipo de cuenta
+      <select value={accountKind} onChange={(event) => onChange(event.target.value as PublicAccountKind)}>
+        <option value="client">Cliente</option>
+        <option value="professional">Profesional</option>
+        <option value="student">Alumno</option>
+        <option value="company">Empresa</option>
+        <option value="institution">Institución</option>
+      </select>
+    </label>
   );
 }
 
@@ -159,6 +106,11 @@ function RegisterPageContent() {
   const [message, setMessage] = useState("");
   const [needsEmailConfirm, setNeedsEmailConfirm] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [step]);
 
   const registrationFields = useMemo(
     () => ({
@@ -177,7 +129,8 @@ function RegisterPageContent() {
 
   const canCreateAccount =
     isRegistrationComplete(registrationFields) &&
-    validatePasswordForCreate(form.password) === null;
+    validatePasswordForCreate(form.password) === null &&
+    termsAccepted;
 
   function addDocument(
     type: IdentityDocumentType,
@@ -210,6 +163,20 @@ function RegisterPageContent() {
     });
     if (carnetDateError) {
       setMessage(carnetDateError);
+      return;
+    }
+
+    const requiredDocuments: Array<{ type: IdentityDocumentType; label: string }> = [
+      { type: "cedula_front", label: "foto frontal del carnet" },
+      { type: "cedula_back", label: "foto del reverso del carnet" },
+      { type: "selfie", label: "selfie" },
+      { type: "liveness_proof", label: "prueba de vida" },
+    ];
+    const missingDocuments = requiredDocuments
+      .filter(({ type }) => !documents.some((document) => document.document_type === type))
+      .map(({ label }) => label);
+    if (missingDocuments.length > 0) {
+      setMessage(`Falta completar: ${missingDocuments.join(", ")}.`);
       return;
     }
 
@@ -264,7 +231,11 @@ function RegisterPageContent() {
           role,
           account_kind: accountKind,
           primary_service_profile: accountKind === "student" ? "in_training" : null,
-          signup_source: "public",
+           signup_source: "public",
+           terms_accepted: true,
+           terms_version: "2026-08-22",
+           terms_accepted_at: new Date().toISOString(),
+           terms_acceptance_document: "Declaración electrónica de adhesión a la normativa ZOVIT 2026-08-22",
         },
       },
     });
@@ -369,13 +340,6 @@ function RegisterPageContent() {
             Todos los campos son obligatorios. Debes ser mayor de 18 años (Chile) para crear tu
             cuenta.
           </p>
-          <div className="formMessage info full">
-            <AlertCircle size={17} /> Al crear la cuenta debes confirmar el correo. Hasta que confirmes,
-            no podrás ingresar y tus documentos quedarán pendientes de envío al área de revisión.
-          </div>
-
-          <AccountKindSelector accountKind={accountKind} onChange={setAccountKind} />
-
           <ProfilePhotoPicker
             previewUrl={avatarPreview}
             onFileSelected={(file) => {
@@ -407,35 +371,6 @@ function RegisterPageContent() {
                 value={form.lastName}
                 onChange={(e) => setForm({ ...form, lastName: e.target.value })}
               />
-            </label>
-            <label>
-              RUT
-              <input
-                required
-                value={rut}
-                readOnly
-                aria-readonly="true"
-                placeholder={FIELD_PLACEHOLDERS.rut}
-              />
-              <small className="fieldHint">
-                Definido en verificación biométrica. {FIELD_PLACEHOLDERS.rutHint}
-              </small>
-            </label>
-            <label>
-              Fecha de nacimiento (del carnet)
-              <input
-                required
-                type="text"
-                inputMode="numeric"
-                autoComplete="bday"
-                placeholder={FIELD_PLACEHOLDERS.birthDate}
-                value={form.birthDate}
-                readOnly
-                aria-readonly="true"
-              />
-              <small className="fieldHint">
-                Definida en verificación con carnet. Un revisor la corroborará con tu cédula.
-              </small>
             </label>
             <label>
               Teléfono
@@ -508,6 +443,10 @@ function RegisterPageContent() {
               y pagar el precio real solo en la app; eludir el pago o declarar un monto menor para
               bajar la comisión puede bloquear tu cuenta.
             </p>
+            <label className="authTermsAcceptance full">
+              <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} required />
+              <span>Firmo electrónicamente la declaración de adhesión a la normativa ZOVIT, incluidos los pagos electrónicos, los costos de procesamiento incorporados al valor del servicio cuando corresponda y las condiciones de Mercado Pago.</span>
+            </label>
 
             <div className="verificationActionsRow full">
               <button type="button" className="secondaryButton" disabled={busy} onClick={() => setStep("biometric")}>
@@ -528,16 +467,7 @@ function RegisterPageContent() {
   return (
     <main className="simplePage">
       <section className="formPageCard verificationPage">
-        <RegisterStepBadge step={1} />
-        <div className="eyebrow">
-          <ScanFace size={16} /> Registro ZOVIT
-        </div>
-        <h1>Verificación biométrica</h1>
-        <p className="muted">
-          Paso 1 (igual para clientes, profesionales, alumnos, empresas e instituciones): valida tu identidad con carnet, selfie y
-          prueba de vida. Luego crearás tu cuenta con todos tus datos personales.
-        </p>
-
+        <h1>Crear cuenta nueva</h1>
         <AccountKindSelector accountKind={accountKind} onChange={setAccountKind} />
 
         <PendingBiometricForm

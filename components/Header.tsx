@@ -6,19 +6,26 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ProfessionalRequestAlert } from "@/components/ProfessionalRequestAlert";
+import { useSuperAdminView } from "@/components/superadmin/SuperAdminViewProvider";
+import { SUPER_ADMIN_TOUR_OPTIONS } from "@/lib/auth/superAdminView";
 
 function getInitialTheme() {
-  if (typeof window === "undefined") return true;
-  return localStorage.getItem("zovit-theme") !== "light";
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem("zovit-theme") === "dark";
 }
 
 export function Header() {
-  const { user, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
+  const { isRealSuperAdmin, tourAccount } = useSuperAdminView();
   const router = useRouter();
   const [dark, setDark] = useState(getInitialTheme);
+  const panelHref = isRealSuperAdmin
+    ? SUPER_ADMIN_TOUR_OPTIONS.find((option) => option.id === tourAccount)?.href ?? "/intranet/finanzas"
+    : "/panel";
 
   useEffect(() => {
-    const isDark = localStorage.getItem("zovit-theme") !== "light";
+    const isDark = localStorage.getItem("zovit-theme") === "dark";
     setDark(isDark);
     document.documentElement.dataset.theme = isDark ? "dark" : "light";
   }, []);
@@ -31,6 +38,7 @@ export function Header() {
   };
 
   return (
+    <>
     <header className="header">
       <Link className="brand" href="/">
         <span className="brandMark">Z</span>
@@ -51,10 +59,12 @@ export function Header() {
           <Home size={18} /> INICIO
         </Link>
 
-        {user ? (
+        {loading ? (
+          <span className="headerAuthPlaceholder" aria-hidden="true" />
+        ) : user ? (
           <>
             <NotificationBell />
-            <Link className="navButton" href="/panel">
+            <Link className="navButton" href={panelHref}>
               <UserRound size={18} /> Panel
             </Link>
             <button
@@ -75,5 +85,7 @@ export function Header() {
         )}
       </nav>
     </header>
+    <ProfessionalRequestAlert />
+    </>
   );
 }

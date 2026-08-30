@@ -1,116 +1,96 @@
-import { requireIntranetManager } from "@/lib/intranet/apiAuth";
-import { canViewerSeePlatformAccount, hiddenAccountResponse } from "@/lib/intranet/accessVisibility";
-import { isValidUuid } from "@/lib/security/validation";
-import { getPlatformUser, reviewPlatformUserVerification } from "@/lib/intranet/platformUsers";
-import { getVerificationDocuments } from "@/lib/intranet/verificationQueue";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
-type ReviewBody = {
-  action?: "approve" | "reject";
-  reason?: string;
-  carnetBirthDateMatches?: boolean;
-};
-
-export async function GET(
-  _request: NextRequest,
-  context: { params: Promise<{ profileId: string }> }
-) {
-  try {
-    const auth = await requireIntranetManager();
-    if (!auth.ok) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status });
-    }
-
-    if (!["hr_admin", "super_admin"].includes(auth.manager.intranetRole)) {
-      return NextResponse.json({ error: "No tienes permiso." }, { status: 403 });
-    }
-
-    const { profileId } = await context.params;
-    if (!isValidUuid(profileId)) {
-      return NextResponse.json({ error: "profileId inválido." }, { status: 400 });
-    }
-
-    const current = await getPlatformUser(profileId);
-    if (!current) {
-      return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
-    }
-
-    if (!canViewerSeePlatformAccount(auth.manager.intranetRole, current)) {
-      const hidden = hiddenAccountResponse();
-      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
-    }
-
-    const documents = await getVerificationDocuments(profileId);
-    return NextResponse.json({ documents, user: current });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+async function authorize() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return null;
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("intranet_role")
+    .eq("id", data.user.id)
+    .maybeSingle();
+  if (profile?.intranet_role !== "hr_admin" && profile?.intranet_role !== "super_admin") return null;
+  return { supabase, userId: data.user.id };
 }
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ profileId: string }> }
-) {
+export async function POST(request: Request, context: { params: Promise<{ profileId: string }> }) {
   try {
-    const auth = await requireIntranetManager();
-    if (!auth.ok) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status });
-    }
-
-    if (!["hr_admin", "super_admin"].includes(auth.manager.intranetRole)) {
-      return NextResponse.json({ error: "No tienes permiso." }, { status: 403 });
-    }
+    const actor = await authorize();
+    if (!actor) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
 
     const { profileId } = await context.params;
-    if (!isValidUuid(profileId)) {
-      return NextResponse.json({ error: "profileId inválido." }, { status: 400 });
-    }
-
-    const body = (await request.json()) as ReviewBody;
-
+    const body = await request.json() as {
+      action?: "approve" | "reject";
+      reason?: string;
+      carnetBirthDateMatches?: boolean;
+      biometricFaceMatches?: boolean;
+    };
     if (body.action !== "approve" && body.action !== "reject") {
-      return NextResponse.json({ error: "Acción inválida." }, { status: 400 });
+      return NextResponse.json({ error: "Acción de revisión inválida." }, { status: 400 });
     }
-
+    if (body.action === "approve" && !body.carnetBirthDateMatches) {
+      return NextResponse.json({ error: "Confirma que la fecha del carnet coincide antes de aprobar." }, { status: 400 });
+    }
+    if (body.action === "approve" && !body.biometricFaceMatches) {
+      return NextResponse.json({ error: "Confirma la comparación visual entre carnet, selfie y prueba de vida antes de aprobar." }, { status: 400 });
+    }
     if (body.action === "reject" && !body.reason?.trim()) {
-      return NextResponse.json({ error: "Indica el motivo del rechazo." }, { status: 400 });
+      return NextResponse.json({ error: "Indica un motivo de rechazo." }, { status: 400 });
     }
 
-    const current = await getPlatformUser(profileId);
-    if (!current) {
-      return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
-    }
-
-    if (!canViewerSeePlatformAccount(auth.manager.intranetRole, current)) {
-      const hidden = hiddenAccountResponse();
-      return NextResponse.json({ error: hidden.error }, { status: hidden.status });
-    }
-
-    if (current.intranetRole === "super_admin" && body.action === "reject") {
+    const now = new Date().toISOString();
+    const approved = body.action === "approve";
+    const admin = createAdminClient();
+    const { data: updatedProfiles, error } = await admin
+      .from("profiles")
+      .update({
+        identity_status: approved ? "approved" : "rejected",
+        identity_verified: approved,
+        biometric_verified: approved,
+        identity_verified_at: approved ? now : null,
+        identity_rejection_reason: approved ? null : body.reason?.trim() ?? null,
+        birth_date_admin_corroborated: approved,
+        birth_date_admin_corroborated_at: approved ? now : null,
+        birth_date_admin_corroborated_by: approved ? actor.userId : null,
+        identity_ai_status: approved ? "approved" : "rejected",
+        identity_ai_summary: approved
+          ? "Aprobación manual de administración: fecha del carnet y comparación visual de biometría corroboradas."
+          : body.reason?.trim() ?? null,
+        identity_ai_at: now,
+        updated_at: now,
+      })
+      .eq("id", profileId)
+      .eq("identity_status", "pending")
+      .select("id");
+    if (error) throw error;
+    if (!updatedProfiles?.length) {
       return NextResponse.json(
-        { error: "No se puede rechazar la verificación del super administrador." },
-        { status: 403 },
+        { error: "Esta identidad ya fue aprobada, rechazada o no está pendiente de revisión." },
+        { status: 409 },
       );
     }
 
-    if (current.identityStatus !== "pending") {
-      return NextResponse.json({ error: "Este usuario no tiene verificación pendiente." }, { status: 400 });
-    }
+    const { error: documentsError } = await admin
+      .from("identity_documents")
+      .update({
+        status: approved ? "approved" : "rejected",
+        reviewed_by: actor.userId,
+        reviewed_at: now,
+        admin_notes: approved
+          ? "Aprobado en revisión manual; carnet, selfie y prueba de vida corroborados visualmente."
+          : body.reason?.trim() ?? null,
+        updated_at: now,
+      })
+      .eq("profile_id", profileId);
+    if (documentsError) throw documentsError;
 
-    await reviewPlatformUserVerification(profileId, body.action, body.reason, {
-      carnetBirthDateMatches: body.carnetBirthDateMatches === true,
-      reviewerId: auth.manager.userId,
-    });
-    return NextResponse.json({ ok: true, status: body.action === "approve" ? "approved" : "rejected" });
+    return NextResponse.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error inesperado.";
-    const status =
-      message.includes("corroborar") ||
-      message.includes("carnet") ||
-      message.includes("super administrador")
-        ? 400
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "No se pudo completar la revisión." },
+      { status: 500 },
+    );
   }
 }
