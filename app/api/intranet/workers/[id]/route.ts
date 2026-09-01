@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-async function reviewer() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  const { data: profile } = await supabase.from("profiles").select("intranet_role").eq("id", data.user.id).maybeSingle();
-  return profile?.intranet_role === "hr_admin" || profile?.intranet_role === "super_admin" ? data.user : null;
-}
+import { getIntranetReviewer } from "@/lib/intranet/apiAuth";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    if (!(await reviewer())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
+    if (!(await getIntranetReviewer())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     const { id } = await context.params;
     const admin = createAdminClient();
     const [profileResult, registrationResult, credentialResult, serviceResult, authResult] = await Promise.all([
@@ -38,7 +30,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const actor = await reviewer();
+    const actor = await getIntranetReviewer();
     if (!actor) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     const { id } = await context.params;
     const body = await request.json() as Record<string, unknown>;

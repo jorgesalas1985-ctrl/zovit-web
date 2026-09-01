@@ -13,6 +13,16 @@ export type IntranetManagerContext = {
   intranetRole: IntranetRole;
 };
 
+/** Revisor de trabajadores y verificación: exactamente HR o super admin. */
+export async function getIntranetReviewer() {
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) return null;
+
+  const intranetRole = await loadIntranetRole(authData.user.id);
+  return intranetRole === "hr_admin" || intranetRole === "super_admin" ? authData.user : null;
+}
+
 async function loadIntranetRole(userId: string): Promise<IntranetRole | null> {
   const supabase = await createClient();
   const { data: profile } = await supabase
