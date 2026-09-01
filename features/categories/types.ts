@@ -1,19 +1,33 @@
-export const SERVICE_CATEGORIES = [
-  "Hogar",
-  "Automotriz",
-  "Construcción",
-  "Tecnología",
-  "Jardinería",
-  "Limpieza",
-  "Transporte de carga",
-  "Salud",
-  "Educación",
-  "Profesionales",
-  "Auxiliar de Aseo",
-  "Fuerzas Armadas, de Orden y Seguridad",
-] as const;
+import {
+  CANONICAL_CATEGORIES,
+  getCanonicalCategoryById,
+} from "@/features/categories/catalog";
 
-export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
+const SERVICE_CATEGORY_IDS = [
+  "hogar",
+  "automotriz",
+  "construccion",
+  "tecnologia",
+  "jardineria",
+  "limpieza",
+  "transporte-de-carga",
+  "salud",
+  "educacion",
+  "profesionales",
+  "auxiliar-de-aseo",
+  "fuerzas-armadas-orden-seguridad",
+] as const satisfies readonly (typeof CANONICAL_CATEGORIES)[number]["id"][];
+
+export type ServiceCategory = (typeof CANONICAL_CATEGORIES)[number]["name"];
+
+export const SERVICE_CATEGORIES: readonly ServiceCategory[] = SERVICE_CATEGORY_IDS.map((id) => {
+  const category = getCanonicalCategoryById(id);
+  if (!category) {
+    throw new Error(`Identidad canónica inválida para la categoría ${id}.`);
+  }
+
+  return category.name as ServiceCategory;
+});
 
 export type CategoryNode = {
   id: string;
