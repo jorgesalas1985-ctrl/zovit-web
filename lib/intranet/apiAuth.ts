@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/intranetRoles";
 import { createClient } from "@/lib/supabase/server";
 import { isZovitSuperAdmin } from "@/lib/auth/superAdminOwner";
+import { isZovitRealOwner } from "@/lib/intranet/ownerAuth";
 
 export type IntranetManagerContext = {
   userId: string;
@@ -21,6 +22,15 @@ export async function getIntranetReviewer() {
 
   const intranetRole = await loadIntranetRole(authData.user.id);
   return intranetRole === "hr_admin" || intranetRole === "super_admin" ? authData.user : null;
+}
+
+/** Owner real para acciones excepcionales: UUID privado + rol super_admin. */
+export async function getIntranetRealOwner() {
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) return null;
+  const intranetRole = await loadIntranetRole(authData.user.id);
+  return isZovitRealOwner(authData.user.id, intranetRole) ? authData.user : null;
 }
 
 async function loadIntranetRole(userId: string): Promise<IntranetRole | null> {
