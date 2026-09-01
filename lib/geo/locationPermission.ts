@@ -15,7 +15,7 @@ export async function getLocationPermissionState(): Promise<LocationPermissionSt
 }
 
 export type BrowserLocationResult =
-  | { ok: true; latitude: number; longitude: number; accuracy: number | null }
+  | ({ ok: true; accuracy: number | null } & GeoPoint)
   | { ok: false; code: "denied" | "unavailable" | "timeout" | "unsupported"; message: string };
 
 export function shouldRetryGeolocationWithoutHighAccuracy(
@@ -130,3 +130,4 @@ export async function requestBrowserLocation(options?: {
 
   return first;
 }
+import type { GeoPoint } from "@/lib/geo/coordinates";
