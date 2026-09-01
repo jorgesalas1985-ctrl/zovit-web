@@ -3,7 +3,6 @@ import {
   getCanonicalCategoryById,
   getCanonicalSpecialty,
 } from "@/features/categories/catalog";
-import { SERVICE_CATALOG } from "@/lib/ai/serviceCatalog";
 import { slugify } from "@/lib/utils/slugify";
 
 export type { CategoryNode } from "@/features/categories/types";
@@ -121,13 +120,7 @@ function legacyRootFromCatalog(
     throw new Error(`Identidad canónica inválida para la categoría ${categoryId}.`);
   }
 
-  const catalog = SERVICE_CATALOG.find((item) => item.category === category.name);
-  const fallbackSpecialties = catalog?.specialties ?? [];
-
-  const children =
-    groups.length > 0
-      ? buildLegacyGroups(category.name, groups)
-      : fallbackSpecialties.map((specialty) => specialtyLeaf(specialty.id, category.name));
+  const children = buildLegacyGroups(category.name, groups);
 
   return {
     id: category.id,
