@@ -142,10 +142,18 @@ function legacyRootFromCatalog(
   };
 }
 
-const FUERZAS_CATEGORY = getCanonicalCategoryById("fuerzas-armadas-orden-seguridad");
-if (!FUERZAS_CATEGORY) {
-  throw new Error("Identidad canónica inválida para fuerzas-armadas-orden-seguridad.");
+function requiredCanonicalCategory(id: string) {
+  const category = getCanonicalCategoryById(id);
+  if (!category) {
+    throw new Error(`Identidad canónica inválida para la categoría ${id}.`);
+  }
+
+  return category;
 }
+
+const AUXILIAR_ASEO_CATEGORY = requiredCanonicalCategory("auxiliar-de-aseo");
+const EDUCACION_CATEGORY = requiredCanonicalCategory("educacion");
+const FUERZAS_CATEGORY = requiredCanonicalCategory("fuerzas-armadas-orden-seguridad");
 
 export const CATEGORY_TREE: CategoryNode[] = [
   legacyRootFromCatalog(
@@ -182,13 +190,13 @@ export const CATEGORY_TREE: CategoryNode[] = [
     ],
   ),
   {
-    id: "auxiliar-de-aseo",
-    name: "Auxiliar de Aseo",
-    slug: "auxiliar-de-aseo",
+    id: AUXILIAR_ASEO_CATEGORY.id,
+    name: AUXILIAR_ASEO_CATEGORY.name,
+    slug: AUXILIAR_ASEO_CATEGORY.slug,
     summary: "Aseo domiciliario, oficinas, limpieza profunda y sanitización.",
     description: "Profesionales de aseo y limpieza para hogares, oficinas y espacios comerciales.",
     icon: "sparkles",
-    searchCategory: "Auxiliar de Aseo",
+    searchCategory: AUXILIAR_ASEO_CATEGORY.name,
     children: [
       "aseo-domiciliario",
       "aseo-de-oficinas",
@@ -198,7 +206,7 @@ export const CATEGORY_TREE: CategoryNode[] = [
       "aseo-de-condominios",
       "sanitizacion",
       "apoyo-de-aseo-por-horas",
-    ].map((id) => specialtyLeaf(id, "Auxiliar de Aseo")),
+    ].map((id) => specialtyLeaf(id, AUXILIAR_ASEO_CATEGORY.name)),
   },
   legacyRootFromCatalog(
     "construccion",
@@ -225,19 +233,19 @@ export const CATEGORY_TREE: CategoryNode[] = [
     ],
   ),
   {
-    id: "educacion",
-    name: "Educación",
-    slug: "educacion",
+    id: EDUCACION_CATEGORY.id,
+    name: EDUCACION_CATEGORY.name,
+    slug: EDUCACION_CATEGORY.slug,
     summary: "Tutorías, ayudantías, clases online y particulares.",
     description: "Docentes y tutores para reforzar aprendizaje presencial u online.",
     icon: "book",
     featured: false,
-    searchCategory: "Educación",
+    searchCategory: EDUCACION_CATEGORY.name,
     children: [
       groupNode(
         "tutorias",
         "Tutorías",
-        "Educación",
+        EDUCACION_CATEGORY.name,
         [
           { id: "tutorias-matematicas" },
           { id: "tutorias-lenguaje" },
@@ -252,13 +260,13 @@ export const CATEGORY_TREE: CategoryNode[] = [
       ),
       specialtyLeaf(
         "ayudantias",
-        "Educación",
+        EDUCACION_CATEGORY.name,
         "Apoyo universitario en ramos, guías y evaluaciones, presencial u online.",
       ),
       groupNode(
         "clases-online",
         "Clases online",
-        "Educación",
+        EDUCACION_CATEGORY.name,
         [
           { id: "clases-online-matematicas" },
           { id: "clases-online-lenguaje" },
@@ -271,7 +279,7 @@ export const CATEGORY_TREE: CategoryNode[] = [
       ),
       specialtyLeaf(
         "clases-particulares-docentes-profesionales",
-        "Educación",
+        EDUCACION_CATEGORY.name,
         "Clases particulares con docentes titulados y experiencia en aula, presencial u online.",
       ),
     ],
