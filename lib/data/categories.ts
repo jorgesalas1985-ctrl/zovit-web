@@ -1,6 +1,6 @@
 import type { CategoryNode } from "@/features/categories/types";
 import {
-  getCanonicalCategoryByName,
+  getCanonicalCategoryById,
   getCanonicalSpecialty,
 } from "@/features/categories/catalog";
 import { SERVICE_CATALOG } from "@/lib/ai/serviceCatalog";
@@ -9,23 +9,22 @@ import { slugify } from "@/lib/utils/slugify";
 export type { CategoryNode } from "@/features/categories/types";
 
 const SHARED_INSTITUTION_SPECIALTIES = [
-  "Recursos administrativos",
-  "Defensa funcionaria",
-  "Asesoría previsional",
-  "Pensiones y retiros",
-  "Orientación para personal activo",
-  "Orientación para personal en retiro",
-  "Otros servicios relacionados",
+  "recursos-administrativos",
+  "defensa-funcionaria",
+  "asesoria-previsional",
+  "pensiones-y-retiros",
+  "orientacion-para-personal-activo",
+  "orientacion-para-personal-en-retiro",
+  "otros-servicios-relacionados",
 ] as const;
 
 function specialtyLeaf(
   id: string,
-  label: string,
   searchCategory: string,
   description?: string,
 ): CategoryNode {
   const specialty = getCanonicalSpecialty(id);
-  if (!specialty || specialty.name !== label) {
+  if (!specialty) {
     throw new Error(`Identidad canónica inválida para la especialidad ${id}.`);
   }
 
@@ -46,7 +45,7 @@ function groupNode(
   id: string,
   name: string,
   searchCategory: string,
-  specialties: { id: string; label: string }[],
+  specialties: { id: string }[],
   description?: string,
 ): CategoryNode {
   return {
@@ -55,24 +54,27 @@ function groupNode(
     slug: slugify(name),
     description,
     searchCategory,
-    children: specialties.map((item) => specialtyLeaf(item.id, item.label, searchCategory)),
+    children: specialties.map((item) => specialtyLeaf(item.id, searchCategory)),
   };
 }
 
 function buildInstitutionSpecialties(
   searchCategory: string,
-  escritosLabel: string,
+  escritosId: string,
 ): CategoryNode[] {
-  const escritosSlug = slugify(escritosLabel);
+  const escritos = getCanonicalSpecialty(escritosId);
+  if (!escritos) {
+    throw new Error(`Identidad canónica inválida para la especialidad ${escritosId}.`);
+  }
+
   return [
     specialtyLeaf(
-      escritosSlug,
-      escritosLabel,
+      escritos.id,
       searchCategory,
-      `Profesionales con experiencia en ${escritosLabel.toLowerCase()} y trámites relacionados.`,
+      `Profesionales con experiencia en ${escritos.name.toLowerCase()} y trámites relacionados.`,
     ),
-    ...SHARED_INSTITUTION_SPECIALTIES.map((name) =>
-      specialtyLeaf(slugify(name), name, searchCategory),
+    ...SHARED_INSTITUTION_SPECIALTIES.map((id) =>
+      specialtyLeaf(id, searchCategory),
     ),
   ];
 }
@@ -82,10 +84,10 @@ function institutionNode(
   name: string,
   description: string,
   icon: string,
-  escritosLabel: string,
+  escritosId: string,
   searchCategory: string,
 ): CategoryNode {
-  const children = buildInstitutionSpecialties(searchCategory, escritosLabel);
+  const children = buildInstitutionSpecialties(searchCategory, escritosId);
   return {
     id,
     name,
@@ -99,7 +101,7 @@ function institutionNode(
 
 function buildLegacyGroups(
   searchCategory: string,
-  groups: { id: string; name: string; specialties: { id: string; label: string }[] }[],
+  groups: { id: string; name: string; specialties: { id: string }[] }[],
 ): CategoryNode[] {
   return groups.map((group) =>
     groupNode(group.id, group.name, searchCategory, group.specialties, group.name),
@@ -107,26 +109,25 @@ function buildLegacyGroups(
 }
 
 function legacyRootFromCatalog(
-  name: string,
-  slug: string,
+  categoryId: string,
   summary: string,
   description: string,
   icon: string,
   featured: boolean,
-  groups: { id: string; name: string; specialties: { id: string; label: string }[] }[],
+  groups: { id: string; name: string; specialties: { id: string }[] }[],
 ): CategoryNode {
-  const category = getCanonicalCategoryByName(name);
-  if (!category || category.slug !== slug) {
-    throw new Error(`Identidad canónica inválida para la categoría ${name}.`);
+  const category = getCanonicalCategoryById(categoryId);
+  if (!category) {
+    throw new Error(`Identidad canónica inválida para la categoría ${categoryId}.`);
   }
 
-  const catalog = SERVICE_CATALOG.find((item) => item.category === name);
+  const catalog = SERVICE_CATALOG.find((item) => item.category === category.name);
   const fallbackSpecialties = catalog?.specialties ?? [];
 
   const children =
     groups.length > 0
       ? buildLegacyGroups(category.name, groups)
-      : fallbackSpecialties.map((specialty) => specialtyLeaf(specialty.id, specialty.label, category.name));
+      : fallbackSpecialties.map((specialty) => specialtyLeaf(specialty.id, category.name));
 
   return {
     id: category.id,
@@ -141,11 +142,13 @@ function legacyRootFromCatalog(
   };
 }
 
-const FUERZAS_CATEGORY_NAME = "Fuerzas Armadas, de Orden y Seguridad";
+const FUERZAS_CATEGORY = getCanonicalCategoryById("fuerzas-armadas-orden-seguridad");
+if (!FUERZAS_CATEGORY) {
+  throw new Error("Identidad canónica inválida para fuerzas-armadas-orden-seguridad.");
+}
 
 export const CATEGORY_TREE: CategoryNode[] = [
   legacyRootFromCatalog(
-    "Automotriz",
     "automotriz",
     "Mecánica, electricidad automotriz y scanner.",
     "Especialistas conectados para resolver fallas y mantención de vehículos.",
@@ -155,26 +158,26 @@ export const CATEGORY_TREE: CategoryNode[] = [
       {
         id: "electricidad-automotriz",
         name: "Electricidad automotriz",
-        specialties: [{ id: "electricidad-automotriz", label: "Electricidad automotriz" }],
+        specialties: [{ id: "electricidad-automotriz" }],
       },
       {
         id: "mecanica",
         name: "Mecánica general",
-        specialties: [{ id: "mecanica-general", label: "Mecánica general" }],
+        specialties: [{ id: "mecanica-general" }],
       },
       {
         id: "scanner",
         name: "Scanner",
         specialties: [
-          { id: "scanner-motocicletas", label: "Scanner motocicletas" },
-          { id: "scanner-automotriz", label: "Scanner automotriz" },
-          { id: "scanner-maquinaria-pesada", label: "Scanner maquinaria pesada" },
+          { id: "scanner-motocicletas" },
+          { id: "scanner-automotriz" },
+          { id: "scanner-maquinaria-pesada" },
         ],
       },
       {
         id: "climatizacion-auto",
         name: "Aire acondicionado automotriz",
-        specialties: [{ id: "aire-acondicionado-auto", label: "Aire acondicionado automotriz" }],
+        specialties: [{ id: "aire-acondicionado-auto" }],
       },
     ],
   ),
@@ -187,18 +190,17 @@ export const CATEGORY_TREE: CategoryNode[] = [
     icon: "sparkles",
     searchCategory: "Auxiliar de Aseo",
     children: [
-      "Aseo domiciliario",
-      "Aseo de oficinas",
-      "Limpieza profunda",
-      "Limpieza después de obras",
-      "Limpieza de vidrios",
-      "Aseo de condominios",
-      "Sanitización",
-      "Apoyo de aseo por horas",
-    ].map((label) => specialtyLeaf(slugify(label), label, "Auxiliar de Aseo")),
+      "aseo-domiciliario",
+      "aseo-de-oficinas",
+      "limpieza-profunda",
+      "limpieza-despues-de-obras",
+      "limpieza-de-vidrios",
+      "aseo-de-condominios",
+      "sanitizacion",
+      "apoyo-de-aseo-por-horas",
+    ].map((id) => specialtyLeaf(id, "Auxiliar de Aseo")),
   },
   legacyRootFromCatalog(
-    "Construcción",
     "construccion",
     "Obras, terminaciones, pintura y albañilería.",
     "Encuentra profesionales para proyectos de construcción y remodelación.",
@@ -208,17 +210,17 @@ export const CATEGORY_TREE: CategoryNode[] = [
       {
         id: "pintura-terminaciones",
         name: "Pintura y terminaciones",
-        specialties: [{ id: "pintura", label: "Pintura" }],
+        specialties: [{ id: "pintura" }],
       },
       {
         id: "albanileria",
         name: "Albañilería",
-        specialties: [{ id: "albanileria", label: "Albañilería" }],
+        specialties: [{ id: "albanileria" }],
       },
       {
         id: "electricidad",
         name: "Electricidad",
-        specialties: [{ id: "electricidad-obra", label: "Instalaciones eléctricas en obra" }],
+        specialties: [{ id: "electricidad-obra" }],
       },
     ],
   ),
@@ -237,20 +239,19 @@ export const CATEGORY_TREE: CategoryNode[] = [
         "Tutorías",
         "Educación",
         [
-          { id: "tutorias-matematicas", label: "Matemáticas" },
-          { id: "tutorias-lenguaje", label: "Lenguaje y comunicación" },
-          { id: "tutorias-ciencias-naturales", label: "Ciencias naturales" },
-          { id: "tutorias-historia", label: "Historia y ciencias sociales" },
-          { id: "tutorias-ingles", label: "Inglés" },
-          { id: "tutorias-paes", label: "Preparación PAES" },
-          { id: "tutorias-lectoescritura", label: "Lectoescritura" },
-          { id: "tutorias-tareas", label: "Apoyo con tareas escolares" },
+          { id: "tutorias-matematicas" },
+          { id: "tutorias-lenguaje" },
+          { id: "tutorias-ciencias-naturales" },
+          { id: "tutorias-historia" },
+          { id: "tutorias-ingles" },
+          { id: "tutorias-paes" },
+          { id: "tutorias-lectoescritura" },
+          { id: "tutorias-tareas" },
         ],
         "Refuerzo académico personalizado por materia, presencial u online.",
       ),
       specialtyLeaf(
         "ayudantias",
-        "Ayudantías",
         "Educación",
         "Apoyo universitario en ramos, guías y evaluaciones, presencial u online.",
       ),
@@ -259,18 +260,17 @@ export const CATEGORY_TREE: CategoryNode[] = [
         "Clases online",
         "Educación",
         [
-          { id: "clases-online-matematicas", label: "Matemáticas" },
-          { id: "clases-online-lenguaje", label: "Lenguaje y comunicación" },
-          { id: "clases-online-ciencias", label: "Ciencias" },
-          { id: "clases-online-ingles", label: "Inglés" },
-          { id: "clases-online-paes", label: "Preparación PAES" },
-          { id: "clases-online-apoyo-escolar", label: "Apoyo escolar general" },
+          { id: "clases-online-matematicas" },
+          { id: "clases-online-lenguaje" },
+          { id: "clases-online-ciencias" },
+          { id: "clases-online-ingles" },
+          { id: "clases-online-paes" },
+          { id: "clases-online-apoyo-escolar" },
         ],
         "Clases a distancia con docentes y tutores verificados en Chile.",
       ),
       specialtyLeaf(
         "clases-particulares-docentes-profesionales",
-        "Clases particulares de docentes profesionales",
         "Educación",
         "Clases particulares con docentes titulados y experiencia en aula, presencial u online.",
       ),
@@ -278,67 +278,66 @@ export const CATEGORY_TREE: CategoryNode[] = [
   },
   {
     id: "fuerzas-armadas-orden-seguridad",
-    name: FUERZAS_CATEGORY_NAME,
-    slug: "fuerzas-armadas-orden-seguridad",
+    name: FUERZAS_CATEGORY.name,
+    slug: FUERZAS_CATEGORY.slug,
     summary: "Servicios profesionales relacionados con instituciones uniformadas.",
     description:
       "Servicios profesionales relacionados con instituciones uniformadas de Chile. ZOVIT es una plataforma independiente.",
     icon: "shield",
     requiresLegalNotice: true,
-    searchCategory: FUERZAS_CATEGORY_NAME,
+    searchCategory: FUERZAS_CATEGORY.name,
     children: [
       institutionNode(
         "ejercito",
         "Ejército de Chile",
         "Servicios profesionales vinculados a trámites y orientación para personal del Ejército.",
         "building",
-        "Escritos al Ejército",
-        FUERZAS_CATEGORY_NAME,
+        "escritos-al-ejercito",
+        FUERZAS_CATEGORY.name,
       ),
       institutionNode(
         "armada",
         "Armada de Chile",
         "Servicios profesionales vinculados a trámites y orientación para personal de la Armada.",
         "ship",
-        "Escritos a la Armada",
-        FUERZAS_CATEGORY_NAME,
+        "escritos-a-la-armada",
+        FUERZAS_CATEGORY.name,
       ),
       institutionNode(
         "fuerza-aerea",
         "Fuerza Aérea de Chile",
         "Servicios profesionales vinculados a trámites y orientación para personal de la Fuerza Aérea.",
         "plane",
-        "Escritos a la Fuerza Aérea",
-        FUERZAS_CATEGORY_NAME,
+        "escritos-a-la-fuerza-aerea",
+        FUERZAS_CATEGORY.name,
       ),
       institutionNode(
         "carabineros",
         "Carabineros de Chile",
         "Servicios profesionales vinculados a trámites y orientación para personal de Carabineros.",
         "shield",
-        "Escritos a Carabineros",
-        FUERZAS_CATEGORY_NAME,
+        "escritos-a-carabineros",
+        FUERZAS_CATEGORY.name,
       ),
       institutionNode(
         "pdi",
         "Policía de Investigaciones de Chile",
         "Servicios profesionales vinculados a trámites y orientación para personal de la PDI.",
         "badge",
-        "Escritos a la PDI",
-        FUERZAS_CATEGORY_NAME,
+        "escritos-a-la-pdi",
+        FUERZAS_CATEGORY.name,
       ),
       institutionNode(
         "gendarmeria",
         "Gendarmería de Chile",
         "Servicios profesionales vinculados a trámites y orientación para personal de Gendarmería.",
         "shield-check",
-        "Escritos a Gendarmería",
-        FUERZAS_CATEGORY_NAME,
+        "escritos-a-gendarmeria",
+        FUERZAS_CATEGORY.name,
       ),
     ],
   },
   legacyRootFromCatalog(
-    "Hogar",
     "hogar",
     "Electricidad, gasfitería, cerrajería y climatización.",
     "Profesionales verificados para reparaciones y mantención en tu hogar.",
@@ -348,27 +347,26 @@ export const CATEGORY_TREE: CategoryNode[] = [
       {
         id: "electricidad",
         name: "Electricidad",
-        specialties: [{ id: "electricidad-domiciliaria", label: "Electricidad domiciliaria" }],
+        specialties: [{ id: "electricidad-domiciliaria" }],
       },
       {
         id: "gasfiteria",
         name: "Gasfitería",
-        specialties: [{ id: "gasfiteria", label: "Gasfitería" }],
+        specialties: [{ id: "gasfiteria" }],
       },
       {
         id: "climatizacion",
         name: "Climatización",
-        specialties: [{ id: "climatizacion", label: "Climatización" }],
+        specialties: [{ id: "climatizacion" }],
       },
       {
         id: "cerrajeria",
         name: "Cerrajería",
-        specialties: [{ id: "cerrajeria", label: "Cerrajería" }],
+        specialties: [{ id: "cerrajeria" }],
       },
     ],
   ),
   legacyRootFromCatalog(
-    "Jardinería",
     "jardineria",
     "Mantención, poda y cuidado de áreas verdes.",
     "Servicios de jardinería y paisajismo para hogares y empresas.",
@@ -378,12 +376,11 @@ export const CATEGORY_TREE: CategoryNode[] = [
       {
         id: "mantencion",
         name: "Mantención de jardines",
-        specialties: [{ id: "mantencion-jardines", label: "Mantención de jardines" }],
+        specialties: [{ id: "mantencion-jardines" }],
       },
     ],
   ),
   legacyRootFromCatalog(
-    "Limpieza",
     "limpieza",
     "Limpieza profunda y mantención de espacios.",
     "Profesionales para aseo domiciliario, oficinas y post-obra.",
@@ -393,12 +390,11 @@ export const CATEGORY_TREE: CategoryNode[] = [
       {
         id: "limpieza-profunda",
         name: "Limpieza profunda",
-        specialties: [{ id: "limpieza-profunda", label: "Limpieza profunda" }],
+        specialties: [{ id: "limpieza-profunda" }],
       },
     ],
   ),
   legacyRootFromCatalog(
-    "Profesionales",
     "profesionales",
     "Asesoría legal, contable y servicios especializados.",
     "Expertos para consultas profesionales y trámites.",
@@ -408,12 +404,11 @@ export const CATEGORY_TREE: CategoryNode[] = [
       {
         id: "asesoria",
         name: "Asesoría especializada",
-        specialties: [{ id: "asesoria-legal", label: "Asesoría legal" }],
+        specialties: [{ id: "asesoria-legal" }],
       },
     ],
   ),
   legacyRootFromCatalog(
-    "Salud",
     "salud",
     "Atención domiciliaria y cuidados especializados.",
     "Profesionales de salud para apoyo en el hogar.",
@@ -423,12 +418,11 @@ export const CATEGORY_TREE: CategoryNode[] = [
       {
         id: "atencion-domiciliaria",
         name: "Atención domiciliaria",
-        specialties: [{ id: "atencion-domiciliaria", label: "Atención domiciliaria" }],
+        specialties: [{ id: "atencion-domiciliaria" }],
       },
     ],
   ),
   legacyRootFromCatalog(
-    "Tecnología",
     "tecnologia",
     "Soporte PC, redes e internet.",
     "Técnicos para equipos, conectividad y soluciones digitales.",
@@ -438,17 +432,16 @@ export const CATEGORY_TREE: CategoryNode[] = [
       {
         id: "soporte",
         name: "Soporte técnico",
-        specialties: [{ id: "soporte-pc", label: "Soporte técnico PC" }],
+        specialties: [{ id: "soporte-pc" }],
       },
       {
         id: "redes",
         name: "Redes e internet",
-        specialties: [{ id: "redes", label: "Redes e internet" }],
+        specialties: [{ id: "redes" }],
       },
     ],
   ),
   legacyRootFromCatalog(
-    "Transporte de carga",
     "transporte-de-carga",
     "Fletes, mudanzas y traslado de carga.",
     "Conductores y equipos para mover muebles, carga y mudanzas.",
@@ -458,7 +451,7 @@ export const CATEGORY_TREE: CategoryNode[] = [
       {
         id: "fletes",
         name: "Fletes y mudanzas",
-        specialties: [{ id: "fletes", label: "Fletes y mudanzas" }],
+        specialties: [{ id: "fletes" }],
       },
     ],
   ),
