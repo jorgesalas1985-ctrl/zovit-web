@@ -1,24 +1,11 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getIntranetReviewer } from "@/lib/intranet/apiAuth";
 import { createClient } from "@/lib/supabase/server";
-
-async function authorize() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("intranet_role")
-    .eq("id", data.user.id)
-    .maybeSingle();
-  if (profile?.intranet_role !== "hr_admin" && profile?.intranet_role !== "super_admin") return null;
-  return { supabase, userId: data.user.id };
-}
+import { mapIdentityReviewRpcError } from "@/lib/verification/intranetIdentityReviewRpc";
 
 export async function POST(request: Request, context: { params: Promise<{ profileId: string }> }) {
   try {
-    const actor = await authorize();
-    if (!actor) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
+    if (!(await getIntranetReviewer())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
 
     const { profileId } = await context.params;
     const body = await request.json() as {
@@ -40,51 +27,17 @@ export async function POST(request: Request, context: { params: Promise<{ profil
       return NextResponse.json({ error: "Indica un motivo de rechazo." }, { status: 400 });
     }
 
-    const now = new Date().toISOString();
-    const approved = body.action === "approve";
-    const admin = createAdminClient();
-    const { data: updatedProfiles, error } = await admin
-      .from("profiles")
-      .update({
-        identity_status: approved ? "approved" : "rejected",
-        identity_verified: approved,
-        biometric_verified: approved,
-        identity_verified_at: approved ? now : null,
-        identity_rejection_reason: approved ? null : body.reason?.trim() ?? null,
-        birth_date_admin_corroborated: approved,
-        birth_date_admin_corroborated_at: approved ? now : null,
-        birth_date_admin_corroborated_by: approved ? actor.userId : null,
-        identity_ai_status: approved ? "approved" : "rejected",
-        identity_ai_summary: approved
-          ? "Aprobación manual de administración: fecha del carnet y comparación visual de biometría corroboradas."
-          : body.reason?.trim() ?? null,
-        identity_ai_at: now,
-        updated_at: now,
-      })
-      .eq("id", profileId)
-      .eq("identity_status", "pending")
-      .select("id");
-    if (error) throw error;
-    if (!updatedProfiles?.length) {
-      return NextResponse.json(
-        { error: "Esta identidad ya fue aprobada, rechazada o no está pendiente de revisión." },
-        { status: 409 },
-      );
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("intranet_review_identity_verification", {
+      p_profile_id: profileId, p_action: body.action, p_reason: body.reason ?? null,
+      p_carnet_birth_matches: Boolean(body.carnetBirthDateMatches),
+      p_biometric_face_matches: Boolean(body.biometricFaceMatches),
+    });
+    if (error) {
+      const mapped = mapIdentityReviewRpcError(error.message);
+      if (mapped) return NextResponse.json({ error: mapped.error }, { status: mapped.status });
+      throw new Error(error.message);
     }
-
-    const { error: documentsError } = await admin
-      .from("identity_documents")
-      .update({
-        status: approved ? "approved" : "rejected",
-        reviewed_by: actor.userId,
-        reviewed_at: now,
-        admin_notes: approved
-          ? "Aprobado en revisión manual; carnet, selfie y prueba de vida corroborados visualmente."
-          : body.reason?.trim() ?? null,
-        updated_at: now,
-      })
-      .eq("profile_id", profileId);
-    if (documentsError) throw documentsError;
 
     return NextResponse.json({ ok: true });
   } catch (error) {
