@@ -1,22 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { listOcrCheckedVerificationUsers, listPendingVerificationUsers } from "@/lib/intranet/verificationQueue";
-
-async function canReviewIdentities() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return false;
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("intranet_role")
-    .eq("id", data.user.id)
-    .maybeSingle();
-  return profile?.intranet_role === "hr_admin" || profile?.intranet_role === "super_admin";
-}
+import { getIntranetReviewer } from "@/lib/intranet/apiAuth";
 
 export async function GET() {
   try {
-    if (!(await canReviewIdentities())) {
+    if (!(await getIntranetReviewer())) {
       return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     }
     const [pending, checked] = await Promise.all([
