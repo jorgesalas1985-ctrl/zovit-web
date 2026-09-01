@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const migration = readFileSync(
-  resolve(process.cwd(), "supabase/SPRINT_30_INTRANET_IDENTITY_RESUBMISSION_RPC.sql"),
+  resolve(process.cwd(), "supabase/SPRINT_31_INTRANET_IDENTITY_RESUBMISSION_RPC_RESULT.sql"),
   "utf8",
 );
 

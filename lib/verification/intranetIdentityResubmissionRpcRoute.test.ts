@@ -46,6 +46,13 @@ test("keeps foreign or duplicate documents behind the existing 400 public error"
   }
 });
 
+test("keeps a missing single document behind its existing 404 public error", () => {
+  assert.deepEqual(mapIdentityResubmissionRpcError("Uno o más documentos no pertenecen a esta identidad", "single"), {
+    status: 404,
+    error: "Documento no encontrado.",
+  });
+});
+
 test("leaves unexpected RPC failures for the route's existing 500 handling", () => {
   assert.equal(mapIdentityResubmissionRpcError("Fallo de escritura"), null);
 });
