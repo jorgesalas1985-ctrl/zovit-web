@@ -1,6 +1,6 @@
 export type MapAvailabilityStatus = "available" | "busy" | "offline" | "on_the_way";
 
-export type MapProfessional = {
+export type MapProfessional = GeoPoint & {
   id: string;
   firstName: string;
   lastName: string;
@@ -16,8 +16,6 @@ export type MapProfessional = {
   identityVerified: boolean;
   biometricVerified: boolean;
   availabilityStatus: MapAvailabilityStatus;
-  latitude: number;
-  longitude: number;
   distanceKm: number;
   etaMinutes: number;
   primaryServiceProfile: string | null;
@@ -83,3 +81,4 @@ export function availabilityTone(status: MapAvailabilityStatus): "green" | "yell
       return "muted";
   }
 }
+import type { GeoPoint } from "@/lib/geo/coordinates";

@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { calculateDistanceKm, estimateArrivalMinutes } from "@/lib/geo/distance";
-import { isValidGeoPoint } from "@/lib/geo/coordinates";
+import { isValidGeoPoint, type GeoPoint } from "@/lib/geo/coordinates";
 import type { MapAvailabilityStatus, MapFiltersState, MapProfessional } from "@/lib/map/types";
 
-type NearbyRow = {
+type NearbyRow = GeoPoint & {
   id: string;
   first_name: string | null;
   last_name: string | null;
@@ -18,8 +18,6 @@ type NearbyRow = {
   identity_verified: boolean | null;
   biometric_verified: boolean | null;
   availability_status: string | null;
-  latitude: number;
-  longitude: number;
   distance_km: number | null;
   primary_service_profile: string | null;
 };
