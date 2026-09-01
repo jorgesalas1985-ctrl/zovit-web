@@ -70,7 +70,7 @@ describe("regulated services", () => {
 describe("worker validation", () => {
   it("requires personal fields before continuing", () => {
     const draft = createEmptyWorkerDraft();
-    assert.match(validatePersonalStep(draft) ?? "", /nombres/i);
+    assert.match(validatePersonalStep(draft) ?? "", /teléfono/i);
   });
 
   it("requires participation choice", () => {
