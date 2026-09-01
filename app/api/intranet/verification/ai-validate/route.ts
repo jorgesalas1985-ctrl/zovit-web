@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getIntranetReviewer } from "@/lib/intranet/apiAuth";
 import { processIdentityAiReview, processPendingIdentityAiReviews } from "@/lib/verification/processIdentityAiReview";
 
-async function authorize() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return false;
-  const { data: profile } = await supabase.from("profiles").select("intranet_role").eq("id", data.user.id).maybeSingle();
-  return profile?.intranet_role === "hr_admin" || profile?.intranet_role === "super_admin";
-}
-
 export async function GET() {
-  if (!(await authorize())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
+  if (!(await getIntranetReviewer())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
   const supabase = await createClient();
   const [{ count: pending }, { count: dudosos }] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("identity_status", "pending").or("identity_ai_status.is.null,identity_ai_status.eq.pending,identity_ai_status.eq.processing"),
@@ -22,7 +15,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    if (!(await authorize())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
+    if (!(await getIntranetReviewer())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     const body = await request.json() as { profileId?: string; limit?: number; includeDudosos?: boolean };
     if (body.profileId) {
       const result = await processIdentityAiReview(body.profileId);
