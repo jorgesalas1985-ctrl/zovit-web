@@ -1,10 +1,19 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { analyzeCarnetWithOpenAI } from "@/lib/verification/aiCarnetOcr";
-import { applyIdentityAiVerdict } from "@/lib/verification/applyIdentityAiVerdict";
+import { applyIdentityAiVerdict, type IdentityAiVerdictActor } from "@/lib/verification/applyIdentityAiVerdict";
 import { isValidStoragePathForUser } from "@/lib/security/validation";
 
 const MAX_BYTES = 4_500_000;
 const OCR_TIMEOUT_MS = 45_000;
+
+export type HumanIdentityAiVerdictActor = { kind: "human"; supabase: SupabaseClient };
+
+function automationVerdictActor(admin: ReturnType<typeof createAdminClient>): IdentityAiVerdictActor {
+  const automationSecret = process.env.ZOVIT_AI_AUTOMATION_RPC_SECRET?.trim();
+  if (!automationSecret) throw new Error("La persistencia automática de identidad no está configurada.");
+  return { kind: "automation", supabase: admin, automationSecret };
+}
 
 /** Evita que una imagen dañada o un worker OCR detenido deje la cuenta bloqueada indefinidamente. */
 async function withOcrTimeout<T>(work: Promise<T>): Promise<T> {
@@ -36,11 +45,12 @@ async function downloadIdentityFile(
   return { mime, base64: buffer.toString("base64") };
 }
 
-export async function processIdentityAiReview(profileId: string): Promise<{
+export async function processIdentityAiReview(profileId: string, actor?: HumanIdentityAiVerdictActor): Promise<{
   decision: "approved" | "rejected" | "dudoso";
   summary: string;
 }> {
   const admin = createAdminClient();
+  const verdictActor = actor ?? automationVerdictActor(admin);
 
   const { data: profile, error: profileError } = await admin
     .from("profiles")
@@ -115,7 +125,7 @@ export async function processIdentityAiReview(profileId: string): Promise<{
       files,
     }));
 
-    const result = await applyIdentityAiVerdict({ admin, profileId, verdict });
+    const result = await applyIdentityAiVerdict({ actor: verdictActor, profileId, verdict });
 
     const reviewedAt = new Date().toISOString();
     await Promise.all((documents ?? []).map(async (document) => {
@@ -180,7 +190,8 @@ export async function processIdentityAiReview(profileId: string): Promise<{
 
 export async function processPendingIdentityAiReviews(
   limit = 10,
-  options?: { includeDudosos?: boolean }
+  options?: { includeDudosos?: boolean },
+  actor?: HumanIdentityAiVerdictActor,
 ): Promise<{
   processed: number;
   approved: number;
@@ -209,7 +220,7 @@ export async function processPendingIdentityAiReviews(
   let dudoso = 0;
 
   for (const row of rows ?? []) {
-    const result = await processIdentityAiReview(row.id);
+    const result = await processIdentityAiReview(row.id, actor);
     if (result.decision === "approved") approved += 1;
     else if (result.decision === "rejected") rejected += 1;
     else dudoso += 1;

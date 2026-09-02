@@ -17,12 +17,14 @@ export async function POST(request: Request) {
   try {
     if (!(await getIntranetReviewer())) return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     const body = await request.json() as { profileId?: string; limit?: number; includeDudosos?: boolean };
+    const supabase = await createClient();
+    const actor = { kind: "human" as const, supabase };
     if (body.profileId) {
-      const result = await processIdentityAiReview(body.profileId);
+      const result = await processIdentityAiReview(body.profileId, actor);
       return NextResponse.json({ processed: 1, ...result });
     }
     const limit = Math.max(1, Math.min(15, Number(body.limit) || 8));
-    return NextResponse.json(await processPendingIdentityAiReviews(limit, { includeDudosos: Boolean(body.includeDudosos) }));
+    return NextResponse.json(await processPendingIdentityAiReviews(limit, { includeDudosos: Boolean(body.includeDudosos) }, actor));
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo procesar la cola OCR." }, { status: 500 });
   }
