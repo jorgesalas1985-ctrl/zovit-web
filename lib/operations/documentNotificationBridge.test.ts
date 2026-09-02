@@ -4,11 +4,15 @@ import test from "node:test";
 import { createDocumentEventNotifications } from "@/lib/operations/documentNotificationBridge";
 
 function createSupabaseMock(options?: { existing?: boolean }) {
-  const inserts: unknown[] = [];
+  const rpcCalls: unknown[] = [];
 
   return {
-    inserts,
+    rpcCalls,
     supabase: {
+      rpc(_name: string, payload: unknown) {
+        rpcCalls.push(payload);
+        return Promise.resolve({ data: options?.existing ? null : "notification-1", error: null });
+      },
       from(table: string) {
         if (table === "operational_document_events") {
           return {
@@ -44,38 +48,7 @@ function createSupabaseMock(options?: { existing?: boolean }) {
           };
         }
 
-        return {
-          select() {
-            return this;
-          },
-          eq() {
-            return this;
-          },
-          ilike() {
-            return this;
-          },
-          limit() {
-            return Promise.resolve({
-              data: options?.existing ? [{ id: "notification-old" }] : [],
-              error: null,
-            });
-          },
-          insert(payload: unknown) {
-            inserts.push(payload);
-            return {
-              select() {
-                return {
-                  maybeSingle() {
-                    return Promise.resolve({
-                      data: { id: "notification-1" },
-                      error: null,
-                    });
-                  },
-                };
-              },
-            };
-          },
-        };
+        throw new Error(`Unexpected table ${table}`);
       },
     },
   };
@@ -90,9 +63,8 @@ test("creates in-app notification from document reminder event", async () => {
   assert.equal(result.checked, 1);
   assert.equal(result.created, 1);
   assert.deepEqual(result.notificationIds, ["notification-1"]);
-  assert.equal(mock.inserts.length, 1);
-  assert.equal("semesterYear" in (mock.inserts[0] as Record<string, unknown>), false);
-  assert.equal("semester" in (mock.inserts[0] as Record<string, unknown>), false);
+  assert.equal(mock.rpcCalls.length, 1);
+  assert.equal((mock.rpcCalls[0] as Record<string, unknown>).p_event_id, "event-1");
 });
 
 test("skips notification when same title and body already exist", async () => {
@@ -103,5 +75,5 @@ test("skips notification when same title and body already exist", async () => {
 
   assert.equal(result.created, 0);
   assert.equal(result.skipped, 1);
-  assert.equal(mock.inserts.length, 0);
+  assert.equal(mock.rpcCalls.length, 1);
 });

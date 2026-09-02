@@ -52,27 +52,16 @@ export async function createDocumentEventNotifications(input: {
   const notificationIds: string[] = [];
 
   for (const notification of notifications) {
-    const exists = await notificationExists(input.supabase, notification);
-    if (exists.error) {
-      return buildResult({
-        checked: events.length,
-        created,
-        skipped,
-        notificationIds,
-        error: exists.error,
-      });
-    }
-
-    if (exists.exists) {
-      skipped += 1;
-      continue;
-    }
-
-    const { data: inserted, error: insertError } = await input.supabase
-      .from("notifications")
-      .insert(toNotificationInsertPayload(notification))
-      .select("id")
-      .maybeSingle();
+    const { data: inserted, error: insertError } = await input.supabase.rpc(
+      "intranet_create_document_event_notification",
+      {
+        p_event_id: notification.eventId,
+        p_recipient_id: notification.user_id,
+        p_notification_kind: notification.eventType,
+        p_title: notification.title,
+        p_body: notification.body,
+      },
+    );
 
     if (insertError) {
       return buildResult({
@@ -84,9 +73,8 @@ export async function createDocumentEventNotifications(input: {
       });
     }
 
-    created += 1;
-    const id = (inserted as { id?: string } | null)?.id;
-    if (id) notificationIds.push(id);
+    const id = typeof inserted === "string" ? inserted : null;
+    if (id) { created += 1; notificationIds.push(id); } else skipped += 1;
   }
 
   return buildResult({
@@ -110,6 +98,8 @@ type DocumentNotificationEventRow = {
 };
 
 type NotificationInsert = {
+  eventId: string;
+  eventType: DocumentNotificationEventType;
   user_id: string;
   request_id: null;
   title: string;
@@ -117,8 +107,6 @@ type NotificationInsert = {
   semesterYear: number;
   semester: "S1" | "S2";
 };
-
-type NotificationInsertPayload = Omit<NotificationInsert, "semesterYear" | "semester">;
 
 function buildNotificationInsert(event: DocumentNotificationEventRow): NotificationInsert {
   const deadlineAt =
@@ -129,6 +117,8 @@ function buildNotificationInsert(event: DocumentNotificationEventRow): Notificat
 
   if (event.event_type === "semester_suspension_ready") {
     return {
+      eventId: event.id,
+      eventType: event.event_type as DocumentNotificationEventType,
       user_id: event.profile_id,
       request_id: null,
       title: "Cuenta pendiente por documentos",
@@ -145,6 +135,8 @@ function buildNotificationInsert(event: DocumentNotificationEventRow): Notificat
   }
 
   return {
+    eventId: event.id,
+    eventType: event.event_type as DocumentNotificationEventType,
     user_id: event.profile_id,
     request_id: null,
     title: "Renueva tus documentos ZOVIT",
@@ -158,31 +150,6 @@ function buildNotificationInsert(event: DocumentNotificationEventRow): Notificat
       .join(" "),
     semesterYear: event.semester_year,
     semester: event.semester,
-  };
-}
-
-async function notificationExists(
-  supabase: SupabaseClient,
-  notification: NotificationInsert,
-): Promise<{ exists: boolean; error: string | null }> {
-  const { data, error } = await supabase
-    .from("notifications")
-    .select("id")
-    .eq("user_id", notification.user_id)
-    .eq("title", notification.title)
-    .ilike("body", `%semestre ${notification.semesterYear}-${notification.semester}%`)
-    .limit(1);
-
-  if (error) return { exists: false, error: error.message };
-  return { exists: (data ?? []).length > 0, error: null };
-}
-
-function toNotificationInsertPayload(notification: NotificationInsert): NotificationInsertPayload {
-  return {
-    user_id: notification.user_id,
-    request_id: notification.request_id,
-    title: notification.title,
-    body: notification.body,
   };
 }
 
