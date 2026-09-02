@@ -57,33 +57,11 @@ function createSupabaseMock(existingProfileIds: string[] = []) {
   return {
     inserts,
     supabase: {
-      from(table: string) {
-        if (table !== "operational_document_events") {
-          throw new Error(`Unexpected table ${table}`);
-        }
-
-        return {
-          select() {
-            return this;
-          },
-          eq() {
-            return this;
-          },
-          in() {
-            return Promise.resolve({
-              data: existingProfileIds.map((profile_id) => ({ profile_id })),
-              error: null,
-            });
-          },
-          insert(events: unknown[]) {
-            inserts.push(...events);
-            return {
-              select() {
-                return Promise.resolve({ data: [{ id: "event-1" }], error: null });
-              },
-            };
-          },
-        };
+      rpc(name: string, params: unknown) {
+        assert.equal(name, "intranet_create_semester_document_event");
+        inserts.push(params);
+        const profileId = (params as { p_profile_id: string }).p_profile_id;
+        return Promise.resolve({ data: [{ event_id: "event-1", created: !existingProfileIds.includes(profileId) }], error: null });
       },
     },
   };
@@ -101,9 +79,9 @@ test("prepares renewal reminder events for due soon profiles", async () => {
   assert.equal(result.skipped, 0);
   assert.deepEqual(result.eventIds, ["event-1"]);
   assert.equal(mock.inserts.length, 1);
-  const event = (mock.inserts[0] as Record<string, unknown>[])[0] as Record<string, unknown>;
-  assert.equal(event.semester_year, 2026);
-  assert.equal(event.semester, "S2");
+  const event = mock.inserts[0] as Record<string, unknown>;
+  assert.equal(event.p_semester_year, 2026);
+  assert.equal(event.p_semester, "S2");
 });
 
 test("skips reminder events already prepared", async () => {
@@ -115,5 +93,5 @@ test("skips reminder events already prepared", async () => {
 
   assert.equal(result.prepared, 0);
   assert.equal(result.skipped, 1);
-  assert.equal(mock.inserts.length, 0);
+  assert.equal(mock.inserts.length, 1);
 });

@@ -54,63 +54,17 @@ export async function prepareDocumentRenewalReminderEvents(input: {
     });
   }
 
-  const existingResult = await loadExistingReminderEvents(input.supabase, {
-    profileIds: candidates.map((profile) => profile.profileId),
-    year: dashboard.period.year,
-    semester: dashboard.period.code,
-  });
-
-  if (existingResult.error) {
-    return buildResult({
-      checked: dashboard.totalProfiles,
-      prepared: 0,
-      skipped: 0,
-      eventIds: [],
-      error: existingResult.error,
-    });
-  }
-
-  const pending = candidates.filter(
-    (profile) => !existingResult.profileIds.has(profile.profileId),
-  );
-
-  if (!pending.length) {
-    return buildResult({
-      checked: dashboard.totalProfiles,
-      prepared: 0,
-      skipped: candidates.length,
-      eventIds: [],
-      error: null,
-    });
-  }
-
-  const events = pending.map((profile) =>
+  const events = candidates.map((profile) =>
     buildReminderEvent(profile, input.actorId, input.actorType),
   );
-  const { data, error } = await input.supabase
-    .from("operational_document_events")
-    .insert(events)
-    .select("id");
-
-  if (error) {
-    return buildResult({
-      checked: dashboard.totalProfiles,
-      prepared: 0,
-      skipped: candidates.length - pending.length,
-      eventIds: [],
-      error: error.message,
-    });
-  }
-
-  const eventIds = ((data ?? []) as { id?: string }[])
-    .map((row) => row.id)
-    .filter((id): id is string => Boolean(id));
+  const persisted = await persistSemesterEvents(input.supabase, events);
+  if (persisted.error) return buildResult({ checked: dashboard.totalProfiles, prepared: 0, skipped: 0, eventIds: [], error: persisted.error });
 
   return buildResult({
     checked: dashboard.totalProfiles,
-    prepared: pending.length,
-    skipped: candidates.length - pending.length,
-    eventIds,
+    prepared: persisted.created,
+    skipped: candidates.length - persisted.created,
+    eventIds: persisted.eventIds,
     error: null,
   });
 }
@@ -140,32 +94,20 @@ function buildReminderEvent(
   });
 }
 
-async function loadExistingReminderEvents(
-  supabase: SupabaseClient,
-  input: {
-    profileIds: string[];
-    year: number;
-    semester: "S1" | "S2";
-  },
-): Promise<{ profileIds: Set<string>; error: string | null }> {
-  const { data, error } = await supabase
-    .from("operational_document_events")
-    .select("profile_id")
-    .eq("event_type", "semester_renewal_reminder")
-    .eq("semester_year", input.year)
-    .eq("semester", input.semester)
-    .in("profile_id", input.profileIds);
-
-  if (error) return { profileIds: new Set(), error: error.message };
-
-  return {
-    profileIds: new Set(
-      ((data ?? []) as { profile_id?: string }[])
-        .map((row) => row.profile_id)
-        .filter((id): id is string => Boolean(id)),
-    ),
-    error: null,
-  };
+async function persistSemesterEvents(supabase: SupabaseClient, events: ReturnType<typeof buildReminderEvent>[]) {
+  const eventIds: string[] = []; let created = 0;
+  for (const event of events) {
+    const { data, error } = await supabase.rpc("intranet_create_semester_document_event", {
+      p_profile_id: event.profile_id, p_event_type: event.event_type, p_semester_year: event.semester_year,
+      p_semester: event.semester, p_actor_id: event.actor_id ?? null, p_actor_type: event.actor_type,
+      p_summary: event.summary, p_metadata: event.metadata,
+    });
+    if (error) return { created: 0, eventIds: [], error: error.message };
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row?.event_id) eventIds.push(row.event_id as string);
+    if (row?.created) created += 1;
+  }
+  return { created, eventIds, error: null };
 }
 
 function buildResult(
