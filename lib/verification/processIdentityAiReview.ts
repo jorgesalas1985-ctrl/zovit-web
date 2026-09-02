@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { analyzeCarnetWithOpenAI } from "@/lib/verification/aiCarnetOcr";
-import { applyIdentityAiVerdict, type IdentityAiVerdictActor } from "@/lib/verification/applyIdentityAiVerdict";
+import { applyIdentityAiVerdict, type IdentityAiDocumentMetadata, type IdentityAiVerdictActor } from "@/lib/verification/applyIdentityAiVerdict";
 import { isValidStoragePathForUser } from "@/lib/security/validation";
 
 const MAX_BYTES = 4_500_000;
@@ -45,7 +45,11 @@ async function downloadIdentityFile(
   return { mime, base64: buffer.toString("base64") };
 }
 
-export async function processIdentityAiReview(profileId: string, actor?: HumanIdentityAiVerdictActor): Promise<{
+export async function processIdentityAiReview(
+  profileId: string,
+  actor?: HumanIdentityAiVerdictActor,
+  claimToken?: string,
+): Promise<{
   decision: "approved" | "rejected" | "dudoso";
   summary: string;
 }> {
@@ -70,6 +74,10 @@ export async function processIdentityAiReview(profileId: string, actor?: HumanId
   }
 
   if (!profile.rut || !profile.birth_date) {
+    if (claimToken && verdictActor.kind === "automation") {
+      await failAutomatedIdentityClaim(verdictActor, profileId, claimToken, "Falta RUT o fecha de nacimiento declarada.");
+      return { decision: "dudoso", summary: "Falta RUT o fecha de nacimiento." };
+    }
     await admin
       .from("profiles")
       .update({
@@ -82,15 +90,17 @@ export async function processIdentityAiReview(profileId: string, actor?: HumanId
     return { decision: "dudoso", summary: "Falta RUT o fecha de nacimiento." };
   }
 
-  await admin
-    .from("profiles")
-    .update({
-      identity_ai_status: "processing",
-      identity_ai_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", profileId)
-    .eq("identity_status", "pending");
+  if (!claimToken) {
+    await admin
+      .from("profiles")
+      .update({
+        identity_ai_status: "processing",
+        identity_ai_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", profileId)
+      .eq("identity_status", "pending");
+  }
 
   const { data: documents, error: docsError } = await admin
     .from("identity_documents")
@@ -125,10 +135,9 @@ export async function processIdentityAiReview(profileId: string, actor?: HumanId
       files,
     }));
 
-    const result = await applyIdentityAiVerdict({ actor: verdictActor, profileId, verdict });
-
     const reviewedAt = new Date().toISOString();
-    await Promise.all((documents ?? []).map(async (document) => {
+    const documentMetadata: IdentityAiDocumentMetadata = {};
+    for (const document of documents ?? []) {
       const previousMetadata =
         document.metadata && typeof document.metadata === "object"
           ? (document.metadata as Record<string, unknown>)
@@ -153,27 +162,33 @@ export async function processIdentityAiReview(profileId: string, actor?: HumanId
           }
         : {};
 
-      const { error: metadataError } = await admin
-        .from("identity_documents")
-        .update({
-          metadata: {
-            ...previousMetadata,
-            ...frontMetadata,
-            aiDocumentLooksLikeChileanId: documentAssessment?.looksLikeChileanId ?? false,
-            aiDocumentConfidence: documentAssessment?.confidence ?? 0,
-            aiDocumentReasons: documentAssessment?.reasons ?? ["OCR no pudo evaluar el documento"],
-            aiReviewedAt: reviewedAt,
-          },
-          updated_at: reviewedAt,
-        })
-        .eq("id", document.id)
-        .eq("profile_id", profileId);
-      if (metadataError) throw metadataError;
-    }));
+      documentMetadata[document.id] = {
+        ...previousMetadata,
+        ...frontMetadata,
+        aiDocumentLooksLikeChileanId: documentAssessment?.looksLikeChileanId ?? false,
+        aiDocumentConfidence: documentAssessment?.confidence ?? 0,
+        aiDocumentReasons: documentAssessment?.reasons ?? ["OCR no pudo evaluar el documento"],
+        aiReviewedAt: reviewedAt,
+      };
+    }
+    const result = await applyIdentityAiVerdict({
+      actor: verdictActor,
+      profileId,
+      verdict,
+      claimToken,
+      documentMetadata,
+    });
+    if (!claimToken) {
+      await persistDocumentMetadata(admin, profileId, documentMetadata, reviewedAt);
+    }
 
     return { decision: result.applied, summary: verdict.summary };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error IA carnet";
+    if (claimToken && verdictActor.kind === "automation") {
+      await failAutomatedIdentityClaim(verdictActor, profileId, claimToken, message);
+      return { decision: "dudoso", summary: message };
+    }
     await admin
       .from("profiles")
       .update({
@@ -186,6 +201,36 @@ export async function processIdentityAiReview(profileId: string, actor?: HumanId
       .eq("identity_status", "pending");
     return { decision: "dudoso", summary: message };
   }
+}
+
+async function persistDocumentMetadata(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  metadata: IdentityAiDocumentMetadata,
+  reviewedAt: string,
+) {
+  await Promise.all(Object.entries(metadata).map(async ([documentId, value]) => {
+    const { error } = await admin.from("identity_documents")
+      .update({ metadata: value, updated_at: reviewedAt })
+      .eq("id", documentId)
+      .eq("profile_id", profileId);
+    if (error) throw error;
+  }));
+}
+
+async function failAutomatedIdentityClaim(
+  actor: Extract<IdentityAiVerdictActor, { kind: "automation" }>,
+  profileId: string,
+  claimToken: string,
+  summary: string,
+) {
+  const { error } = await actor.supabase.rpc("intranet_fail_identity_ai_review_claim", {
+    p_profile_id: profileId,
+    p_claim_token: claimToken,
+    p_summary: summary,
+    p_automation_secret: actor.automationSecret,
+  });
+  if (error) throw error;
 }
 
 export async function processPendingIdentityAiReviews(
@@ -219,15 +264,26 @@ export async function processPendingIdentityAiReviews(
   let rejected = 0;
   let dudoso = 0;
 
+  let processed = 0;
   for (const row of rows ?? []) {
-    const result = await processIdentityAiReview(row.id, actor);
+    let claimToken: string | undefined;
+    if (!actor) {
+      const { data, error: claimError } = await admin.rpc("intranet_claim_identity_ai_review", {
+        p_profile_id: row.id,
+        p_include_dudosos: Boolean(options?.includeDudosos),
+      });
+      if (claimError || !data) continue;
+      claimToken = data as string;
+    }
+    const result = await processIdentityAiReview(row.id, actor, claimToken);
+    processed += 1;
     if (result.decision === "approved") approved += 1;
     else if (result.decision === "rejected") rejected += 1;
     else dudoso += 1;
   }
 
   return {
-    processed: (rows ?? []).length,
+    processed,
     approved,
     rejected,
     dudoso,

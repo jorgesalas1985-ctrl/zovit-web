@@ -5,8 +5,16 @@ export type IdentityAiVerdictActor =
   | { kind: "human"; supabase: SupabaseClient }
   | { kind: "automation"; supabase: SupabaseClient; automationSecret: string };
 
-export async function applyIdentityAiVerdict(params: { actor: IdentityAiVerdictActor; profileId: string; verdict: CarnetOcrVerdict }) {
-  const { actor, profileId, verdict } = params;
+export type IdentityAiDocumentMetadata = Record<string, Record<string, unknown>>;
+
+export async function applyIdentityAiVerdict(params: {
+  actor: IdentityAiVerdictActor;
+  profileId: string;
+  verdict: CarnetOcrVerdict;
+  claimToken?: string;
+  documentMetadata?: IdentityAiDocumentMetadata;
+}) {
+  const { actor, profileId, verdict, claimToken, documentMetadata } = params;
   const common = {
     p_profile_id: profileId, p_decision: verdict.decision, p_summary: verdict.summary,
     p_confidence: verdict.confidence, p_forgery_risk: verdict.forgeryRisk,
@@ -15,7 +23,14 @@ export async function applyIdentityAiVerdict(params: { actor: IdentityAiVerdictA
   };
   const { data, error } = actor.kind === "human"
     ? await actor.supabase.rpc("intranet_apply_identity_ai_verdict_human", common)
-    : await actor.supabase.rpc("intranet_apply_identity_ai_verdict_automation", { ...common, p_automation_secret: actor.automationSecret });
+    : claimToken
+      ? await actor.supabase.rpc("intranet_apply_identity_ai_verdict_automation_claimed", {
+          ...common,
+          p_claim_token: claimToken,
+          p_automation_secret: actor.automationSecret,
+          p_document_metadata: documentMetadata ?? {},
+        })
+      : await actor.supabase.rpc("intranet_apply_identity_ai_verdict_automation", { ...common, p_automation_secret: actor.automationSecret });
   if (error) throw error;
   if (data !== "approved" && data !== "rejected" && data !== "dudoso") throw new Error("El veredicto de identidad no devolvió un estado válido.");
   return { applied: data };
