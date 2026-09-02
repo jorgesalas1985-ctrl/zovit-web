@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { loadDocumentComplianceDashboard } from "@/lib/operations/documentComplianceDashboard";
+import { advanceDocumentComplianceCursor, getDocumentComplianceCursor, loadDocumentComplianceDashboard } from "@/lib/operations/documentComplianceDashboard";
 import {
   closeResolvedDocumentNotifications,
   type DocumentNotificationCleanupResult,
@@ -19,8 +19,10 @@ export async function closeResolvedDocumentNotificationsBatch(input: {
   supabase: SupabaseClient;
   limit?: number;
 }): Promise<DocumentNotificationCleanupBatchResult> {
+  const cursor = await getDocumentComplianceCursor(input.supabase, "document_notification_cleanup");
   const dashboard = await loadDocumentComplianceDashboard(input.supabase, {
     limit: input.limit ?? 50,
+    cursor,
   });
 
   if (dashboard.error) {
@@ -48,6 +50,7 @@ export async function closeResolvedDocumentNotificationsBatch(input: {
     });
     items.push({ ...result, profileId: profile.profileId });
   }
+  await advanceDocumentComplianceCursor(input.supabase, "document_notification_cleanup", dashboard.nextCursor ?? null);
 
   return buildResult({
     checkedProfiles: candidates.length,

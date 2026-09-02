@@ -15,6 +15,7 @@ export type DocumentComplianceProfile = {
   role: string | null;
   primaryServiceProfile: string | null;
   workerRegistrationStatus: string | null;
+  cursorCreatedAt?: string;
   compliance: DocumentSemesterCompliance;
 };
 
@@ -30,7 +31,11 @@ export type DocumentComplianceDashboard = {
   topProfiles: DocumentComplianceProfile[];
   error: string | null;
   summary: string;
+  nextCursor?: DocumentComplianceCursor | null;
 };
+
+export type DocumentComplianceCursor = { createdAt: string; profileId: string };
+export type DocumentComplianceWorkflow = "document_reminders" | "document_suspensions" | "document_notification_cleanup";
 
 export async function loadDocumentComplianceDashboard(
   supabase: SupabaseClient,
@@ -38,12 +43,13 @@ export async function loadDocumentComplianceDashboard(
     limit?: number;
     requiredKinds?: OperationalDocumentKind[];
     now?: Date;
+    cursor?: DocumentComplianceCursor | null;
   },
 ): Promise<DocumentComplianceDashboard> {
   const limit = normalizeLimit(input?.limit);
   const requiredKinds = input?.requiredKinds ?? ["identity", "credential"];
   const period = resolveDocumentCompliancePeriod(input?.now);
-  const profilesResult = await loadOperationalProfiles(supabase, limit);
+  const profilesResult = await loadOperationalProfiles(supabase, limit, input?.cursor);
 
   if (profilesResult.error) {
     return emptyDashboard(period, profilesResult.error);
@@ -87,6 +93,9 @@ export async function loadDocumentComplianceDashboard(
     topProfiles: orderedProfiles.slice(0, Math.min(limit, 8)),
     error: null,
     summary: buildSummary(profiles.length, orderedProfiles),
+    nextCursor: profilesResult.items.length === limit
+      ? { createdAt: profilesResult.items.at(-1)!.cursorCreatedAt!, profileId: profilesResult.items.at(-1)!.profileId }
+      : null,
   };
 }
 
@@ -97,6 +106,7 @@ type OperationalProfileRow = {
   role: string | null;
   primary_service_profile: string | null;
   worker_registration_status: string | null;
+  created_at: string;
 };
 
 type OperationalDocumentRow = {
@@ -112,13 +122,17 @@ type OperationalDocumentRow = {
 
 async function loadOperationalProfiles(
   supabase: SupabaseClient,
-  limit: number,
+  limit: number, cursor?: DocumentComplianceCursor | null,
 ): Promise<{ items: Omit<DocumentComplianceProfile, "compliance">[]; error: string | null }> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("profiles")
-    .select("id,first_name,last_name,role,primary_service_profile,worker_registration_status")
+    .select("id,first_name,last_name,role,primary_service_profile,worker_registration_status,created_at")
     .in("worker_registration_status", ["submitted", "approved", "needs_info"])
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
     .limit(limit);
+  if (cursor) query = query.or(`created_at.gt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.gt.${cursor.profileId})`);
+  const { data, error } = await query;
 
   if (error) return { items: [], error: error.message };
 
@@ -159,7 +173,24 @@ function mapProfileRow(row: OperationalProfileRow): Omit<DocumentComplianceProfi
     role: row.role,
     primaryServiceProfile: row.primary_service_profile,
     workerRegistrationStatus: row.worker_registration_status,
+    cursorCreatedAt: row.created_at,
   };
+}
+
+export async function getDocumentComplianceCursor(supabase: SupabaseClient, workflow: DocumentComplianceWorkflow): Promise<DocumentComplianceCursor | null> {
+  const { data, error } = await supabase.rpc("intranet_get_operational_batch_cursor", { p_workflow: workflow });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row?.cursor_created_at && row?.cursor_profile_id
+    ? { createdAt: row.cursor_created_at as string, profileId: row.cursor_profile_id as string }
+    : null;
+}
+
+export async function advanceDocumentComplianceCursor(supabase: SupabaseClient, workflow: DocumentComplianceWorkflow, cursor: DocumentComplianceCursor | null) {
+  const { error } = await supabase.rpc("intranet_advance_operational_batch_cursor", {
+    p_workflow: workflow, p_cursor_created_at: cursor?.createdAt ?? null, p_cursor_profile_id: cursor?.profileId ?? null,
+  });
+  if (error) throw error;
 }
 
 function mapDocumentRow(

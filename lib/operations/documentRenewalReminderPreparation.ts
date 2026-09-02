@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   loadDocumentComplianceDashboard,
+  getDocumentComplianceCursor,
+  advanceDocumentComplianceCursor,
   type DocumentComplianceDashboard,
   type DocumentComplianceProfile,
 } from "@/lib/operations/documentComplianceDashboard";
@@ -26,9 +28,10 @@ export async function prepareDocumentRenewalReminderEvents(input: {
   limit?: number;
   dashboard?: DocumentComplianceDashboard;
 }): Promise<DocumentRenewalReminderPreparationResult> {
+  const cursor = input.dashboard ? null : await getDocumentComplianceCursor(input.supabase, "document_reminders");
   const dashboard =
     input.dashboard ??
-    (await loadDocumentComplianceDashboard(input.supabase, { limit: input.limit ?? 50 }));
+    (await loadDocumentComplianceDashboard(input.supabase, { limit: input.limit ?? 50, cursor }));
 
   if (dashboard.error) {
     return buildResult({
@@ -45,6 +48,7 @@ export async function prepareDocumentRenewalReminderEvents(input: {
   );
 
   if (!candidates.length) {
+    if (!input.dashboard) await advanceDocumentComplianceCursor(input.supabase, "document_reminders", dashboard.nextCursor ?? null);
     return buildResult({
       checked: dashboard.totalProfiles,
       prepared: 0,
@@ -59,6 +63,7 @@ export async function prepareDocumentRenewalReminderEvents(input: {
   );
   const persisted = await persistSemesterEvents(input.supabase, events);
   if (persisted.error) return buildResult({ checked: dashboard.totalProfiles, prepared: 0, skipped: 0, eventIds: [], error: persisted.error });
+  if (!input.dashboard) await advanceDocumentComplianceCursor(input.supabase, "document_reminders", dashboard.nextCursor ?? null);
 
   return buildResult({
     checked: dashboard.totalProfiles,
