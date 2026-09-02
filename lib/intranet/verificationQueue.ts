@@ -5,6 +5,16 @@ import type { PendingVerificationUser } from "@/lib/verification/types";
 const REQUIRED_BIOMETRIC_DOCUMENTS = new Set(["cedula_front", "cedula_back", "selfie", "liveness_proof"]);
 const OCR_STALE_AFTER_MS = 2 * 60 * 1000;
 const MANUAL_APPROVAL_NOTE = "Aprobado en revisión manual; carnet, selfie y prueba de vida corroborados visualmente.";
+const VERIFICATION_QUEUE_PAGE_SIZE = 50;
+
+export type VerificationQueueCursor = { submittedAt: string; id: string };
+
+export function parseVerificationQueueCursor(value: string | null): VerificationQueueCursor | null {
+  if (!value) return null;
+  const [submittedAt, id] = value.split("|");
+  if (!submittedAt || !id || Number.isNaN(Date.parse(submittedAt))) return null;
+  return { submittedAt, id };
+}
 
 /**
  * Protege una aprobación manual ya terminada de procesos antiguos que puedan
@@ -14,11 +24,19 @@ const MANUAL_APPROVAL_NOTE = "Aprobado en revisión manual; carnet, selfie y pru
  */
 async function repairCompletedManualApprovals() {
   const admin = createAdminClient();
+  const { data: profilePage, error: candidatesError } = await admin
+    .from("profiles").select("id").eq("identity_status", "pending")
+    .order("identity_submitted_at", { ascending: true }).order("id", { ascending: true })
+    .limit(VERIFICATION_QUEUE_PAGE_SIZE);
+  if (candidatesError) throw candidatesError;
+  const profileIds = (profilePage ?? []).map((row) => row.id);
+  if (!profileIds.length) return;
   const { data: documents, error: documentsError } = await admin
     .from("identity_documents")
     .select("profile_id,document_type,status,admin_notes")
     .in("document_type", [...REQUIRED_BIOMETRIC_DOCUMENTS])
-    .eq("status", "approved");
+    .eq("status", "approved")
+    .in("profile_id", profileIds);
   if (documentsError) throw documentsError;
 
   const byProfile = new Map<string, Array<{ document_type: string; admin_notes: string | null }>>();
@@ -84,11 +102,18 @@ async function recoverStaleOcrReviews() {
 /** Recupera solo registros antiguos que ya tienen los cuatro archivos biométricos cargados. */
 async function reconcileUploadedBiometricProfiles() {
   const admin = createAdminClient();
+  const { data: profilePage, error: candidatesError } = await admin
+    .from("profiles").select("id").eq("identity_status", "none")
+    .order("id", { ascending: true }).limit(VERIFICATION_QUEUE_PAGE_SIZE);
+  if (candidatesError) throw candidatesError;
+  const profileIds = (profilePage ?? []).map((row) => row.id);
+  if (!profileIds.length) return;
   const { data: documents, error: documentsError } = await admin
     .from("identity_documents")
     .select("profile_id,document_type")
     .eq("status", "uploaded")
-    .in("document_type", [...REQUIRED_BIOMETRIC_DOCUMENTS]);
+    .in("document_type", [...REQUIRED_BIOMETRIC_DOCUMENTS])
+    .in("profile_id", profileIds);
 
   if (documentsError) throw documentsError;
 
@@ -120,18 +145,24 @@ async function reconcileUploadedBiometricProfiles() {
   if (error) throw error;
 }
 
-export async function listPendingVerificationUsers(): Promise<PendingVerificationUser[]> {
+export async function listPendingVerificationUsers(input?: { cursor?: VerificationQueueCursor | null }): Promise<PendingVerificationUser[]> {
   const admin = createAdminClient();
   await repairCompletedManualApprovals();
   await reconcileUploadedBiometricProfiles();
   await recoverStaleOcrReviews();
-  const { data: profiles, error } = await admin
+  let query = admin
     .from("profiles")
     .select(
       "id,first_name,last_name,rut,birth_date,birth_date_carnet_confirmed,role,intranet_role,identity_submitted_at,identity_ai_status,identity_ai_summary,identity_ai_confidence,identity_ai_forgery_risk,identity_ai_extracted_rut,identity_ai_extracted_birth_date",
     )
     .eq("identity_status", "pending")
-    .order("identity_submitted_at", { ascending: true });
+    .order("identity_submitted_at", { ascending: true, nullsFirst: false })
+    .order("id", { ascending: true })
+    .limit(VERIFICATION_QUEUE_PAGE_SIZE);
+  if (input?.cursor) {
+    query = query.or(`identity_submitted_at.gt.${input.cursor.submittedAt},and(identity_submitted_at.eq.${input.cursor.submittedAt},id.gt.${input.cursor.id})`);
+  }
+  const { data: profiles, error } = await query;
 
   if (error) throw error;
 

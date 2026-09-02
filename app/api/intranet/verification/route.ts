@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { listOcrCheckedVerificationUsers, listPendingVerificationUsers } from "@/lib/intranet/verificationQueue";
+import { listOcrCheckedVerificationUsers, listPendingVerificationUsers, parseVerificationQueueCursor } from "@/lib/intranet/verificationQueue";
 import { getIntranetReviewer } from "@/lib/intranet/apiAuth";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     if (!(await getIntranetReviewer())) {
       return NextResponse.json({ error: "Acceso no autorizado." }, { status: 403 });
     }
     const [pending, checked] = await Promise.all([
-      listPendingVerificationUsers(),
+      listPendingVerificationUsers({ cursor: parseVerificationQueueCursor(new URL(request.url).searchParams.get("cursor")) }),
       listOcrCheckedVerificationUsers(),
     ]);
     return NextResponse.json({ pending, checked });
