@@ -93,18 +93,36 @@ export async function confirmPaymentReceived(
   if (paymentRow.status === "cancelado" && input.provider === "mercadopago") {
     const mpRef = input.providerReference;
     if (mpRef && /^\d+$/.test(mpRef)) {
-      const provider = getPaymentProvider("mercadopago");
-      await provider.refund(mpRef);
-      await admin.from("payment_events").insert({
-        payment_id: paymentRow.id,
-        event_type: "auto_refund_after_cancel",
-        old_status: "cancelado",
-        new_status: "cancelado",
-        metadata: {
-          provider_reference: mpRef,
-          reason: "Pago MP recibido tras cancelación de la orden ZOVIT",
-        },
+      const { data: claimData, error: claimError } = await admin.rpc("intranet_claim_cancelled_payment_refund", {
+        p_payment_id: paymentRow.id,
+        p_provider_payment_id: mpRef,
       });
+      if (claimError) throw new PaymentConfirmationError(claimError.message);
+      const claim = (claimData as Array<{ claim_token: string; status: string }> | null)?.[0];
+      if (!claim || claim.status === "completed") {
+        return { alreadyProcessed: true, status: "cancelado", autoRefunded: true };
+      }
+      const { error: submittedError } = await admin.rpc("intranet_mark_cancelled_payment_refund_submitted", {
+        p_claim_token: claim.claim_token,
+      });
+      if (submittedError) throw new PaymentConfirmationError(submittedError.message);
+      const provider = getPaymentProvider("mercadopago");
+      let refund;
+      try {
+        refund = await provider.refund(mpRef);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Error desconocido al reembolsar.";
+        const status = /timeout|timed out|network|fetch/i.test(message) ? "uncertain" : "failed";
+        await admin.rpc("intranet_record_cancelled_payment_refund_failure", {
+          p_claim_token: claim.claim_token, p_status: status, p_error: message.slice(0, 500),
+        });
+        throw error;
+      }
+      const { error: completeError } = await admin.rpc("intranet_complete_cancelled_payment_refund", {
+        p_claim_token: claim.claim_token,
+        p_provider_refund_id: refund.reference,
+      });
+      if (completeError) throw new PaymentConfirmationError(completeError.message);
       return { alreadyProcessed: true, status: "cancelado", autoRefunded: true };
     }
     throw new PaymentConfirmationError(
