@@ -81,10 +81,20 @@ export async function processLocalOcrBatch(
       continue;
     }
 
+    const { data: claimToken, error: claimError } = await input.supabase.rpc(
+      "intranet_claim_local_ocr_document",
+      { p_document_id: item.documentId },
+    );
+    if (claimError || !claimToken) {
+      skipped += 1;
+      continue;
+    }
+
     attempted += 1;
     const result = await processDocument({
       supabase: input.supabase,
       documentId: item.documentId,
+      claimToken: claimToken as string,
       actorId: input.actorId,
       actorType: input.actorType,
     });

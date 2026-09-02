@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  buildOperationalDocumentEventInsert,
   type OperationalDocumentActorType,
   type OperationalDocumentKind,
   type OperationalDocumentStatus,
@@ -24,9 +23,13 @@ export type LocalOcrProcessResult = {
 export async function processDocumentWithLocalOcr(input: {
   supabase: SupabaseClient;
   documentId: string;
+  claimToken?: string;
   actorId?: string | null;
   actorType?: OperationalDocumentActorType;
 }): Promise<LocalOcrProcessResult> {
+  if (!input.claimToken) {
+    return failure(input.documentId, "Se requiere un claim OCR activo para procesar el documento.");
+  }
   const { data: documentRow, error: loadError } = await input.supabase
     .from("operational_documents")
     .select(
@@ -50,6 +53,7 @@ export async function processDocumentWithLocalOcr(input: {
     return markManualReview({
       supabase: input.supabase,
       document,
+      claimToken: input.claimToken,
       actorId: input.actorId,
       actorType: input.actorType,
       reason: "El OCR local inicial solo procesa imagenes. PDF queda para revision manual o conversion local futura.",
@@ -77,61 +81,33 @@ export async function processDocumentWithLocalOcr(input: {
     ? "manual_review_requested"
     : "ocr_completed";
 
-  const { error: updateError } = await input.supabase
-    .from("operational_documents")
-    .update({
-      status: needsManualReview ? "needs_manual_review" : "ocr_completed",
-      extracted_data: {
-        text: extract.text,
-        extractedRut: extract.extractedRut,
-        extractedBirthDate: extract.extractedBirthDate,
-      },
-      validation_summary: {
-        source: "local_tesseract",
-        confidence: extract.confidence,
-        forgeryRisk: extract.forgeryRisk,
-        documentLooksLikeChileanId: extract.documentLooksLikeChileanId,
-        requiresManualReview: needsManualReview,
-        reasons: extract.reasons,
-      },
-      ocr_engine: "local_tesseract",
-      ocr_processed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", document.id);
-
-  if (updateError) return failure(input.documentId, updateError.message);
-
-  const event = buildOperationalDocumentEventInsert({
-    documentId: document.id,
-    profileId: document.profileId,
-    eventType: needsManualReview ? "manual_review_requested" : "ocr_completed",
-    actorId: input.actorId,
-    actorType: input.actorType ?? "operations",
-    semesterYear: document.semesterYear,
-    semester: document.semester,
-    metadata: {
+  const eventMetadata = {
       engine: "local_tesseract",
       confidence: extract.confidence,
       forgeryRisk: extract.forgeryRisk,
       requiresManualReview: needsManualReview,
       reasons: extract.reasons,
-    },
-  });
-  const { data: eventRow, error: eventError } = await input.supabase
-    .from("operational_document_events")
-    .insert(event)
-    .select("id")
-    .maybeSingle();
-
-  if (eventError) return failure(input.documentId, eventError.message);
+    };
+  const eventId = await persistOcrResult(input, document, status, {
+    text: extract.text,
+    extractedRut: extract.extractedRut,
+    extractedBirthDate: extract.extractedBirthDate,
+  }, {
+    source: "local_tesseract",
+    confidence: extract.confidence,
+    forgeryRisk: extract.forgeryRisk,
+    documentLooksLikeChileanId: extract.documentLooksLikeChileanId,
+    requiresManualReview: needsManualReview,
+    reasons: extract.reasons,
+  }, eventMetadata);
+  if (eventId instanceof Error) return failure(input.documentId, eventId.message);
 
   return {
     ok: true,
     documentId: document.id,
     status,
     extract,
-    eventId: (eventRow as { id?: string } | null)?.id ?? null,
+    eventId,
     error: null,
   };
 }
@@ -165,54 +141,52 @@ function mapDocumentRow(row: OperationalDocumentRow) {
 async function markManualReview(input: {
   supabase: SupabaseClient;
   document: ReturnType<typeof mapDocumentRow>;
+  claimToken?: string;
   actorId?: string | null;
   actorType?: OperationalDocumentActorType;
   reason: string;
 }): Promise<LocalOcrProcessResult> {
-  const { error: updateError } = await input.supabase
-    .from("operational_documents")
-    .update({
-      status: "needs_manual_review",
-      validation_summary: {
-        source: "local_tesseract",
-        requiresManualReview: true,
-        reasons: [input.reason],
-      },
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.document.id);
-
-  if (updateError) return failure(input.document.id, updateError.message);
-
-  const event = buildOperationalDocumentEventInsert({
-    documentId: input.document.id,
-    profileId: input.document.profileId,
-    eventType: "manual_review_requested",
-    actorId: input.actorId,
-    actorType: input.actorType ?? "operations",
-    semesterYear: input.document.semesterYear,
-    semester: input.document.semester,
-    metadata: {
+  const eventId = await persistOcrResult(input, input.document, "manual_review_requested", {}, {
+    source: "local_tesseract",
+    requiresManualReview: true,
+    reasons: [input.reason],
+  }, {
       engine: "local_tesseract",
       reason: input.reason,
-    },
   });
-  const { data: eventRow, error: eventError } = await input.supabase
-    .from("operational_document_events")
-    .insert(event)
-    .select("id")
-    .maybeSingle();
-
-  if (eventError) return failure(input.document.id, eventError.message);
+  if (eventId instanceof Error) return failure(input.document.id, eventId.message);
 
   return {
     ok: true,
     documentId: input.document.id,
     status: "manual_review_requested",
     extract: null,
-    eventId: (eventRow as { id?: string } | null)?.id ?? null,
+    eventId,
     error: null,
   };
+}
+
+async function persistOcrResult(
+  input: { supabase: SupabaseClient; claimToken?: string; actorId?: string | null; actorType?: OperationalDocumentActorType },
+  document: ReturnType<typeof mapDocumentRow>,
+  status: LocalOcrProcessStatus,
+  extractedData: Record<string, unknown>,
+  validationSummary: Record<string, unknown>,
+  eventMetadata: Record<string, unknown>,
+): Promise<string | Error> {
+  const { data, error } = await input.supabase.rpc("intranet_persist_local_ocr_result", {
+    p_document_id: document.id,
+    p_claim_token: input.claimToken,
+    p_result_status: status,
+    p_extracted_data: extractedData,
+    p_validation_summary: validationSummary,
+    p_event_metadata: eventMetadata,
+    p_actor_id: input.actorId ?? null,
+    p_actor_type: input.actorType ?? "operations",
+  });
+  if (error) return new Error(error.message);
+  if (typeof data !== "string") return new Error("El OCR no devolvió un evento válido.");
+  return data;
 }
 
 function failure(documentId: string, error: string): LocalOcrProcessResult {
