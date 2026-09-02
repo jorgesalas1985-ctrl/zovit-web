@@ -136,33 +136,11 @@ export async function confirmPaymentReceived(
     p_external_reference: input.externalReference,
     // Escrow interno sigue siendo el monto del servicio (sin financiamiento MP).
     p_amount_gross: Number(paymentRow.amount_gross),
+    p_provider_processing_fee: input.mercadoPagoPayment?.provider_processing_fee ?? null,
   });
 
   if (error) {
     throw new PaymentConfirmationError(error.message);
-  }
-
-  const mpFee = Number(input.mercadoPagoPayment?.provider_processing_fee ?? 0);
-  if (mpFee > 0) {
-    await admin
-      .from("payments")
-      .update({
-        provider_processing_fee: mpFee,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", paymentRow.id);
-
-    await admin.from("payment_events").insert({
-      payment_id: paymentRow.id,
-      event_type: "provider_processing_fee",
-      old_status: "esperando_pago",
-      new_status: "pago_retenido",
-      amount: mpFee,
-      metadata: {
-        provider: input.provider,
-        note: "Comisión pasarela descontada de la comisión neta ZOVIT (no del profesional).",
-      },
-    });
   }
 
   return { alreadyProcessed: false, status: "pago_retenido" };
