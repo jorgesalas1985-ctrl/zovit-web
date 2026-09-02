@@ -31,7 +31,7 @@ function guessMime(path: string): string {
   return "image/jpeg";
 }
 
-export async function processWorkerAiReview(profileId: string): Promise<{
+export async function processWorkerAiReview(profileId: string, claimToken?: string): Promise<{
   decision: string;
   confidence: number;
   forgeryRisk: string;
@@ -58,13 +58,9 @@ export async function processWorkerAiReview(profileId: string): Promise<{
     };
   }
 
-  await admin
-    .from("worker_registrations")
-    .update({
-      ai_review_status: "processing",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("profile_id", profileId);
+  if (!claimToken) {
+    await admin.from("worker_registrations").update({ ai_review_status: "processing", updated_at: new Date().toISOString() }).eq("profile_id", profileId);
+  }
 
   const [{ data: profile }, { data: credentials }] = await Promise.all([
     admin
@@ -157,7 +153,12 @@ export async function processWorkerAiReview(profileId: string): Promise<{
     actorId,
     verdict,
     primaryProfile: primary,
+    claimToken,
   });
+  if (claimToken) {
+    const { error: claimError } = await admin.rpc("intranet_complete_worker_ai_review_claim", { p_profile_id: profileId, p_claim_token: claimToken });
+    if (claimError) throw claimError;
+  }
 
   return {
     decision: verdict.decision,
@@ -214,7 +215,9 @@ export async function processPendingWorkerAiReviews(
 
   for (const row of rows ?? []) {
     try {
-      const result = await processWorkerAiReview(row.profile_id);
+      const { data: claimToken, error: claimError } = await admin.rpc("intranet_claim_worker_ai_review", { p_profile_id: row.profile_id, p_include_dudosos: Boolean(options?.includeDudosos) });
+      if (claimError || !claimToken) continue;
+      const result = await processWorkerAiReview(row.profile_id, claimToken as string);
       if (result.decision === "approved") approved += 1;
       else if (result.decision === "rejected") rejected += 1;
       else dudosos += 1;

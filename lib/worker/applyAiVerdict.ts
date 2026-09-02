@@ -15,9 +15,16 @@ export async function applyAiVerdict(params: {
   actorId: string;
   verdict: AiWorkerVerdict;
   primaryProfile?: ServiceProfileType | null;
+  claimToken?: string;
 }) {
   const { supabase, profileId, actorId, verdict } = params;
   const now = new Date().toISOString();
+  if (params.claimToken) {
+    const { error } = await supabase.rpc("intranet_assert_worker_ai_review_claim", {
+      p_profile_id: profileId, p_claim_token: params.claimToken,
+    });
+    if (error) throw error;
+  }
 
   const status: WorkerRegistrationStatus =
     verdict.decision === "approved"
