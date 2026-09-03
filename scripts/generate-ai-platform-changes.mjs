@@ -6,8 +6,11 @@ import { dirname, resolve } from "node:path";
 const root = process.cwd();
 const output = resolve(root, "generated/zovit-platform-changes.json");
 
-function git(args) {
-  try { return execFileSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "ignore"] }).trim(); }
+function git(args, { trim = true } = {}) {
+  try {
+    const result = execFileSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
+    return trim ? result.trim() : result;
+  }
   catch { return ""; }
 }
 
@@ -22,7 +25,7 @@ function area(path) {
   return "Plataforma general";
 }
 
-const porcelain = git(["status", "--porcelain", "--untracked-files=all"]);
+const porcelain = git(["status", "--porcelain", "--untracked-files=all"], { trim: false });
 function walk(directory, prefix = "") {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const relative = `${prefix}${entry.name}`;
