@@ -143,7 +143,7 @@ export function IssuedCertificateDocument({
     }
   }
 
-  async function resend(channels: { email?: boolean; whatsapp?: boolean }) {
+  async function deliverEmail() {
     setBusyDeliver(true);
     setMessage("");
     const response = await fetch("/api/certificates/deliver", {
@@ -151,9 +151,8 @@ export function IssuedCertificateDocument({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         folio: certificate.folio,
-        email: channels.email === true,
-        whatsapp: channels.whatsapp === true,
-        toPhone: defaultPhone,
+        email: true,
+        idempotencyKey: crypto.randomUUID(),
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -162,15 +161,12 @@ export function IssuedCertificateDocument({
       setMessage(data.error ?? "No se pudo preparar el envío.");
       return;
     }
-    if (channels.whatsapp && data.deepLinks?.whatsapp) {
-      window.open(data.deepLinks.whatsapp, "_blank", "noopener,noreferrer");
-    }
-    if (channels.email) {
-      if (data.emailSent) {
-        setMessage("Correo enviado a tu bandeja.");
-      } else if (data.deepLinks?.mailto) {
-        window.location.href = data.deepLinks.mailto;
-      }
+    if (data.emailSent) {
+      setMessage("Correo enviado a tu bandeja.");
+    } else if (response.status === 202) {
+      setMessage("El envío sigue en curso. No vuelvas a intentarlo todavía.");
+    } else {
+      setMessage("No se pudo enviar el correo. Intenta nuevamente más tarde.");
     }
   }
 
@@ -277,7 +273,7 @@ export function IssuedCertificateDocument({
             type="button"
             className="secondaryButton"
             disabled={busyDeliver}
-            onClick={() => void resend({ email: true })}
+            onClick={() => void deliverEmail()}
           >
             <Mail size={18} /> Enviar correo
           </button>
@@ -285,7 +281,18 @@ export function IssuedCertificateDocument({
             type="button"
             className="secondaryButton"
             disabled={busyDeliver}
-            onClick={() => void resend({ whatsapp: true })}
+            onClick={() =>
+              window.open(
+                buildCertificateWhatsAppUrl({
+                  folio: certificate.folio,
+                  holderName: name,
+                  title: certificate.title,
+                  phone: defaultPhone,
+                }),
+                "_blank",
+                "noopener,noreferrer",
+              )
+            }
           >
             <MessageCircle size={18} /> WhatsApp
           </button>

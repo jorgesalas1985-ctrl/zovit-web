@@ -10,6 +10,7 @@ import { getCertificatePublicUrl } from "@/lib/certificates/url";
 export type CertificateDeliveryResult = {
   emailSent: boolean;
   emailReason?: string;
+  providerMessageId?: string;
   whatsappReady: boolean;
   notificationCreated: boolean;
   deepLinks: {
@@ -27,6 +28,8 @@ export async function deliverIssuedCertificate(params: {
   channels: CertificateDeliveryChannels;
   toEmail?: string | null;
   toPhone?: string | null;
+  idempotencyKey?: string;
+  createNotification?: boolean;
 }): Promise<CertificateDeliveryResult> {
   const admin = createAdminClient();
   const publicUrl = getCertificatePublicUrl(params.folio);
@@ -45,6 +48,7 @@ export async function deliverIssuedCertificate(params: {
 
   let emailSent = false;
   let emailReason: string | undefined;
+  let providerMessageId: string | undefined;
   let whatsappReady = false;
   let notificationCreated = false;
 
@@ -54,16 +58,18 @@ export async function deliverIssuedCertificate(params: {
       folio: params.folio,
       holderName: params.holderName,
       title: params.title,
+      idempotencyKey: params.idempotencyKey,
     });
     emailSent = result.sent;
     emailReason = result.reason;
+    providerMessageId = result.messageId;
   }
 
   if (params.channels.whatsapp) {
     whatsappReady = true;
   }
 
-  try {
+  if (params.createNotification !== false) try {
     const parts: string[] = [];
     if (params.channels.email) {
       parts.push(
@@ -95,6 +101,7 @@ export async function deliverIssuedCertificate(params: {
   return {
     emailSent,
     emailReason,
+    providerMessageId,
     whatsappReady,
     notificationCreated,
     deepLinks: { mailto, whatsapp, publicUrl },

@@ -104,7 +104,8 @@ export async function sendCertificateEmailViaResend(input: {
   folio: string;
   holderName: string;
   title: string;
-}): Promise<{ sent: boolean; reason?: string }> {
+  idempotencyKey?: string;
+}): Promise<{ sent: boolean; messageId?: string; reason?: string }> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
     return { sent: false, reason: "RESEND_API_KEY ausente" };
@@ -117,12 +118,21 @@ export async function sendCertificateEmailViaResend(input: {
   const url = getCertificatePublicUrl(input.folio);
   const validate = getCertificateValidateHubUrl();
 
-  const response = await fetch("https://api.resend.com/emails", {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  };
+  if (input.idempotencyKey) {
+    headers["Idempotency-Key"] = input.idempotencyKey;
+  }
+
+  // El override solo se usa para pruebas locales con un proveedor simulado.
+  // En producción, la URL de Resend permanece como valor predeterminado.
+  const resendBaseUrl =
+    process.env.RESEND_API_BASE_URL?.trim().replace(/\/$/, "") || "https://api.resend.com";
+  const response = await fetch(`${resendBaseUrl}/emails`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       from,
       to: [input.toEmail],
@@ -158,11 +168,14 @@ export async function sendCertificateEmailViaResend(input: {
   });
 
   if (!response.ok) {
-    const err = await response.text();
-    return { sent: false, reason: err.slice(0, 240) };
+    return { sent: false, reason: "Resend rechazó el envío." };
   }
 
-  return { sent: true };
+  const data = (await response.json().catch(() => null)) as { id?: unknown } | null;
+  return {
+    sent: true,
+    messageId: typeof data?.id === "string" ? data.id : undefined,
+  };
 }
 
 function escapeHtml(value: string): string {
